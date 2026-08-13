@@ -1,3 +1,20 @@
+# AI Bug Tracking & Prioritization System — Frontend UI/UX
+
+This directory contains the multi-page frontend UI for the **AI Bug Tracking & Prioritization System**. It provides a real-time, dark-themed interactive experience spanning a dedicated repository upload interface and an analytical security dashboard.
+
+---
+
+## 📁 Repository Structure
+
+```text
+BugTracker/
+├── backend/                      # FastAPI backend service (Python)
+└── frontend/                     # UI components & pages
+    ├── App.jsx                   # Main application component & routing
+    ├── BugTrackerDashboard.jsx   # Page 2: Interactive bug dashboard
+    ├── RepositoryUpload.jsx      # Page 1: Standalone upload & scan page
+    ├── index.html                # Standalone browser entry point
+    └── README.md                 # Frontend documentation
 🛠️ Tech Stack & Dependencies
 UI Framework: React 18
 
@@ -8,6 +25,16 @@ Icons: Lucide React / Lucide Web Icons
 State Management: React Hooks (useState, useEffect)
 
 🚀 Page Features & UI Components
+Page 1: Repository Upload Page (RepositoryUpload.jsx)
+Dedicated Entry Point: Standalone landing screen for starting a repository scan.
+
+Dual Upload Options: GitHub repository URL input field or drag-and-drop .ZIP archive box (up to 500MB).
+
+Scan Status Tracker: Simulated scanning progress bar and status checks before redirecting to the main dashboard.
+
+Recent Scans Access: Quick-selection list for previously scanned projects.
+
+Page 2: Bug Tracker Dashboard (BugTrackerDashboard.jsx)
 1. Header & Navigation Shell
 System Title & Branding: Displays the engine capabilities (AST, Static Analysis, NLP & Similarity Search).
 
@@ -18,7 +45,7 @@ Header Actions: Global search, unread notification counter (3), and user profile
 Sidebar Menu: Icon navigation for switching between Code Analysis, Bug Tracking, Analytics, Git Branches, and Settings.
 
 2. Repository Scanner & Engine
-Dual Input Modes: Analyze code via a public GitHub Repository link or drag-and-drop a .zip archive (up to 500MB).
+Dual Input Modes: Analyze code via a public GitHub Repository link or drag-and-drop a .ZIP archive (up to 500MB).
 
 Live Pipeline Tracker: Real-time progress bar (67% completion) with step-by-step indicators (Reading code, Detecting languages, Checking for problems, Preparing report).
 
