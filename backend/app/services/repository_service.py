@@ -1,203 +1,158 @@
-import os
+import asyncio
 import shutil
-import subprocess
 import tempfile
+import uuid
 import zipfile
 from pathlib import Path
 from urllib.parse import urlparse
 
+from app.utils.git import GitCloneError, clone_repository
 from app.services.s3_service import upload_file_to_s3
 
 
-def get_repository_name(github_url: str) -> str:
+class RepositoryCloneService:
 
-    parsed_url = urlparse(github_url)
-
-    if parsed_url.netloc.lower() not in {
-        "github.com",
-        "www.github.com"
-    }:
-        raise ValueError(
-            "Only GitHub repository URLs are supported."
+    def __init__(self) -> None:
+        self.workspace = Path("repositories")
+        self.workspace.mkdir(
+            parents=True,
+            exist_ok=True,
         )
 
-    repository_name = Path(
-        parsed_url.path.rstrip("/")
-    ).name
+    async def clone_repository(
+        self,
+        repository_url: str,
+    ) -> dict:
 
-    if repository_name.endswith(".git"):
-        repository_name = repository_name[:-4]
+        repository_id = str(uuid.uuid4())
 
-    if not repository_name:
-        raise ValueError(
-            "Invalid GitHub repository URL."
+        repository_name = self._get_repository_name(
+            repository_url
         )
 
-    return repository_name
-
-
-def create_zip(
-    source_directory: str,
-    output_zip: str
-):
-
-    source_path = Path(source_directory)
-
-    with zipfile.ZipFile(
-        output_zip,
-        "w",
-        zipfile.ZIP_DEFLATED
-    ) as zip_file:
-
-        for file in source_path.rglob("*"):
-
-            if file.is_file():
-
-                zip_file.write(
-                    file,
-                    file.relative_to(source_path)
-                )
-
-
-def clone_and_upload_repository(
-    github_url: str
-):
-
-    repository_name = get_repository_name(
-        github_url
-    )
-
-    temporary_directory = tempfile.mkdtemp(
-        prefix="bugtracker_"
-    )
-
-    try:
-
-        repository_directory = os.path.join(
-            temporary_directory,
-            repository_name
+        # Temporary directory
+        temporary_directory = Path(
+            tempfile.mkdtemp(
+                prefix="bugtracker_"
+            )
         )
 
-        # -----------------------------------------
-        # 1. Clone GitHub repository
-        # -----------------------------------------
-
-        result = subprocess.run(
-            [
-                "git",
-                "clone",
-                "--depth",
-                "1",
-                github_url,
-                repository_directory
-            ],
-            capture_output=True,
-            text=True
+        repository_path = (
+            temporary_directory / repository_name
         )
 
-        # -----------------------------------------
-        # 2. Handle Git clone failure
-        # -----------------------------------------
+        try:
 
-        if result.returncode != 0:
+            # -----------------------------------------
+            # 1. Clone GitHub repository
+            # -----------------------------------------
 
-            git_error = (
-                result.stderr.strip()
-                or result.stdout.strip()
+            await asyncio.to_thread(
+                clone_repository,
+                repository_url,
+                repository_path,
             )
 
-            git_error_lower = git_error.lower()
+            # -----------------------------------------
+            # 2. Create ZIP
+            # -----------------------------------------
 
-            # GitHub commonly returns "Repository not found"
-            # for private repositories when authentication
-            # is not provided.
-            if (
-                "repository not found" in git_error_lower
-                or "authentication failed" in git_error_lower
-                or "could not read username" in git_error_lower
-                or "permission denied" in git_error_lower
-            ):
-
-                raise RuntimeError(
-                    "Unable to access the GitHub repository. "
-                    "Please verify that the repository URL is correct "
-                    "and that you have permission to access it. "
-                    "Private repositories require authentication."
-                )
-
-            # Handle invalid/non-GitHub repository URLs
-            if (
-                "not a git repository" in git_error_lower
-                or "could not resolve host" in git_error_lower
-                or "unable to access" in git_error_lower
-            ):
-
-                raise RuntimeError(
-                    "Unable to access the GitHub repository. "
-                    "Please verify that the repository URL is correct "
-                    "and that the repository is publicly accessible."
-                )
-
-            # Fallback for any other Git error
-            raise RuntimeError(
-                "Unable to clone the GitHub repository. "
-                "Please verify the repository URL and your access permissions."
+            zip_path = (
+                temporary_directory
+                / f"{repository_name}.zip"
             )
 
-        # -----------------------------------------
-        # 3. Verify cloned repository exists
-        # -----------------------------------------
-
-        if not os.path.isdir(repository_directory):
-
-            raise RuntimeError(
-                "The GitHub repository could not be cloned."
+            self._create_zip(
+                repository_path,
+                zip_path,
             )
 
-        # -----------------------------------------
-        # 4. Create ZIP
-        # -----------------------------------------
+            # -----------------------------------------
+            # 3. Upload ZIP to S3
+            # -----------------------------------------
 
-        zip_path = os.path.join(
-            temporary_directory,
-            f"{repository_name}.zip"
+            s3_key = (
+                f"repositories/{repository_name}.zip"
+            )
+
+            await asyncio.to_thread(
+                upload_file_to_s3,
+                str(zip_path),
+                s3_key,
+            )
+
+            # -----------------------------------------
+            # 4. Return team's existing response format
+            # -----------------------------------------
+
+            return {
+                "repository_id": repository_id,
+                "repository_name": repository_name,
+                "repository_path": str(repository_path),
+            }
+
+        finally:
+
+            # -----------------------------------------
+            # 5. Delete temporary local repository
+            # -----------------------------------------
+
+            if temporary_directory.exists():
+                shutil.rmtree(
+                    temporary_directory,
+                    ignore_errors=True,
+                )
+
+    @staticmethod
+    def _get_repository_name(
+        repository_url: str,
+    ) -> str:
+
+        parsed_url = urlparse(
+            repository_url
         )
 
-        create_zip(
-            repository_directory,
-            zip_path
-        )
+        path = parsed_url.path.rstrip("/")
 
-        # -----------------------------------------
-        # 5. Upload ZIP to S3
-        # -----------------------------------------
+        if not path:
+            raise ValueError(
+                "Repository URL does not contain a repository name."
+            )
 
-        s3_key = (
-            f"repositories/{repository_name}.zip"
-        )
+        repository_name = path.split("/")[-1]
 
-        upload_result = upload_file_to_s3(
-            zip_path,
-            s3_key
-        )
+        if repository_name.endswith(".git"):
+            repository_name = repository_name[:-4]
 
-        # -----------------------------------------
-        # 6. Return successful result
-        # -----------------------------------------
+        if not repository_name:
+            raise ValueError(
+                "Invalid repository name."
+            )
 
-        return {
-            "repository": repository_name,
-            "s3_key": upload_result["key"],
-            "bucket": upload_result["bucket"]
-        }
+        return repository_name
 
-    finally:
+    @staticmethod
+    def _create_zip(
+        source_directory: Path,
+        output_zip: Path,
+    ) -> None:
 
-        # -----------------------------------------
-        # 7. Delete temporary files
-        # -----------------------------------------
+        with zipfile.ZipFile(
+            output_zip,
+            "w",
+            zipfile.ZIP_DEFLATED,
+        ) as zip_file:
 
-        shutil.rmtree(
-            temporary_directory,
-            ignore_errors=True
-        )
+            for file_path in source_directory.rglob("*"):
+
+                if file_path.is_file():
+
+                    zip_file.write(
+                        file_path,
+                        file_path.relative_to(
+                            source_directory
+                        ),
+                    )
+
+
+repository_service = RepositoryCloneService()
