@@ -2,9 +2,10 @@ from pathlib import Path
 
 
 LANGUAGE_EXTENSIONS = {
-    ".py": "Python",
+    ".py":   "Python",
     ".java": "Java",
-    ".js": "JavaScript",
+    ".js":   "JavaScript",
+    ".jsx":  "JavaScript",
 }
 
 

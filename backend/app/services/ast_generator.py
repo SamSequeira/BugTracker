@@ -1,0 +1,173 @@
+"""
+AST Generator Service - Generates Abstract Syntax Trees for supported languages.
+"""
+
+from pathlib import Path
+from typing import Dict, Optional, Any
+from tree_sitter import Language, Parser
+import tree_sitter_python as tspython
+import tree_sitter_javascript as tsjavascript
+import tree_sitter_java as tsjava
+
+
+class ASTGenerationError(Exception):
+    """Raised when AST generation fails."""
+
+
+class ASTGenerator:
+    """Generates AST for Python, JavaScript, and Java code."""
+
+    SUPPORTED_LANGUAGES = {
+        "Python": [".py"],
+        "JavaScript": [".js", ".jsx"],
+        "Java": [".java"],
+    }
+
+    def __init__(self):
+        """Initialize the AST generator with tree-sitter parsers."""
+        self._parsers = {}
+        self._init_parsers()
+
+    def _init_parsers(self) -> None:
+        """Initialize tree-sitter parsers for all supported languages."""
+        try:
+            # Python parser
+            py_language = Language(tspython.language(), "python")
+            py_parser = Parser()
+            py_parser.set_language(py_language)
+            self._parsers["Python"] = py_parser
+
+            # JavaScript parser
+            js_language = Language(tsjavascript.language(), "javascript")
+            js_parser = Parser()
+            js_parser.set_language(js_language)
+            self._parsers["JavaScript"] = js_parser
+
+            # Java parser
+            java_language = Language(tsjava.language(), "java")
+            java_parser = Parser()
+            java_parser.set_language(java_language)
+            self._parsers["Java"] = java_parser
+        except Exception as e:
+            raise ASTGenerationError(f"Failed to initialize parsers: {str(e)}") from e
+
+    def detect_language(self, filename: str) -> Optional[str]:
+        """Detect language from file extension."""
+        extension = Path(filename).suffix.lower()
+        for language, extensions in self.SUPPORTED_LANGUAGES.items():
+            if extension in extensions:
+                return language
+        return None
+
+    def _normalize_node(self, node, source_code: bytes) -> Dict[str, Any]:
+        """Convert tree-sitter node to normalized schema."""
+        try:
+            text = source_code[node.start_byte:node.end_byte].decode('utf-8', errors='replace')
+        except (UnicodeDecodeError, IndexError):
+            text = ""
+
+        return {
+            "type": node.type,
+            "start": {
+                "line": node.start_point[0],
+                "column": node.start_point[1],
+                "byte": node.start_byte,
+            },
+            "end": {
+                "line": node.end_point[0],
+                "column": node.end_point[1],
+                "byte": node.end_byte,
+            },
+            "text": text,
+            "children": [self._normalize_node(child, source_code) for child in node.children],
+        }
+
+    def generate_ast(self, file_path: str, language: str) -> Dict[str, Any]:
+        """
+        Generate AST for a code file.
+        
+        Args:
+            file_path: Path to the code file
+            language: Programming language (Python, JavaScript, Java)
+            
+        Returns:
+            Dict with AST data and metadata
+        """
+        if language not in self._parsers:
+            raise ASTGenerationError(f"Language '{language}' is not supported")
+
+        try:
+            file_path = Path(file_path)
+            if not file_path.exists():
+                raise ASTGenerationError(f"File not found: {file_path}")
+
+            # Read source file
+            with open(file_path, 'rb') as f:
+                source_code = f.read()
+
+            # Parse the code
+            parser = self._parsers[language]
+            tree = parser.parse(source_code)
+
+            # Normalize and convert to AST
+            ast_json = self._normalize_node(tree.root_node, source_code)
+
+            return {
+                "success": True,
+                "file": str(file_path),
+                "language": language,
+                "ast": ast_json,
+            }
+        except (FileNotFoundError, OSError, ValueError) as e:
+            return {
+                "success": False,
+                "file": str(file_path),
+                "language": language,
+                "error": str(e),
+            }
+
+    def generate_ast_for_repository(self, repo_path: str) -> Dict[str, Any]:
+        """
+        Scan a repository and generate ASTs for all supported code files.
+        
+        Args:
+            repo_path: Path to the repository
+            
+        Returns:
+            Dict with analysis results for all files
+        """
+        repo_path = Path(repo_path)
+        if not repo_path.exists():
+            raise ASTGenerationError(f"Repository path not found: {repo_path}")
+
+        results = {
+            "repository_path": str(repo_path),
+            "files_analyzed": [],
+            "languages_detected": {},
+            "total_files": 0,
+            "supported_files": 0,
+        }
+
+        # Scan for code files
+        for file_path in repo_path.rglob("*"):
+            if file_path.is_file():
+                results["total_files"] += 1
+                language = self.detect_language(file_path.name)
+
+                if language:
+                    results["supported_files"] += 1
+
+                    # Update language count
+                    if language not in results["languages_detected"]:
+                        results["languages_detected"][language] = 0
+                    results["languages_detected"][language] += 1
+
+                    # Generate AST
+                    ast_result = self.generate_ast(str(file_path), language)
+                    results["files_analyzed"].append(ast_result)
+
+        return results
+
+
+# Global instance
+ast_generator = ASTGenerator()

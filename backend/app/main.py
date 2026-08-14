@@ -1,14 +1,23 @@
 from fastapi import FastAPI, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
 
 from .services.language_detector import detect_language
 from .services.preprocessor import preprocess_code
-from fastapi import FastAPI
 
 from app.api.v1.repositories import router as repositories_router
 
 app = FastAPI(
     title="AI Bug Tracking System",
     version="1.0.0"
+)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://localhost:8000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(
