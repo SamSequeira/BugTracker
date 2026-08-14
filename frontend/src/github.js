@@ -144,36 +144,43 @@ export async function fetchGitHubRepo(repoUrl) {
         );
     }
 
-    // 2. Fetch file tree (recursive)
+    // 2. Fetch file tree (recursive, best-effort)
     const branch = repoData.default_branch || "main";
-    const treeRes = await fetch(
-        `${GITHUB_API}/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`,
-        { headers }
-    );
-
     let treeData = { tree: [] };
-    if (treeRes.ok) {
-        treeData = await treeRes.json();
-    }
+    try {
+        const treeRes = await fetch(
+            `${GITHUB_API}/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`,
+            { headers }
+        );
+        if (treeRes.ok) {
+            const parsed = await treeRes.json();
+            treeData = { tree: Array.isArray(parsed.tree) ? parsed.tree : [], truncated: parsed.truncated };
+        }
+    } catch (_) { /* fall through with empty tree */ }
 
-    // 3. Fetch language breakdown
-    const langRes = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/languages`, { headers });
+    // 3. Fetch language breakdown (best-effort)
     let languages = {};
-    if (langRes.ok) {
-        languages = await langRes.json();
-    }
+    try {
+        const langRes = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/languages`, { headers });
+        if (langRes.ok) {
+            languages = await langRes.json();
+        }
+    } catch (_) { /* non-critical */ }
 
-    // 4. Fetch contributors count (best-effort)
-    const contribRes = await fetch(
-        `${GITHUB_API}/repos/${owner}/${repo}/contributors?per_page=1&anon=true`,
-        { headers }
-    );
+    // 4. Fetch contributors count (best-effort — may return 202 for large repos)
     let contributorCount = 0;
-    if (contribRes.ok) {
-        const linkHeader = contribRes.headers.get("Link") || "";
-        const lastMatch = linkHeader.match(/page=(\d+)>; rel="last"/);
-        contributorCount = lastMatch ? parseInt(lastMatch[1], 10) : 1;
-    }
+    try {
+        const contribRes = await fetch(
+            `${GITHUB_API}/repos/${owner}/${repo}/contributors?per_page=1&anon=true`,
+            { headers }
+        );
+        // 202 = GitHub is computing async, skip gracefully
+        if (contribRes.ok && contribRes.status !== 202) {
+            const linkHeader = contribRes.headers.get("Link") || "";
+            const lastMatch = linkHeader.match(/page=(\d+)>; rel="last"/);
+            contributorCount = lastMatch ? parseInt(lastMatch[1], 10) : 1;
+        }
+    } catch (_) { /* non-critical */ }
 
     // 5. Shape files into fileSummaries for the AI tab
     const sourceFiles = treeData.tree
