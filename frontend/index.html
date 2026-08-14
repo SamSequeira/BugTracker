@@ -4,35 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AI Bug Tracking & Prioritization System</title>
-  <!-- Tailwind CSS -->
+  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- React & Babel for Standalone Browser Execution -->
+  <!-- React & Babel CDNs -->
   <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <!-- Lucide Icons -->
+  <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <style>
-    body {
-      background-color: #0B0F17;
-      color: #CBD5E1;
-      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    }
-    /* Custom scrollbars */
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-    ::-webkit-scrollbar-track {
-      background: #0B0F17;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #1E293B;
-      border-radius: 4px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: #334155;
-    }
+    body { background-color: #0B0F17; color: #CBD5E1; font-family: ui-sans-serif, system-ui, sans-serif; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0B0F17; }
+    ::-webkit-scrollbar-thumb { background: #1E293B; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #334155; }
   </style>
 </head>
 <body class="min-h-screen">
@@ -41,663 +26,697 @@
   <script type="text/babel">
     const { useState, useEffect } = React;
 
-    function BugTrackerDashboard() {
-      const [activeTab, setActiveTab] = useState("github");
+    function BugTrackerApp() {
+      // 4 TABS: 'dashboard' | 'ai-analysis' | 'debugging' | 'report'
+      const [activeTab, setActiveTab] = useState("dashboard");
+      const [dashboardView, setDashboardView] = useState("scanner"); // 'scanner' | 'overview'
+      const [searchQuery, setSearchQuery] = useState("");
       const [selectedSeverity, setSelectedSeverity] = useState("All");
       const [expandedBug, setExpandedBug] = useState("BUG-2026-0091");
 
-      useEffect(() => {
-        if (window.lucide) {
-          window.lucide.createIcons();
-        }
-      }, [expandedBug, activeTab, selectedSeverity]);
-
-      const bugList = [
+      // State for bugs (syncs across Debugging and Report tabs)
+      const [bugs, setBugs] = useState([
         {
           id: "BUG-2026-0091",
+          file: "src/db/queryBuilder.py",
+          line: 118,
           title: "SQL Injection vulnerability in user query builder",
           severity: "Critical",
           priority: "P1 • Fix now",
-          file: "src/db/queryBuilder.py:118",
           status: "Open",
-          similar: "3 similar"
+          similar: "3 similar",
+          wrong: "User input is being inserted directly into a database query without sanitization. This lets an attacker run their own database commands.",
+          matter: "An attacker could read, change, or delete sensitive records in your database.",
+          codeSnippet: [
+            { num: 114, code: "def getUserData(userId):", err: false },
+            { num: 115, code: "    conn = getConnectbile()", err: false },
+            { num: 116, code: "    cursor = conn.cursor()", err: false },
+            { num: 117, code: '    query = "SELECT * FROM users WHERE id = " + userId', err: true },
+            { num: 118, code: "    results = cursor.fetchall()", err: true },
+            { num: 119, code: "    conn.close()", err: false },
+            { num: 120, code: "    return results", err: false }
+          ],
+          fixDiff: {
+            remove: '- query = "SELECT * FROM users WHERE id = " + userId',
+            add1: '+ query = "SELECT * FROM users WHERE id = %s"',
+            add2: '+ cursor.execute(query, (userId,))'
+          }
         },
         {
           id: "BUG-2026-0087",
+          file: "scripts/deploy.sh",
+          line: 42,
           title: "Hardcoded AWS credentials in deployment script",
           severity: "Critical",
           priority: "P1 • Fix now",
-          file: "scripts/deploy.sh:42",
           status: "In Review",
-          similar: "2 similar"
+          similar: "2 similar",
+          wrong: "Plaintext AWS Secret Access Keys detected inside a version-controlled deployment script.",
+          matter: "Public repository exposure could lead to immediate unauthorized cloud infrastructure takeovers.",
+          codeSnippet: [
+            { num: 40, code: "# Setup AWS environment credentials", err: false },
+            { num: 41, code: 'export AWS_ACCESS_KEY_ID="AKIAIOSFODNN7EXAMPLE"', err: true },
+            { num: 42, code: 'export AWS_SECRET_ACCESS_KEY="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"', err: true },
+            { num: 43, code: "aws s3 sync ./build s3://production-app-bucket", err: false }
+          ],
+          fixDiff: {
+            remove: '- export AWS_SECRET_ACCESS_KEY="wJalrXUtnFEMI/K7MDENG..."',
+            add1: '+ export AWS_SECRET_ACCESS_KEY="${ENV_AWS_SECRET}"',
+            add2: '+ # Injected securely via CI/CD secrets manager'
+          }
         },
         {
           id: "BUG-2026-0076",
+          file: "src/cart/checkout.py",
+          line: 97,
           title: "Null pointer dereference on empty cart checkout",
           severity: "High",
           priority: "P2 • Fix this week",
-          file: "src/cart/checkout.py:97",
           status: "Open",
-          similar: "5 similar"
+          similar: "5 similar",
+          wrong: "The checkout service processes cart items without verifying if the items collection is initialized.",
+          matter: "Triggers unhandled 500 server crashes when users trigger simultaneous duplicate checkout requests.",
+          codeSnippet: [
+            { num: 95, code: "def process_order(cart):", err: false },
+            { num: 96, code: "    items = cart.get_items()", err: false },
+            { num: 97, code: "    total = sum([item.price for item in items])", err: true },
+            { num: 98, code: "    return charge_card(cart.user, total)", err: false }
+          ],
+          fixDiff: {
+            remove: "- total = sum([item.price for item in items])",
+            add1: "+ if not items: raise EmptyCartException('No items in cart')",
+            add2: "+ total = sum([item.price for item in items])"
+          }
         },
         {
           id: "BUG-2026-0063",
+          file: "src/ws/handler.py",
+          line: 214,
           title: "Memory leak in websocket connection handler",
           severity: "High",
           priority: "P2 • Fix this week",
-          file: "src/ws/handler.py:214",
           status: "Open",
-          similar: "1 similar"
+          similar: "1 similar",
+          wrong: "Closed websocket client sessions are not removed from the active global listeners map.",
+          matter: "Causes progressive memory bloat leading to out-of-memory container termination under load.",
+          codeSnippet: [
+            { num: 212, code: "async def on_disconnect(websocket):", err: false },
+            { num: 213, code: "    await websocket.close()", err: false },
+            { num: 214, code: "    # Missing: active_connections.remove(websocket)", err: true }
+          ],
+          fixDiff: {
+            remove: "- # Missing connection cleanup",
+            add1: "+ active_connections.discard(websocket)",
+            add2: "+ logger.info(f'Session disconnected cleanly: {websocket.id}')"
+          }
         },
         {
           id: "BUG-2026-0059",
+          file: "src/utils/csvParser.py",
+          line: 66,
           title: "Unhandled exception when parsing malformed CSV upload",
           severity: "Medium",
           priority: "P3 • Backlog",
-          file: "src/utils/csvParser.py:66",
           status: "In Review",
-          similar: "2 similar"
+          similar: "2 similar",
+          wrong: "Non-UTF8 byte sequences in user-uploaded files raise unhandled UnicodeDecodeErrors.",
+          matter: "Causes file ingestion worker jobs to hang without logging descriptive diagnostics.",
+          codeSnippet: [
+            { num: 64, code: "def parse_csv(file_stream):", err: false },
+            { num: 65, code: "    reader = csv.reader(file_stream.read().decode('utf-8'))", err: true },
+            { num: 66, code: "    return [row for row in reader]", err: false }
+          ],
+          fixDiff: {
+            remove: "- reader = csv.reader(file_stream.read().decode('utf-8'))",
+            add1: "+ content = file_stream.read().decode('utf-8', errors='replace')",
+            add2: "+ reader = csv.reader(content.splitlines())"
+          }
+        }
+      ]);
+
+      const fileSummaries = [
+        {
+          filename: "src/db/queryBuilder.py",
+          language: "Python",
+          lines: 240,
+          role: "Database abstraction layer and dynamic SQL query generator.",
+          intent: "Constructs parameterized SQL queries for user authentication and records retrieval.",
+          dependencies: ["psycopg2", "sqlalchemy.engine"],
+          status: "Security Risks Found",
+          statusColor: "text-red-400 border-red-500/30 bg-red-500/10"
+        },
+        {
+          filename: "scripts/deploy.sh",
+          language: "Bash / Shell",
+          lines: 85,
+          role: "Continuous deployment and AWS S3/CloudFront build pipeline sync.",
+          intent: "Automates packaging and deploying static frontend bundles to cloud infrastructure.",
+          dependencies: ["aws-cli", "docker"],
+          status: "Credential Leak",
+          statusColor: "text-red-400 border-red-500/30 bg-red-500/10"
+        },
+        {
+          filename: "src/cart/checkout.py",
+          language: "Python",
+          lines: 312,
+          role: "Shopping cart lifecycle and payment gateway processing controller.",
+          intent: "Calculates cart item subtotals, tax rates, and coordinates checkout billing API calls.",
+          dependencies: ["stripe", "decimal", "pydantic"],
+          status: "Null Safety Issue",
+          statusColor: "text-amber-400 border-amber-500/30 bg-amber-500/10"
+        },
+        {
+          filename: "src/ws/handler.py",
+          language: "Python",
+          lines: 430,
+          role: "Real-time bidirectional WebSocket event broadcaster and socket pool.",
+          intent: "Maintains live client notification connections and broadcasts order status telemetry.",
+          dependencies: ["websockets", "asyncio"],
+          status: "Memory Leak",
+          statusColor: "text-amber-400 border-amber-500/30 bg-amber-500/10"
+        },
+        {
+          filename: "src/utils/csvParser.py",
+          language: "Python",
+          lines: 118,
+          role: "Batch inventory CSV upload sanitization and file parser.",
+          intent: "Parses catalog spreadsheets uploaded by vendors and maps columns to database models.",
+          dependencies: ["csv", "io", "chardet"],
+          status: "Needs Error Handling",
+          statusColor: "text-yellow-400 border-yellow-500/30 bg-yellow-500/10"
+        },
+        {
+          filename: "src/auth/jwtManager.py",
+          language: "Python",
+          lines: 195,
+          role: "Cryptographic token issuing and RS256 signature verification.",
+          intent: "Signs authorization claims and validates bearer tokens on incoming HTTP requests.",
+          dependencies: ["pyjwt", "cryptography"],
+          status: "Clean",
+          statusColor: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10"
         }
       ];
 
-      const scrollToTop = () => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+      useEffect(() => {
+        if (window.lucide) window.lucide.createIcons();
+      }, [activeTab, dashboardView, expandedBug, bugs, selectedSeverity]);
+
+      const toggleResolveBug = (bugId) => {
+        setBugs((prev) =>
+          prev.map((b) =>
+            b.id === bugId
+              ? { ...b, status: b.status === "Resolved" ? "Open" : "Resolved" }
+              : b
+          )
+        );
       };
+
+      const bugsByFile = bugs.reduce((acc, bug) => {
+        if (!acc[bug.file]) acc[bug.file] = [];
+        acc[bug.file].push(bug);
+        return acc;
+      }, {});
 
       return (
         <div className="min-h-screen flex text-xs sm:text-sm">
-          {/* Left Sidebar */}
-          <aside className="w-14 bg-[#0F1623] border-r border-slate-800 flex flex-col items-center py-4 space-y-6 shrink-0 sticky top-0 h-screen">
-            <div className="p-2 bg-cyan-500/10 rounded-lg text-cyan-400">
+          {/* 4-TAB LEFT SIDEBAR */}
+          <aside className="w-16 bg-[#0F1623] border-r border-slate-800 flex flex-col items-center py-5 space-y-6 shrink-0 sticky top-0 h-screen z-30">
+            <div className="p-2.5 bg-cyan-500/10 rounded-xl text-cyan-400 border border-cyan-500/20">
               <i data-lucide="shield-alert" className="w-6 h-6"></i>
             </div>
-            <button className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800">
-              <i data-lucide="chevron-right" className="w-5 h-5"></i>
-            </button>
-            <nav className="flex flex-col space-y-4 w-full items-center pt-4">
-              <button className="p-2 text-cyan-400 bg-cyan-500/10 border-l-2 border-cyan-400 w-full flex justify-center">
-                <i data-lucide="code-2" className="w-5 h-5"></i>
+
+            <nav className="flex flex-col space-y-3 w-full items-center pt-2">
+              {/* TAB 1: DASHBOARD */}
+              <button
+                onClick={() => setActiveTab("dashboard")}
+                title="Tab 1: Dashboard"
+                className={`p-3 rounded-xl transition-all flex items-center justify-center ${
+                  activeTab === "dashboard"
+                    ? "bg-cyan-500/15 text-cyan-400 border-l-2 border-cyan-400 rounded-l-none"
+                    : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+                }`}
+              >
+                <i data-lucide="layout-dashboard" className="w-5 h-5"></i>
               </button>
-              <button className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800">
+
+              {/* TAB 2: AI CODEBASE ANALYSIS */}
+              <button
+                onClick={() => setActiveTab("ai-analysis")}
+                title="Tab 2: AI Codebase Analysis"
+                className={`p-3 rounded-xl transition-all flex items-center justify-center ${
+                  activeTab === "ai-analysis"
+                    ? "bg-cyan-500/15 text-cyan-400 border-l-2 border-cyan-400 rounded-l-none"
+                    : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+                }`}
+              >
+                <i data-lucide="sparkles" className="w-5 h-5"></i>
+              </button>
+
+              {/* TAB 3: DEBUGGING */}
+              <button
+                onClick={() => setActiveTab("debugging")}
+                title="Tab 3: Debugging (By File & Line)"
+                className={`p-3 rounded-xl transition-all flex items-center justify-center ${
+                  activeTab === "debugging"
+                    ? "bg-cyan-500/15 text-cyan-400 border-l-2 border-cyan-400 rounded-l-none"
+                    : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+                }`}
+              >
                 <i data-lucide="bug" className="w-5 h-5"></i>
               </button>
-              <button className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800">
-                <i data-lucide="bar-chart-3" className="w-5 h-5"></i>
-              </button>
-              <button className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800">
-                <i data-lucide="git-branch" className="w-5 h-5"></i>
+
+              {/* TAB 4: REPORT */}
+              <button
+                onClick={() => setActiveTab("report")}
+                title="Tab 4: Executive Report & Download"
+                className={`p-3 rounded-xl transition-all flex items-center justify-center ${
+                  activeTab === "report"
+                    ? "bg-cyan-500/15 text-cyan-400 border-l-2 border-cyan-400 rounded-l-none"
+                    : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+                }`}
+              >
+                <i data-lucide="file-text" className="w-5 h-5"></i>
               </button>
             </nav>
-            <div className="mt-auto flex flex-col space-y-4 pt-6">
-              <button className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800">
-                <i data-lucide="settings" className="w-5 h-5"></i>
-              </button>
-              <button className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800">
-                <i data-lucide="help-circle" className="w-5 h-5"></i>
-              </button>
+
+            <div className="mt-auto flex flex-col space-y-3 pt-4">
+              <div className="w-8 h-8 rounded-full bg-cyan-900/60 border border-cyan-500/40 text-cyan-200 flex items-center justify-center font-bold text-xs">
+                AD
+              </div>
             </div>
           </aside>
 
-          {/* Main Content Area */}
+          {/* MAIN CONTENT AREA */}
           <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-            {/* Top Navbar */}
+            {/* Top Header */}
             <header className="h-14 bg-[#0F1623] border-b border-slate-800 px-6 flex items-center justify-between sticky top-0 z-20">
               <div className="flex items-center space-x-3">
                 <h1 className="font-semibold text-white text-base">
                   AI Bug Tracking & Prioritization System
                 </h1>
-                <span className="text-xs text-slate-400 hidden lg:inline">
+                <span className="text-[11px] text-slate-400 hidden xl:inline">
                   Smart Repository Analysis using AST, Static Analysis, NLP & Similarity Search
                 </span>
               </div>
               <div className="flex items-center space-x-4">
-                <span className="bg-red-500/20 text-red-400 border border-red-500/30 px-2.5 py-1 rounded-full text-xs flex items-center gap-1.5 font-medium">
+                <span className="bg-red-500/15 text-red-400 border border-red-500/30 px-2.5 py-1 rounded-full text-xs flex items-center gap-1.5 font-medium">
                   <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
                   8 critical issues
                 </span>
-                <i data-lucide="search" className="w-4 h-4 text-slate-400 cursor-pointer hover:text-white"></i>
+                <i data-lucide="search" className="w-4 h-4 text-slate-400 hover:text-white cursor-pointer"></i>
                 <div className="relative cursor-pointer">
                   <i data-lucide="bell" className="w-4 h-4 text-slate-400 hover:text-white"></i>
                   <span className="absolute -top-1.5 -right-1.5 bg-cyan-500 text-black font-bold text-[10px] w-3.5 h-3.5 rounded-full flex items-center justify-center">
                     3
                   </span>
                 </div>
-                <div className="w-7 h-7 rounded-full bg-cyan-800 text-cyan-200 flex items-center justify-center font-semibold text-xs border border-cyan-600">
-                  AD
-                </div>
-                <i data-lucide="menu" className="w-5 h-5 text-slate-400 cursor-pointer hover:text-white sm:hidden"></i>
               </div>
             </header>
 
             <main className="p-6 space-y-6 max-w-[1400px] mx-auto w-full">
-              {/* Section 1: Scan Repository */}
-              <div className="bg-[#131B2E] border border-slate-800 rounded-xl p-6">
-                <h2 className="text-xl font-semibold text-white">Scan your repository in seconds</h2>
-                <p className="text-slate-400 text-xs mt-1 mb-4">
-                  Paste a link or upload your code. We'll do the rest.
-                </p>
 
-                {/* Input Box / Drag-Drop Block */}
-                <div className="bg-[#0B0F17] border border-slate-800 rounded-lg p-4 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-                  <div className="lg:col-span-6 space-y-4">
-                    <div className="flex space-x-4 border-b border-slate-800 pb-2">
+              {/* ========================================== */}
+              {/* TAB 1: DASHBOARD VIEW                     */}
+              {/* ========================================== */}
+              {activeTab === "dashboard" && (
+                <div className="space-y-6">
+                  {/* Toggle Sub-View */}
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div className="flex space-x-2 bg-[#0F1623] p-1 rounded-lg border border-slate-800">
                       <button
-                        onClick={() => setActiveTab("github")}
-                        className={`text-xs font-medium pb-2 border-b-2 transition-colors flex items-center gap-1.5 ${
-                          activeTab === "github"
-                            ? "border-cyan-400 text-cyan-400"
-                            : "border-transparent text-slate-400 hover:text-white"
+                        onClick={() => setDashboardView("scanner")}
+                        className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                          dashboardView === "scanner"
+                            ? "bg-cyan-500 text-slate-950 font-semibold shadow"
+                            : "text-slate-400 hover:text-white"
                         }`}
                       >
-                        <i data-lucide="github" className="w-4 h-4"></i> GitHub Repository
+                        1. Repository Scanner
                       </button>
                       <button
-                        onClick={() => setActiveTab("zip")}
-                        className={`text-xs font-medium pb-2 border-b-2 transition-colors flex items-center gap-1.5 ${
-                          activeTab === "zip"
-                            ? "border-cyan-400 text-cyan-400"
-                            : "border-transparent text-slate-400 hover:text-white"
+                        onClick={() => setDashboardView("overview")}
+                        className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                          dashboardView === "overview"
+                            ? "bg-cyan-500 text-slate-950 font-semibold shadow"
+                            : "text-slate-400 hover:text-white"
                         }`}
                       >
-                        <i data-lucide="file-archive" className="w-4 h-4"></i> Upload .zip File
+                        2. Security & KPI Overview
                       </button>
                     </div>
-
-                    <div>
-                      <label className="text-xs text-slate-400 block mb-1">
-                        Paste your GitHub repository link
-                      </label>
-                      <input
-                        type="text"
-                        defaultValue="https://github.com/your-org/your-repo"
-                        className="w-full bg-[#131B2E] border border-slate-700 rounded-md px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
-                      />
-                      <button className="w-full mt-3 bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-semibold py-2 rounded-md transition-colors flex items-center justify-center gap-2 text-xs">
-                        Analyze Repository &rarr;
-                      </button>
-                    </div>
-                    <p className="text-[11px] text-slate-500 flex items-center gap-1">
-                      <i data-lucide="info" className="w-3.5 h-3.5"></i> We only read public code. No changes are made.
-                    </p>
                   </div>
 
-                  <div className="hidden lg:flex lg:col-span-1 items-center justify-center">
-                    <span className="text-xs text-slate-500 font-semibold bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-full">
-                      OR
-                    </span>
-                  </div>
+                  {dashboardView === "scanner" ? (
+                    <div className="space-y-6">
+                      <div className="bg-[#131B2E] border border-slate-800 rounded-xl p-6 shadow-xl">
+                        <h2 className="text-xl font-semibold text-white">Scan your repository in seconds</h2>
+                        <p className="text-slate-400 text-xs mt-1 mb-4">Paste a link or upload your code. We'll do the rest.</p>
 
-                  <div className="lg:col-span-5 border-2 border-dashed border-slate-800 rounded-lg p-6 flex flex-col items-center justify-center text-center bg-[#0F1623]/50 hover:border-slate-700 transition-colors cursor-pointer">
-                    <i data-lucide="sliders" className="w-8 h-8 text-slate-400 mb-2"></i>
-                    <p className="text-xs text-slate-300 font-medium">Drag and drop your .zip file here</p>
-                    <span className="text-slate-500 text-[10px] my-1">or</span>
-                    <button className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs px-3 py-1.5 rounded-md font-medium">
-                      Choose ZIP File
-                    </button>
-                    <span className="text-[10px] text-slate-500 mt-2">Max file size: 500MB</span>
-                  </div>
-                </div>
+                        <div className="bg-[#0B0F17] border border-slate-800 rounded-lg p-5 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+                          <div className="lg:col-span-6 space-y-4">
+                            <div className="flex space-x-4 border-b border-slate-800 pb-2">
+                              <button className="text-xs font-medium pb-2 border-b-2 border-cyan-400 text-cyan-400 flex items-center gap-1.5">
+                                <i data-lucide="github" className="w-4 h-4"></i> GitHub Repository
+                              </button>
+                              <button className="text-xs font-medium pb-2 border-b-2 border-transparent text-slate-400 flex items-center gap-1.5">
+                                <i data-lucide="file-archive" className="w-4 h-4"></i> Upload .zip File
+                              </button>
+                            </div>
 
-                {/* Scanning Progress */}
-                <div className="mt-6 border-t border-slate-800/80 pt-6 grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
-                  <div className="md:col-span-5 flex items-center space-x-4">
-                    <div className="w-12 h-12 rounded-full border-2 border-cyan-500/30 border-t-cyan-400 animate-spin flex items-center justify-center shrink-0">
-                      <i data-lucide="search" className="w-5 h-5 text-cyan-400"></i>
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-white">Scanning your codebase...</p>
-                      <ul className="text-xs space-y-1 text-slate-400 mt-1">
-                        <li className="flex items-center gap-1.5 text-emerald-400">
-                          <i data-lucide="check-circle-2" className="w-3.5 h-3.5"></i> Reading your code...
-                        </li>
-                        <li className="flex items-center gap-1.5 text-emerald-400">
-                          <i data-lucide="check-circle-2" className="w-3.5 h-3.5"></i> Detecting languages...
-                        </li>
-                        <li className="flex items-center gap-1.5 text-cyan-400">
-                          <i data-lucide="clock" className="w-3.5 h-3.5 animate-pulse"></i> Checking for problems...
-                        </li>
-                        <li className="flex items-center gap-1.5 text-slate-500">
-                          <span className="w-3.5 h-3.5 rounded-full border border-slate-600 inline-block"></span> Preparing report...
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
+                            <div>
+                              <label className="text-xs text-slate-400 block mb-1">Paste your GitHub repository link</label>
+                              <input
+                                type="text"
+                                defaultValue="https://github.com/your-org/your-repo"
+                                className="w-full bg-[#131B2E] border border-slate-700 rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono"
+                              />
+                              <button
+                                onClick={() => setDashboardView("overview")}
+                                className="w-full mt-3 bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-semibold py-2 rounded-md text-xs"
+                              >
+                                Analyze Repository &rarr;
+                              </button>
+                            </div>
+                          </div>
 
-                  <div className="md:col-span-7 space-y-2">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-slate-300 font-medium">Analyzing 1,842 files</span>
-                      <span className="text-cyan-400 font-semibold">67%</span>
-                    </div>
-                    <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                      <div className="bg-cyan-400 h-full w-[67%] transition-all duration-500"></div>
-                    </div>
-                    <p className="text-[11px] text-slate-500">
-                      This usually takes 1–3 minutes depending on the size of your code.
-                    </p>
-                  </div>
-                </div>
+                          <div className="hidden lg:flex lg:col-span-1 items-center justify-center">
+                            <span className="text-xs text-slate-500 font-semibold bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-full">OR</span>
+                          </div>
 
-                {/* Recent Scans Pills */}
-                <div className="mt-6 pt-4 border-t border-slate-800/60">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-semibold text-slate-400">Recent Scans</span>
-                    <button className="text-xs text-cyan-400 hover:underline flex items-center gap-1">
-                      View all history &rarr;
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { name: "your-repo", color: "bg-red-500", date: "May 21, 2026 10:42 AM" },
-                      { name: "payment-service", color: "bg-amber-500", date: "May 18, 2026 04:22 PM" },
-                      { name: "user-dashboard", color: "bg-amber-500", date: "May 15, 2026 11:03 AM" },
-                      { name: "inventory-api", color: "bg-blue-500", date: "May 10, 2026 09:17 AM" },
-                      { name: "blog-website", color: "bg-blue-500", date: "May 8, 2026 02:50 PM" }
-                    ].map((item, idx) => (
-                      <div
-                        key={idx}
-                        className="bg-[#0B0F17] hover:bg-slate-800 border border-slate-800 px-3 py-1.5 rounded-lg flex items-center space-x-2 text-xs cursor-pointer transition-colors"
-                      >
-                        <span className={`w-2 h-2 rounded-full ${item.color}`}></span>
-                        <span className="text-slate-200 font-medium">{item.name}</span>
-                        <span className="text-slate-500 text-[10px]">{item.date}</span>
-                        <i data-lucide="chevron-right" className="w-3 h-3 text-slate-500"></i>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Section 2: Alert Banner */}
-              <div className="bg-red-950/30 border border-red-500/30 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-red-500/20 text-red-400 rounded-lg shrink-0">
-                    <i data-lucide="alert-triangle" className="w-6 h-6"></i>
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-red-200 text-sm">8 issues need attention</h3>
-                    <p className="text-xs text-red-300/70">
-                      These issues could cause security risks or system failures.
-                    </p>
-                  </div>
-                </div>
-                <button className="bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 text-xs px-3 py-1.5 rounded-lg transition-colors shrink-0 flex items-center gap-1">
-                  View critical issues &rarr;
-                </button>
-              </div>
-
-              {/* Section 3: Stat Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                <div className="bg-[#131B2E] border border-slate-800 p-4 rounded-xl">
-                  <div className="flex justify-between items-center text-slate-400 text-xs">
-                    <span>Total Bugs</span>
-                    <i data-lucide="bug" className="w-4 h-4 text-cyan-400"></i>
-                  </div>
-                  <div className="text-2xl font-bold text-white mt-1">128</div>
-                  <span className="text-[10px] text-slate-500">Across 2,843 files</span>
-                </div>
-
-                <div className="bg-[#131B2E] border border-slate-800 p-4 rounded-xl">
-                  <div className="flex justify-between items-center text-slate-400 text-xs">
-                    <span>Critical</span>
-                    <i data-lucide="alert-triangle" className="w-4 h-4 text-red-400"></i>
-                  </div>
-                  <div className="text-2xl font-bold text-red-400 mt-1">8</div>
-                  <span className="text-[10px] text-slate-500">Needs immediate attention</span>
-                </div>
-
-                <div className="bg-[#131B2E] border border-slate-800 p-4 rounded-xl">
-                  <div className="flex justify-between items-center text-slate-400 text-xs">
-                    <span>High</span>
-                    <i data-lucide="alert-triangle" className="w-4 h-4 text-amber-400"></i>
-                  </div>
-                  <div className="text-2xl font-bold text-amber-400 mt-1">32</div>
-                  <span className="text-[10px] text-slate-500">Should be fixed soon</span>
-                </div>
-
-                <div className="bg-[#131B2E] border border-slate-800 p-4 rounded-xl">
-                  <div className="flex justify-between items-center text-slate-400 text-xs">
-                    <span>Medium</span>
-                    <i data-lucide="info" className="w-4 h-4 text-yellow-400"></i>
-                  </div>
-                  <div className="text-2xl font-bold text-yellow-400 mt-1">54</div>
-                  <span className="text-[10px] text-slate-500">Important but not urgent</span>
-                </div>
-
-                <div className="bg-[#131B2E] border border-slate-800 p-4 rounded-xl col-span-2 md:col-span-1">
-                  <div className="flex justify-between items-center text-slate-400 text-xs">
-                    <span>Low</span>
-                    <i data-lucide="info" className="w-4 h-4 text-blue-400"></i>
-                  </div>
-                  <div className="text-2xl font-bold text-blue-400 mt-1">34</div>
-                  <span className="text-[10px] text-slate-500">Nice to fix</span>
-                </div>
-              </div>
-
-              {/* Section 4: Visual Breakdown Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Severity Bar */}
-                <div className="bg-[#131B2E] border border-slate-800 p-5 rounded-xl space-y-4">
-                  <h3 className="font-semibold text-white text-xs">Issues by Severity</h3>
-                  <div className="h-6 w-full rounded-md overflow-hidden flex text-[10px] font-bold text-slate-900">
-                    <div className="bg-red-500 w-[6.3%] flex items-center justify-center">6.3%</div>
-                    <div className="bg-amber-500 w-[25%] flex items-center justify-center">25.0%</div>
-                    <div className="bg-yellow-400 w-[42.2%] flex items-center justify-center">42.2%</div>
-                    <div className="bg-blue-500 w-[26.6%] flex items-center justify-center">26.6%</div>
-                  </div>
-                  <div className="flex justify-between text-xs text-slate-400 pt-1 flex-wrap gap-2">
-                    <span className="flex items-center gap-1">
-                      <span className="w-2 h-2 bg-red-500 rounded-full"></span> Critical (8)
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span className="w-2 h-2 bg-amber-500 rounded-full"></span> High (32)
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span className="w-2 h-2 bg-yellow-400 rounded-full"></span> Medium (54)
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span className="w-2 h-2 bg-blue-500 rounded-full"></span> Low (34)
-                    </span>
-                  </div>
-                </div>
-
-                {/* Priority Breakdown */}
-                <div className="bg-[#131B2E] border border-slate-800 p-5 rounded-xl space-y-3">
-                  <div className="flex justify-between items-center">
-                    <h3 className="font-semibold text-white text-xs">Priority Breakdown <span className="text-slate-500 font-normal">(What this means)</span></h3>
-                  </div>
-
-                  <div className="space-y-2.5 text-xs">
-                    {[
-                      { label: "P1 • Fix now", val: "18 (14.1%)", bar: "w-[14%]", color: "bg-red-500" },
-                      { label: "P2 • Fix this week", val: "38 (29.7%)", bar: "w-[30%]", color: "bg-amber-500" },
-                      { label: "P3 • Backlog", val: "46 (35.9%)", bar: "w-[36%]", color: "bg-yellow-400" },
-                      { label: "P4 • Low urgency", val: "26 (20.3%)", bar: "w-[20%]", color: "bg-blue-500" }
-                    ].map((item, idx) => (
-                      <div key={idx} className="flex items-center space-x-3">
-                        <span className="w-28 text-slate-400 shrink-0">{item.label}</span>
-                        <div className="flex-1 bg-slate-800 h-2 rounded-full overflow-hidden">
-                          <div className={`${item.color} h-full ${item.bar}`}></div>
-                        </div>
-                        <span className="text-slate-300 w-20 text-right font-mono text-[11px] shrink-0">
-                          {item.val}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Section 5: Filterable Bug List & Detailed View */}
-              <div className="bg-[#131B2E] border border-slate-800 rounded-xl p-5 space-y-4">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <h3 className="font-semibold text-white text-sm">
-                    What to fix first <span className="text-slate-400 font-normal">(Top 5 most urgent issues)</span>
-                  </h3>
-                  <div className="flex items-center space-x-2">
-                    <div className="relative flex-1 md:w-64">
-                      <i data-lucide="search" className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-500"></i>
-                      <input
-                        type="text"
-                        placeholder="Search by title or file name..."
-                        className="bg-[#0B0F17] border border-slate-700 rounded-md pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 w-full focus:outline-none"
-                      />
-                    </div>
-                    <button className="bg-slate-800 border border-slate-700 text-slate-300 px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5">
-                      <i data-lucide="sliders-horizontal" className="w-3.5 h-3.5"></i> Filters
-                    </button>
-                  </div>
-                </div>
-
-                {/* Severity Filter Badges */}
-                <div className="flex flex-wrap gap-2 text-xs">
-                  {["All (128)", "Critical (8)", "High (32)", "Medium (54)", "Low (34)"].map((tab) => {
-                    const label = tab.split(" ")[0];
-                    return (
-                      <button
-                        key={tab}
-                        onClick={() => setSelectedSeverity(label)}
-                        className={`px-3 py-1 rounded-md transition-colors ${
-                          selectedSeverity === label
-                            ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 font-medium"
-                            : "bg-slate-800/60 text-slate-400 hover:bg-slate-800"
-                        }`}
-                      >
-                        {tab}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Bugs Table */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs min-w-[700px]">
-                    <thead>
-                      <tr className="border-b border-slate-800 text-slate-400">
-                        <th className="py-2.5 px-3 w-8">#</th>
-                        <th className="py-2.5 px-3 w-32">Bug ID</th>
-                        <th className="py-2.5 px-3">Title</th>
-                        <th className="py-2.5 px-3 w-24">Severity</th>
-                        <th className="py-2.5 px-3 w-36">Priority</th>
-                        <th className="py-2.5 px-3 w-48">File & Line</th>
-                        <th className="py-2.5 px-3 w-24">Status</th>
-                        <th className="py-2.5 px-3 w-24">Similar</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800/50">
-                      {bugList.map((bug, idx) => (
-                        <React.Fragment key={bug.id}>
-                          <tr
-                            onClick={() =>
-                              setExpandedBug(expandedBug === bug.id ? null : bug.id)
-                            }
-                            className={`hover:bg-slate-800/40 cursor-pointer transition-colors ${
-                              expandedBug === bug.id ? "bg-slate-800/30" : ""
-                            }`}
+                          <div
+                            onClick={() => setDashboardView("overview")}
+                            className="lg:col-span-5 border-2 border-dashed border-slate-800 hover:border-cyan-500/40 rounded-lg p-6 flex flex-col items-center justify-center text-center bg-[#0F1623]/50 cursor-pointer"
                           >
-                            <td className="py-3 px-3 text-slate-500">{idx + 1}</td>
-                            <td className="py-3 px-3 font-mono text-slate-300">{bug.id}</td>
-                            <td className="py-3 px-3 font-medium text-white">{bug.title}</td>
-                            <td className="py-3 px-3">
-                              <span
-                                className={`px-2 py-0.5 rounded text-[11px] border font-medium ${
-                                  bug.severity === "Critical"
-                                    ? "bg-red-500/10 text-red-400 border-red-500/30"
-                                    : bug.severity === "High"
-                                    ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
-                                    : "bg-yellow-500/10 text-yellow-400 border-yellow-500/30"
-                                }`}
-                              >
-                                {bug.severity}
-                              </span>
-                            </td>
-                            <td className="py-3 px-3">
-                              <span
-                                className={`text-[11px] font-medium ${
-                                  bug.priority.includes("P1")
-                                    ? "text-red-400"
-                                    : bug.priority.includes("P2")
-                                    ? "text-amber-400"
-                                    : "text-yellow-400"
-                                }`}
-                              >
-                                {bug.priority}
-                              </span>
-                            </td>
-                            <td className="py-3 px-3 font-mono text-slate-400">{bug.file}</td>
-                            <td className="py-3 px-3">
-                              <span
-                                className={`px-2 py-0.5 rounded text-[10px] border font-medium ${
-                                  bug.status === "Open"
-                                    ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
-                                    : "border-blue-500/30 text-blue-400 bg-blue-500/10"
-                                }`}
-                              >
-                                {bug.status}
-                              </span>
-                            </td>
-                            <td className="py-3 px-3 text-slate-400 flex items-center justify-between">
-                              <span className="flex items-center gap-1">
-                                <i data-lucide="users" className="w-3 h-3"></i> {bug.similar}
-                              </span>
-                              <i data-lucide={expandedBug === bug.id ? "chevron-up" : "chevron-down"} className="w-4 h-4"></i>
-                            </td>
-                          </tr>
+                            <i data-lucide="upload" className="w-8 h-8 text-slate-400 mb-2"></i>
+                            <p className="text-xs text-slate-300 font-medium">Drag and drop your .zip file here</p>
+                            <span className="bg-slate-800 border border-slate-700 text-slate-200 text-xs px-3 py-1.5 rounded-md mt-2">Choose ZIP File</span>
+                          </div>
+                        </div>
 
-                          {/* Expanded Code View */}
-                          {expandedBug === bug.id && (
-                            <tr>
-                              <td colSpan={8} className="p-4 bg-[#0B0F17] border-t border-slate-800">
-                                <div className="space-y-4">
-                                  <div className="flex items-center justify-between flex-wrap gap-2">
-                                    <div className="flex items-center space-x-2">
-                                      <i data-lucide="alert-circle" className="w-4 h-4 text-red-400"></i>
-                                      <h4 className="font-semibold text-white">{bug.title}</h4>
-                                      <span className="text-slate-500 text-xs">— {bug.file}</span>
-                                    </div>
-                                    <div className="flex items-center space-x-2 text-xs">
-                                      <span className="text-slate-400">Status:</span>
-                                      <span className="text-emerald-400 border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 rounded">
-                                        Open
-                                      </span>
-                                    </div>
+                        {/* Progress */}
+                        <div className="mt-6 border-t border-slate-800 pt-6 grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+                          <div className="md:col-span-5 flex items-center space-x-4">
+                            <div className="w-12 h-12 rounded-full border-2 border-cyan-500/30 border-t-cyan-400 animate-spin flex items-center justify-center shrink-0">
+                              <i data-lucide="search" className="w-5 h-5 text-cyan-400"></i>
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-white">Scanning your codebase...</p>
+                              <ul className="text-xs space-y-1 text-slate-400 mt-1">
+                                <li className="flex items-center gap-1.5 text-emerald-400"><i data-lucide="check-circle-2" className="w-3.5 h-3.5"></i> Reading your code...</li>
+                                <li className="flex items-center gap-1.5 text-emerald-400"><i data-lucide="check-circle-2" className="w-3.5 h-3.5"></i> Detecting languages...</li>
+                                <li className="flex items-center gap-1.5 text-cyan-400"><i data-lucide="clock" className="w-3.5 h-3.5"></i> Checking for problems...</li>
+                              </ul>
+                            </div>
+                          </div>
+                          <div className="md:col-span-7 space-y-2">
+                            <div className="flex justify-between text-xs">
+                              <span className="text-slate-300">Analyzing 1,842 files</span>
+                              <span className="text-cyan-400 font-bold">67%</span>
+                            </div>
+                            <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                              <div className="bg-cyan-400 h-full w-[67%]"></div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Dashboard Overview Drill-down */
+                    <div className="space-y-6">
+                      <div className="bg-red-950/30 border border-red-500/30 rounded-xl p-4 flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <i data-lucide="alert-triangle" className="w-6 h-6 text-red-400"></i>
+                          <div>
+                            <h3 className="font-semibold text-red-200 text-sm">8 issues need attention</h3>
+                            <p className="text-xs text-red-300/70">These issues could cause security risks or system failures.</p>
+                          </div>
+                        </div>
+                        <button onClick={() => setActiveTab("debugging")} className="bg-red-500/20 text-red-300 border border-red-500/40 text-xs px-3 py-1.5 rounded-lg">
+                          Inspect in Debugging &rarr;
+                        </button>
+                      </div>
+
+                      {/* Stat cards */}
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                        <div className="bg-[#131B2E] border border-slate-800 p-4 rounded-xl">
+                          <span className="text-slate-400 text-xs">Total Bugs</span>
+                          <div className="text-2xl font-bold text-white mt-1">128</div>
+                          <span className="text-[10px] text-slate-500">Across 2,843 files</span>
+                        </div>
+                        <div className="bg-[#131B2E] border border-slate-800 p-4 rounded-xl">
+                          <span className="text-slate-400 text-xs">Critical</span>
+                          <div className="text-2xl font-bold text-red-400 mt-1">8</div>
+                          <span className="text-[10px] text-slate-500">Needs immediate attention</span>
+                        </div>
+                        <div className="bg-[#131B2E] border border-slate-800 p-4 rounded-xl">
+                          <span className="text-slate-400 text-xs">High</span>
+                          <div className="text-2xl font-bold text-amber-400 mt-1">32</div>
+                          <span className="text-[10px] text-slate-500">Should be fixed soon</span>
+                        </div>
+                        <div className="bg-[#131B2E] border border-slate-800 p-4 rounded-xl">
+                          <span className="text-slate-400 text-xs">Medium</span>
+                          <div className="text-2xl font-bold text-yellow-400 mt-1">54</div>
+                          <span className="text-[10px] text-slate-500">Important but not urgent</span>
+                        </div>
+                        <div className="bg-[#131B2E] border border-slate-800 p-4 rounded-xl col-span-2 md:col-span-1">
+                          <span className="text-slate-400 text-xs">Low</span>
+                          <div className="text-2xl font-bold text-blue-400 mt-1">34</div>
+                          <span className="text-[10px] text-slate-500">Nice to fix</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ========================================== */}
+              {/* TAB 2: AI CODEBASE ANALYSIS               */}
+              {/* ========================================== */}
+              {activeTab === "ai-analysis" && (
+                <div className="space-y-6">
+                  <div className="border-b border-slate-800 pb-3">
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                      <i data-lucide="sparkles" className="w-5 h-5 text-cyan-400"></i> AI Codebase Intelligence & Architecture
+                    </h2>
+                    <p className="text-xs text-slate-400 mt-0.5">Automated NLP analysis explaining what this repository is about, intent, and per-file summaries.</p>
+                  </div>
+
+                  {/* OVERALL SUMMARY */}
+                  <div className="bg-[#131B2E] border border-slate-800 rounded-xl p-6 space-y-4">
+                    <h3 className="font-bold text-white text-base">Overall Project Summary & Purpose</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                      <div className="bg-[#0B0F17] border border-slate-800 p-3.5 rounded-lg space-y-1">
+                        <span className="text-slate-500 uppercase font-semibold text-[10px]">Project Intent</span>
+                        <p className="text-slate-300">Asynchronous microservice platform managing authentication, order checkout, inventory ETL, and websocket alerts.</p>
+                      </div>
+                      <div className="bg-[#0B0F17] border border-slate-800 p-3.5 rounded-lg space-y-1">
+                        <span className="text-slate-500 uppercase font-semibold text-[10px]">Detected Tech Stack</span>
+                        <p className="text-cyan-300 font-mono">Python 3.11, FastAPI, PostgreSQL, WebSockets, Docker, AWS S3</p>
+                      </div>
+                      <div className="bg-[#0B0F17] border border-slate-800 p-3.5 rounded-lg space-y-1">
+                        <span className="text-slate-500 uppercase font-semibold text-[10px]">Engineer Health Takeaway</span>
+                        <p className="text-slate-300">Architecture is scalable, but critical SQL injection in <code className="text-cyan-400">queryBuilder.py</code> requires immediate fix.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* PER-FILE SUMMARIES */}
+                  <div className="space-y-3">
+                    <h3 className="font-semibold text-white text-sm">Per-File Functional Summaries (6 files scanned)</h3>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      {fileSummaries.map((f, idx) => (
+                        <div key={idx} className="bg-[#131B2E] border border-slate-800 rounded-xl p-4 space-y-2.5">
+                          <div className="flex justify-between items-center">
+                            <span className="font-mono text-xs font-bold text-white flex items-center gap-1.5">
+                              <i data-lucide="file-code" className="w-4 h-4 text-cyan-400"></i> {f.filename}
+                            </span>
+                            <span className={`text-[10px] px-2 py-0.5 rounded border font-medium ${f.statusColor}`}>{f.status}</span>
+                          </div>
+                          <p className="text-xs text-slate-300">{f.role}</p>
+                          <div className="bg-[#0B0F17] border border-slate-800 p-2 rounded text-[11px] text-slate-400">
+                            <strong className="text-slate-300">Intent: </strong> {f.intent}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ========================================== */}
+              {/* TAB 3: DEBUGGING VIEW (Grouped by File)   */}
+              {/* ========================================== */}
+              {activeTab === "debugging" && (
+                <div className="space-y-6">
+                  <div className="border-b border-slate-800 pb-3">
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                      <i data-lucide="bug" className="w-5 h-5 text-red-400"></i> Debugging & Issue Inspector
+                    </h2>
+                    <p className="text-xs text-slate-400 mt-0.5">Issues grouped by file name with exact line numbers, code snippets, and fix diffs.</p>
+                  </div>
+
+                  <div className="space-y-6">
+                    {Object.entries(bugsByFile).map(([file, fileBugs]) => (
+                      <div key={file} className="bg-[#131B2E] border border-slate-800 rounded-xl overflow-hidden">
+                        {/* Group Header */}
+                        <div className="bg-[#0F1623] px-5 py-3 border-b border-slate-800 flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <i data-lucide="file-code" className="w-4 h-4 text-cyan-400"></i>
+                            <span className="font-mono text-xs sm:text-sm font-bold text-white">{file}</span>
+                            <span className="text-[11px] text-slate-500">({fileBugs.length} issue)</span>
+                          </div>
+                        </div>
+
+                        {/* File Issues */}
+                        <div className="p-4 space-y-4">
+                          {fileBugs.map((bug) => {
+                            const isExpanded = expandedBug === bug.id;
+                            const isResolved = bug.status === "Resolved";
+
+                            return (
+                              <div key={bug.id} className="space-y-3">
+                                <div
+                                  onClick={() => setExpandedBug(isExpanded ? null : bug.id)}
+                                  className="flex items-center justify-between cursor-pointer hover:bg-slate-800/40 p-2 rounded-lg"
+                                >
+                                  <div className="flex items-center space-x-3">
+                                    <span className="font-mono text-xs text-slate-400">{bug.id}</span>
+                                    <h4 className={`text-xs font-semibold ${isResolved ? "line-through text-slate-500" : "text-white"}`}>
+                                      {bug.title}
+                                    </h4>
+                                    <span className="text-xs text-slate-500 font-mono">Line {bug.line}</span>
                                   </div>
-
-                                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                    {/* Code Snippet Box */}
-                                    <div className="bg-[#0F1623] border border-slate-800 rounded-lg p-3 font-mono text-[11px] leading-relaxed">
-                                      <div className="text-slate-500 mb-2 flex items-center justify-between">
-                                        <span>Code snippet</span>
-                                        <i data-lucide="copy" className="w-3.5 h-3.5 text-slate-500 cursor-pointer hover:text-slate-300"></i>
-                                      </div>
-                                      <div className="space-y-1">
-                                        <div className="text-slate-600">114  def getUserData(userId):</div>
-                                        <div className="text-slate-600">115      conn = getConnectbile()</div>
-                                        <div className="text-slate-600">116      cursor = conn.cursor()</div>
-                                        <div className="bg-red-500/10 border-l-2 border-red-500 text-red-300 pl-2 py-0.5">
-                                          117  query = "SELECT * FROM users WHERE id = " + userId
-                                        </div>
-                                        <div className="bg-red-500/20 border-l-2 border-red-500 text-red-200 pl-2 py-0.5">
-                                          118  results = cursor.fetchall()
-                                        </div>
-                                        <div className="text-slate-600">119      conn.close()</div>
-                                        <div className="text-slate-600">120      return results</div>
-                                      </div>
-                                    </div>
-
-                                    {/* Explanation & Suggested Fix */}
-                                    <div className="space-y-3 text-xs">
-                                      <div>
-                                        <h5 className="font-semibold text-slate-300 mb-0.5">What's wrong</h5>
-                                        <p className="text-slate-400">
-                                          User input is being inserted directly into a database query without sanitization. This lets an attacker run their own database commands.
-                                        </p>
-                                      </div>
-
-                                      <div>
-                                        <h5 className="font-semibold text-slate-300 mb-0.5">Why it matters</h5>
-                                        <p className="text-slate-400">
-                                          An attacker could read, change, or delete data in your database.
-                                        </p>
-                                      </div>
-
-                                      <div className="bg-[#0F1623] border border-slate-800 rounded-lg p-3">
-                                        <h5 className="font-semibold text-slate-200 mb-2 flex items-center justify-between">
-                                          <span>Suggested Fix <span className="text-slate-500 font-normal">(click to expand)</span></span>
-                                          <i data-lucide="chevron-up" className="w-4 h-4 text-slate-400"></i>
-                                        </h5>
-                                        <div className="font-mono text-[11px] space-y-1 bg-[#0B0F17] p-2 rounded border border-slate-800">
-                                          <div className="text-red-400">- query = "SELECT * FROM users WHERE id = " + userId</div>
-                                          <div className="text-emerald-400">+ query = "SELECT * FROM users WHERE id = %s"</div>
-                                          <div className="text-emerald-400">+ cursor.execute(query, (userId,))</div>
-                                        </div>
-                                        <p className="text-[10px] text-slate-500 mt-2">
-                                          Use parameterized queries to safely handle user input.
-                                        </p>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {/* Action Buttons */}
-                                  <div className="flex flex-wrap gap-2 pt-2">
-                                    <button className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded text-xs flex items-center gap-1.5">
-                                      <i data-lucide="check-circle" className="w-3.5 h-3.5 text-emerald-400"></i> Mark as Resolved
-                                    </button>
-                                    <button className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded text-xs flex items-center gap-1.5">
-                                      <i data-lucide="eye-off" className="w-3.5 h-3.5 text-slate-400"></i> Ignore this issue
-                                    </button>
-                                    <button className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded text-xs flex items-center gap-1.5">
-                                      <i data-lucide="copy" className="w-3.5 h-3.5 text-slate-400"></i> Copy code location
-                                    </button>
+                                  <div className="flex items-center space-x-2">
+                                    <span className="text-red-400 bg-red-500/10 border border-red-500/30 px-2 py-0.5 rounded text-[10px]">
+                                      {bug.severity}
+                                    </span>
+                                    <span className={`text-[10px] px-2 py-0.5 rounded border ${isResolved ? "text-emerald-400 border-emerald-500/30" : "text-blue-400 border-blue-500/30"}`}>
+                                      {isResolved ? "Resolved" : bug.status}
+                                    </span>
                                   </div>
                                 </div>
+
+                                {isExpanded && (
+                                  <div className="p-4 bg-[#0B0F17] rounded-lg border border-slate-800 space-y-4">
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                      {/* Code snippet */}
+                                      <div className="bg-[#0F1623] border border-slate-800 rounded p-3 font-mono text-[11px]">
+                                        <span className="text-slate-500 text-[10px] block mb-2">// Code snippet ({bug.file}:{bug.line})</span>
+                                        {bug.codeSnippet.map((l) => (
+                                          <div key={l.num} className={l.err ? "bg-red-500/20 text-red-300 pl-2" : "text-slate-500 pl-2"}>
+                                            <span className="inline-block w-8 text-slate-600">{l.num}</span> {l.code}
+                                          </div>
+                                        ))}
+                                      </div>
+
+                                      {/* Explanation & Diff */}
+                                      <div className="space-y-3 text-xs">
+                                        <div>
+                                          <h5 className="font-semibold text-slate-300">What's wrong</h5>
+                                          <p className="text-slate-400">{bug.wrong}</p>
+                                        </div>
+                                        <div className="bg-[#0F1623] border border-slate-800 p-2.5 rounded">
+                                          <h5 className="font-semibold text-slate-200 mb-1">Suggested Fix</h5>
+                                          <div className="font-mono text-[11px] bg-[#0B0F17] p-2 rounded">
+                                            <div className="text-red-400">{bug.fixDiff.remove}</div>
+                                            <div className="text-emerald-400">{bug.fixDiff.add1}</div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <button
+                                      onClick={() => toggleResolveBug(bug.id)}
+                                      className={`px-3 py-1.5 rounded text-xs font-semibold ${isResolved ? "bg-emerald-600 text-white" : "bg-slate-800 hover:bg-slate-700 text-slate-200"}`}
+                                    >
+                                      {isResolved ? "✓ Marked as Resolved" : "Mark as Resolved"}
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ========================================== */}
+              {/* TAB 4: CONSOLIDATED AUDIT REPORT          */}
+              {/* ========================================== */}
+              {activeTab === "report" && (
+                <div className="space-y-6">
+                  <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                    <div>
+                      <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                        <i data-lucide="file-text" className="w-5 h-5 text-cyan-400"></i> Code Vulnerability & Resolution Audit Report
+                      </h2>
+                      <p className="text-xs text-slate-400 mt-0.5">Line-by-line breakdown of every issue and its fix status.</p>
+                    </div>
+                    <button
+                      onClick={() => window.print()}
+                      className="bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold px-4 py-2 rounded-lg text-xs flex items-center gap-2"
+                    >
+                      <i data-lucide="download" className="w-4 h-4"></i> Download Report (PDF)
+                    </button>
+                  </div>
+
+                  {/* Summary Registry Table */}
+                  <div className="bg-[#131B2E] border border-slate-800 rounded-xl overflow-hidden">
+                    <table className="w-full text-left text-xs min-w-[700px]">
+                      <thead>
+                        <tr className="border-b border-slate-800 text-slate-400 bg-[#0F1623]">
+                          <th className="py-3 px-4 w-12">#</th>
+                          <th className="py-3 px-4 w-48">File Path</th>
+                          <th className="py-3 px-4 w-20">Line</th>
+                          <th className="py-3 px-4">Issue Description</th>
+                          <th className="py-3 px-4 w-24">Severity</th>
+                          <th className="py-3 px-4 w-32">Fix Status</th>
+                          <th className="py-3 px-4 w-28 text-right">Toggle Fix</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/50">
+                        {bugs.map((bug, idx) => {
+                          const isResolved = bug.status === "Resolved";
+                          return (
+                            <tr key={bug.id} className="hover:bg-slate-800/30">
+                              <td className="py-3 px-4 text-slate-500">{idx + 1}</td>
+                              <td className="py-3 px-4 font-mono text-cyan-300">{bug.file}</td>
+                              <td className="py-3 px-4 font-mono text-slate-300">:{bug.line}</td>
+                              <td className="py-3 px-4 text-white">{bug.title}</td>
+                              <td className="py-3 px-4 text-red-400">{bug.severity}</td>
+                              <td className="py-3 px-4">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${isResolved ? "bg-emerald-500/20 text-emerald-300" : "bg-red-500/10 text-red-400"}`}>
+                                  {isResolved ? "Fixed / Resolved" : "Not Fixed (Open)"}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 text-right">
+                                <button
+                                  onClick={() => toggleResolveBug(bug.id)}
+                                  className="text-[11px] text-cyan-400 hover:underline"
+                                >
+                                  {isResolved ? "Reopen" : "Mark Fixed"}
+                                </button>
                               </td>
                             </tr>
-                          )}
-                        </React.Fragment>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="text-center pt-2">
-                  <button className="text-xs text-cyan-400 hover:underline">
-                    View all 128 issues &rarr;
-                  </button>
-                </div>
-              </div>
-
-              {/* Accordion Footer Options */}
-              <div className="space-y-2">
-                <div className="bg-[#131B2E] border border-slate-800 p-3 rounded-lg flex justify-between items-center cursor-pointer hover:bg-slate-800/50">
-                  <div className="flex items-center space-x-2">
-                    <i data-lucide="clock" className="w-4 h-4 text-slate-400"></i>
-                    <span className="text-xs font-semibold text-white">Recently Found Issues</span>
-                    <span className="text-[11px] text-slate-500 hidden sm:inline">— Latest problems discovered in this scan</span>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
-                  <span className="text-xs text-slate-400 flex items-center gap-2">
-                    5 new issues <i data-lucide="chevron-down" className="w-4 h-4"></i>
-                  </span>
                 </div>
+              )}
 
-                <div className="bg-[#131B2E] border border-slate-800 p-3 rounded-lg flex justify-between items-center cursor-pointer hover:bg-slate-800/50">
-                  <div className="flex items-center space-x-2">
-                    <i data-lucide="bug" className="w-4 h-4 text-slate-400"></i>
-                    <span className="text-xs font-semibold text-white">Repeated / Similar Issues</span>
-                    <span className="text-[11px] text-slate-500 hidden sm:inline">— Issues that appear multiple times in your codebase</span>
-                  </div>
-                  <span className="text-xs text-slate-400 flex items-center gap-2">
-                    18 groups <i data-lucide="chevron-down" className="w-4 h-4"></i>
-                  </span>
-                </div>
-              </div>
             </main>
-
-            {/* Footer Bar */}
-            <footer className="bg-[#0F1623] border-t border-slate-800 p-4 px-6 flex flex-col md:flex-row items-center justify-between text-xs text-slate-400 space-y-3 md:space-y-0 mt-auto">
-              <div className="flex items-center space-x-4 flex-wrap gap-y-2">
-                <span className="font-semibold text-white flex items-center gap-1.5">
-                  <i data-lucide="code-2" className="w-4 h-4 text-cyan-400"></i> your-repo
-                  <span className="bg-slate-800 text-[10px] px-1.5 py-0.5 rounded font-normal text-slate-400 border border-slate-700">
-                    Public
-                  </span>
-                </span>
-                <span>Branch: <strong className="text-slate-200">main</strong></span>
-                <span>Files scanned: <strong className="text-slate-200">2,843</strong></span>
-                <span>Lines of code: <strong className="text-slate-200">128,742</strong></span>
-                <span>Last scan: <strong className="text-slate-200">May 21, 2026 10:42 AM</strong></span>
-              </div>
-
-              <button onClick={scrollToTop} className="bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-semibold px-4 py-1.5 rounded-md flex items-center gap-1.5 transition-colors text-xs shrink-0">
-                Scan another repository &uarr;
-              </button>
-            </footer>
           </div>
         </div>
       );
     }
 
     const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<BugTrackerDashboard />);
+    root.render(<BugTrackerApp />);
   </script>
 </body>
 </html>
