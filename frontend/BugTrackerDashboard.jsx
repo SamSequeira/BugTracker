@@ -338,7 +338,7 @@ export default function BugTrackerApp() {
   return (
     <div className="min-h-screen bg-[#0B0F17] text-slate-200 font-sans flex text-xs sm:text-sm">
       {/* ===================================================================== */}
-      <!-- 4-TAB FIXED SIDEBAR -->
+      {/* 4-TAB FIXED SIDEBAR */}
       {/* ===================================================================== */}
       <aside className="w-16 bg-[#0F1623] border-r border-slate-800 flex flex-col items-center py-4 space-y-5 shrink-0 sticky top-0 h-screen z-30">
         <div className="p-2.5 bg-cyan-500/10 rounded-xl text-cyan-400 border border-cyan-500/20">
@@ -407,7 +407,7 @@ export default function BugTrackerApp() {
       </aside>
 
       {/* ===================================================================== */}
-      <!-- MAIN VIEWPORT -->
+      {/* MAIN VIEWPORT */}
       {/* ===================================================================== */}
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         {/* Persistent Top Header */}
@@ -429,7 +429,7 @@ export default function BugTrackerApp() {
 
         <main className="p-6 space-y-6 max-w-[1400px] mx-auto w-full">
           {/* ================================================================= */}
-          <!-- TAB 1: DASHBOARD -->
+          {/* TAB 1: DASHBOARD */}
           {/* ================================================================= */}
           {activeTab === "dashboard" && (
             <div className="space-y-6">
@@ -631,7 +631,7 @@ export default function BugTrackerApp() {
           )}
 
           {/* ================================================================= */}
-          <!-- TAB 2: AI CODEBASE ANALYSIS -->
+          {/* TAB 2: AI CODEBASE ANALYSIS */}
           {/* ================================================================= */}
           {activeTab === "ai" && (
             <div className="space-y-6">
@@ -664,7 +664,7 @@ export default function BugTrackerApp() {
           )}
 
           {/* ================================================================= */}
-          <!-- TAB 3: DEBUGGING (GROUPED BY FILE) -->
+          {/* TAB 3: DEBUGGING (GROUPED BY FILE) */}
           {/* ================================================================= */}
           {activeTab === "debug" && (
             <div className="space-y-6">
@@ -701,7 +701,7 @@ export default function BugTrackerApp() {
           )}
 
           {/* ================================================================= */}
-          <!-- TAB 4: REPORT -->
+          {/* TAB 4: REPORT */}
           {/* ================================================================= */}
           {activeTab === "report" && (
             <div className="space-y-6">
