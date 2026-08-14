@@ -1,50 +1,52 @@
+// RepositoryUpload.jsx - Standalone Landing / Scan Trigger Page Component
+
 import React, { useState } from "react";
-import {
-  ShieldAlert,
-  Upload,
-  Github,
-  FileArchive,
-  Search,
-  CheckCircle2,
-  Clock,
-  ChevronRight,
-  Info,
-  ArrowRight
-} from "lucide-react";
+import { useBugTracker } from "./useBugTracker.js";
 
 export default function RepositoryUpload({ onScanComplete }) {
+  const { user, runScan, isScanning, scanProgress } = useBugTracker();
   const [activeTab, setActiveTab] = useState("github");
-  const [repoUrl, setRepoUrl] = useState("");
-  const [isScanning, setIsScanning] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [repoUrl, setRepoUrl] = useState(user.repoUrl);
 
-  const handleStartScan = (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    setIsScanning(true);
-    setProgress(15);
+    runScan(repoUrl);
+    if (onScanComplete) {
+      setTimeout(() => {
+        onScanComplete();
+      }, 1200);
+    }
+  };
 
-    // Simulate scanning progress before navigating to Dashboard
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setTimeout(() => {
-            onScanComplete(); // Triggers transition to Dashboard
-          }, 500);
-          return 100;
-        }
-        return prev + 25;
-      });
-    }, 600);
+  const handleNativeUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      runScan(file);
+      if (onScanComplete) {
+        setTimeout(() => {
+          onScanComplete();
+        }, 1200);
+      }
+    }
   };
 
   return (
     <div className="min-h-screen bg-[#0B0F17] text-slate-200 font-sans flex flex-col justify-between p-6">
+      <input
+        type="file"
+        id="landing-zip-input"
+        accept=".zip,.tar,.gz,.rar,.7z"
+        className="hidden"
+        onChange={handleNativeUpload}
+      />
+
       {/* Header */}
       <header className="max-w-5xl mx-auto w-full flex items-center justify-between py-4 border-b border-slate-800">
         <div className="flex items-center space-x-3">
-          <div className="p-2 bg-cyan-500/10 rounded-lg text-cyan-400">
-            <ShieldAlert className="w-6 h-6" />
+          <div className="p-2.5 bg-cyan-500/10 rounded-xl text-cyan-400 border border-cyan-500/20">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
           </div>
           <div>
             <h1 className="font-bold text-white text-base">AI Bug Tracking System</h1>
@@ -52,7 +54,7 @@ export default function RepositoryUpload({ onScanComplete }) {
           </div>
         </div>
         <span className="text-xs text-slate-500 border border-slate-800 bg-[#0F1623] px-3 py-1 rounded-full">
-          v1.0.0 Frontend Demo
+          v1.2.0 Production Ready
         </span>
       </header>
 
@@ -69,33 +71,31 @@ export default function RepositoryUpload({ onScanComplete }) {
 
         {!isScanning ? (
           <div className="bg-[#131B2E] border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
-            {/* Input Selection Tabs */}
             <div className="flex border-b border-slate-800 pb-3 space-x-6">
               <button
                 onClick={() => setActiveTab("github")}
-                className={`text-xs font-semibold pb-2 border-b-2 transition-colors flex items-center gap-2 ${
+                className={`text-xs font-semibold pb-2 border-b-2 transition-colors ${
                   activeTab === "github"
                     ? "border-cyan-400 text-cyan-400"
                     : "border-transparent text-slate-400 hover:text-white"
                 }`}
               >
-                <Github className="w-4 h-4" /> GitHub Repository
+                GitHub Repository
               </button>
               <button
                 onClick={() => setActiveTab("zip")}
-                className={`text-xs font-semibold pb-2 border-b-2 transition-colors flex items-center gap-2 ${
+                className={`text-xs font-semibold pb-2 border-b-2 transition-colors ${
                   activeTab === "zip"
                     ? "border-cyan-400 text-cyan-400"
                     : "border-transparent text-slate-400 hover:text-white"
                 }`}
               >
-                <FileArchive className="w-4 h-4" /> Upload .ZIP Archive
+                Upload .ZIP Archive
               </button>
             </div>
 
-            {/* Tab 1: GitHub Input Form */}
             {activeTab === "github" ? (
-              <form onSubmit={handleStartScan} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label className="text-xs text-slate-400 block mb-1 font-medium">
                     GitHub Repository Link
@@ -106,23 +106,24 @@ export default function RepositoryUpload({ onScanComplete }) {
                     value={repoUrl}
                     onChange={(e) => setRepoUrl(e.target.value)}
                     placeholder="https://github.com/your-org/your-repo"
-                    className="w-full bg-[#0B0F17] border border-slate-700 rounded-lg px-4 py-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
+                    className="w-full bg-[#0B0F17] border border-slate-700 rounded-lg px-4 py-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors font-mono"
                   />
                 </div>
                 <button
                   type="submit"
-                  className="w-full bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-semibold py-3 rounded-lg text-xs transition-colors flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/10"
+                  className="w-full bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold py-3 rounded-lg text-xs transition-colors flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/10"
                 >
-                  Analyze Repository <ArrowRight className="w-4 h-4" />
+                  Analyze Repository &rarr;
                 </button>
               </form>
             ) : (
-              /* Tab 2: Drag & Drop Box */
               <div
-                onClick={handleStartScan}
+                onClick={() => document.getElementById("landing-zip-input").click()}
                 className="border-2 border-dashed border-slate-700 hover:border-cyan-500/50 bg-[#0B0F17]/50 rounded-lg p-10 flex flex-col items-center justify-center text-center cursor-pointer transition-colors"
               >
-                <Upload className="w-10 h-10 text-cyan-400 mb-3" />
+                <svg className="w-10 h-10 text-cyan-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
                 <p className="text-xs font-semibold text-slate-200">
                   Drag and drop your project .ZIP file here
                 </p>
@@ -135,18 +136,17 @@ export default function RepositoryUpload({ onScanComplete }) {
             )}
 
             <div className="flex items-center justify-between pt-2 text-[11px] text-slate-500 border-t border-slate-800/60">
-              <span className="flex items-center gap-1">
-                <Info className="w-3.5 h-3.5 text-slate-400" /> Read-only mode: No changes are made to your repo.
-              </span>
+              <span>Read-only mode: No changes are made to your repo.</span>
               <span>Supported: Python, JS, TS, Go, Java</span>
             </div>
           </div>
         ) : (
-          /* Scanning Indicator State */
           <div className="bg-[#131B2E] border border-slate-800 rounded-xl p-8 space-y-6">
             <div className="flex items-center space-x-4">
               <div className="w-12 h-12 rounded-full border-2 border-cyan-500/30 border-t-cyan-400 animate-spin flex items-center justify-center shrink-0">
-                <Search className="w-5 h-5 text-cyan-400" />
+                <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-white">Scanning your codebase...</h3>
@@ -157,56 +157,19 @@ export default function RepositoryUpload({ onScanComplete }) {
             <div className="space-y-2">
               <div className="flex justify-between text-xs">
                 <span className="text-slate-300">Analysis Progress</span>
-                <span className="text-cyan-400 font-bold">{progress}%</span>
+                <span className="text-cyan-400 font-bold">{scanProgress}%</span>
               </div>
               <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
                 <div
                   className="bg-cyan-400 h-full transition-all duration-300"
-                  style={{ width: `${progress}%` }}
+                  style={{ width: `${scanProgress}%` }}
                 ></div>
               </div>
             </div>
-
-            <ul className="text-xs space-y-2 text-slate-400 border-t border-slate-800 pt-4">
-              <li className={`flex items-center gap-2 ${progress >= 25 ? "text-emerald-400" : "text-slate-500"}`}>
-                <CheckCircle2 className="w-4 h-4" /> Reading source files...
-              </li>
-              <li className={`flex items-center gap-2 ${progress >= 50 ? "text-emerald-400" : "text-slate-500"}`}>
-                <CheckCircle2 className="w-4 h-4" /> Running static analysis...
-              </li>
-              <li className={`flex items-center gap-2 ${progress >= 75 ? "text-cyan-400 animate-pulse" : "text-slate-500"}`}>
-                <Clock className="w-4 h-4" /> Generating priority report...
-              </li>
-            </ul>
           </div>
         )}
-
-        {/* Recent Scans Footer */}
-        <div className="space-y-3">
-          <h4 className="text-xs font-semibold text-slate-400">Recent Scans</h4>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            {[
-              { name: "payment-service", date: "May 18, 2026", bugs: "8 Critical" },
-              { name: "user-dashboard", date: "May 15, 2026", bugs: "3 Critical" },
-              { name: "inventory-api", date: "May 10, 2026", bugs: "Clean" },
-            ].map((item, idx) => (
-              <div
-                key={idx}
-                onClick={onScanComplete}
-                className="bg-[#131B2E] hover:bg-slate-800/80 border border-slate-800 p-3 rounded-lg flex items-center justify-between cursor-pointer transition-colors"
-              >
-                <div>
-                  <p className="text-xs font-medium text-slate-200">{item.name}</p>
-                  <p className="text-[10px] text-slate-500">{item.date} • {item.bugs}</p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-slate-500" />
-              </div>
-            ))}
-          </div>
-        </div>
       </main>
 
-      {/* Footer */}
       <footer className="max-w-5xl mx-auto w-full text-center text-xs text-slate-600 border-t border-slate-800/60 pt-4">
         AI Bug Tracking & Prioritization System • Confidential & Internal Use
       </footer>
