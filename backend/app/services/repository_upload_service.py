@@ -5,6 +5,8 @@ from pathlib import Path
 
 from fastapi import UploadFile
 
+from app.services.s3_service import upload_file_to_s3
+
 
 class RepositoryUploadError(Exception):
     """Raised when a repository upload cannot be processed."""
@@ -12,7 +14,7 @@ class RepositoryUploadError(Exception):
 
 class RepositoryUploadService:
 
-    MAX_FILE_SIZE = 1024 * 1024 * 1024 
+    MAX_FILE_SIZE = 1024 * 1024 * 1024
 
     ALLOWED_CODE_EXTENSIONS = {
         ".py",
@@ -68,23 +70,110 @@ class RepositoryUploadService:
         )
 
         try:
+
             if filename.lower().endswith(".zip"):
-                await self._save_and_extract_zip(
+
+                # Save the original ZIP temporarily.
+                zip_path = repository_path / "_upload.zip"
+
+                await self._save_stream(
                     file,
-                    repository_path,
-                )
-            else:
-                await self._save_code_file(
-                    file,
-                    repository_path / filename,
+                    zip_path,
                 )
 
+                # Upload the ORIGINAL ZIP to S3.
+                s3_key = f"repositories/{filename}"
+
+                try:
+                    upload_file_to_s3(
+                        str(zip_path),
+                        s3_key,
+                    )
+                except Exception as error:
+                    raise RepositoryUploadError(
+                        "Repository was received, "
+                        "but uploading it to S3 failed."
+                    ) from error
+
+                # Extract ZIP locally for the existing
+                # repository analysis functionality.
+                try:
+
+                    with zipfile.ZipFile(
+                        zip_path,
+                        "r",
+                    ) as archive:
+
+                        for member in archive.infolist():
+
+                            member_path = (
+                                repository_path
+                                / member.filename
+                            )
+
+                            if not self._is_safe_path(
+                                repository_path,
+                                member_path,
+                            ):
+                                raise RepositoryUploadError(
+                                    "The uploaded ZIP contains "
+                                    "an unsafe file path."
+                                )
+
+                        archive.extractall(
+                            repository_path,
+                        )
+
+                except zipfile.BadZipFile as error:
+
+                    raise RepositoryUploadError(
+                        "The uploaded file is not a valid ZIP archive."
+                    ) from error
+
+                finally:
+
+                    zip_path.unlink(
+                        missing_ok=True,
+                    )
+
+            else:
+
+                destination = (
+                    repository_path / filename
+                )
+
+                await self._save_code_file(
+                    file,
+                    destination,
+                )
+
+                # Upload individual code file to S3.
+                s3_key = f"repositories/{filename}"
+
+                try:
+                    upload_file_to_s3(
+                        str(destination),
+                        s3_key,
+                    )
+                except Exception as error:
+                    raise RepositoryUploadError(
+                        "File was received, "
+                        "but uploading it to S3 failed."
+                    ) from error
+
         except RepositoryUploadError:
-            self._cleanup(repository_path)
+
+            self._cleanup(
+                repository_path,
+            )
+
             raise
 
         except Exception as error:
-            self._cleanup(repository_path)
+
+            self._cleanup(
+                repository_path,
+            )
 
             raise RepositoryUploadError(
                 "Unable to process the uploaded file."
@@ -106,53 +195,14 @@ class RepositoryUploadService:
 
         if extension not in self.ALLOWED_CODE_EXTENSIONS:
             raise RepositoryUploadError(
-                f"Unsupported file type: {extension or 'unknown'}."
+                f"Unsupported file type: "
+                f"{extension or 'unknown'}."
             )
 
         await self._save_stream(
             file,
             destination,
         )
-
-    async def _save_and_extract_zip(
-        self,
-        file: UploadFile,
-        destination: Path,
-    ) -> None:
-
-        zip_path = destination / "_upload.zip"
-
-        await self._save_stream(
-            file,
-            zip_path,
-        )
-
-        try:
-            with zipfile.ZipFile(zip_path, "r") as archive:
-
-                for member in archive.infolist():
-
-                    member_path = destination / member.filename
-
-                    if not self._is_safe_path(
-                        destination,
-                        member_path,
-                    ):
-                        raise RepositoryUploadError(
-                            "The uploaded ZIP contains an unsafe file path."
-                        )
-
-                archive.extractall(destination)
-
-        except zipfile.BadZipFile as error:
-            raise RepositoryUploadError(
-                "The uploaded file is not a valid ZIP archive."
-            ) from error
-
-        finally:
-            zip_path.unlink(
-                missing_ok=True,
-            )
 
     async def _save_stream(
         self,
@@ -164,10 +214,14 @@ class RepositoryUploadService:
         chunk_size = 1024 * 1024
 
         try:
+
             with destination.open("wb") as output:
 
                 while True:
-                    chunk = await file.read(chunk_size)
+
+                    chunk = await file.read(
+                        chunk_size,
+                    )
 
                     if not chunk:
                         break
@@ -182,6 +236,7 @@ class RepositoryUploadService:
                     output.write(chunk)
 
         finally:
+
             await file.close()
 
     @staticmethod
@@ -204,6 +259,7 @@ class RepositoryUploadService:
     ) -> None:
 
         if path.exists():
+
             shutil.rmtree(
                 path,
                 ignore_errors=True,
