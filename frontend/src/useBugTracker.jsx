@@ -388,10 +388,10 @@ export function BugTrackerProvider({ children }) {
         setIsLive(true);
 
         // Generate real bugs from actual scanned files
-        const generatedBugs = generateBugsFromFileSummaries(
-          result.data.aiSummary.fileSummaries || [],
-          result.data.repoMeta
-        );
+        const fileSummaries = result.data.aiSummary?.fileSummaries || [];
+        const generatedBugs = fileSummaries.length > 0
+          ? generateBugsFromFileSummaries(fileSummaries, result.data.repoMeta)
+          : bugs; // keep existing bugs if no files found
         setBugs(generatedBugs);
 
         // Add to recent scans list
