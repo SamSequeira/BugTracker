@@ -1,533 +1,163 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AI Bug Tracking & Prioritization System</title>
-  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body {
-      background-color: #0B0F17;
-      color: #CBD5E1;
-      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
+    body { background-color: #0B0F17; color: #CBD5E1; font-family: ui-sans-serif, system-ui, sans-serif; }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
     .tab-btn.active {
       background-color: rgba(6, 182, 212, 0.15);
       color: #22D3EE;
       border-left: 3px solid #22D3EE;
-      border-radius: 0 0.5rem 0.5rem 0;
-    }
-    @media print {
-      aside, header, footer, .no-print { display: none !important; }
-      body { background-color: #ffffff !important; color: #000000 !important; }
-      .print-card { border: 1px solid #ddd !important; background: #fff !important; color: #000 !important; }
     }
   </style>
 </head>
 <body class="min-h-screen flex text-xs sm:text-sm">
 
-  <!-- ========================================================================= -->
-  <!-- LEFT SIDEBAR (4 TABS)                                                     -->
-  <!-- ========================================================================= -->
-  <aside className="no-print" class="w-16 bg-[#0F1623] border-r border-slate-800 flex flex-col items-center py-5 space-y-6 shrink-0 sticky top-0 h-screen z-30">
-    <!-- Logo -->
+  <!-- SIDEBAR -->
+  <aside class="w-16 bg-[#0F1623] border-r border-slate-800 flex flex-col items-center py-5 space-y-6 shrink-0 sticky top-0 h-screen">
     <div class="p-2.5 bg-cyan-500/10 rounded-xl text-cyan-400 border border-cyan-500/20">
       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
     </div>
 
-    <!-- 4 Navigation Icons -->
     <nav class="flex flex-col space-y-3 w-full items-center pt-2">
-      <!-- Tab 1: Dashboard -->
-      <button id="btn-tab-dashboard" onclick="switchTab('dashboard')" title="Tab 1: Dashboard" class="tab-btn active p-3 text-slate-400 hover:text-white transition-all flex items-center justify-center w-full">
+      <button id="btn-dashboard" onclick="setTab('dashboard')" class="tab-btn active p-3 w-full flex justify-center text-slate-400 hover:text-white">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
       </button>
-
-      <!-- Tab 2: AI Codebase Analysis -->
-      <button id="btn-tab-ai" onclick="switchTab('ai')" title="Tab 2: AI Codebase Analysis" class="tab-btn p-3 text-slate-400 hover:text-white transition-all flex items-center justify-center w-full">
+      <button id="btn-ai" onclick="setTab('ai')" class="tab-btn p-3 w-full flex justify-center text-slate-400 hover:text-white">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
       </button>
-
-      <!-- Tab 3: Debugging -->
-      <button id="btn-tab-debug" onclick="switchTab('debug')" title="Tab 3: Debugging (By File & Line)" class="tab-btn p-3 text-slate-400 hover:text-white transition-all flex items-center justify-center w-full">
+      <button id="btn-debug" onclick="setTab('debug')" class="tab-btn p-3 w-full flex justify-center text-slate-400 hover:text-white">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0a8 8 0 11-16 0 8 8 0 0116 0z"/></svg>
       </button>
-
-      <!-- Tab 4: Report -->
-      <button id="btn-tab-report" onclick="switchTab('report')" title="Tab 4: Executive Report & Download" class="tab-btn p-3 text-slate-400 hover:text-white transition-all flex items-center justify-center w-full">
+      <button id="btn-report" onclick="setTab('report')" class="tab-btn p-3 w-full flex justify-center text-slate-400 hover:text-white">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
       </button>
     </nav>
-
-    <div class="mt-auto flex flex-col space-y-3 pt-4">
-      <div class="w-8 h-8 rounded-full bg-cyan-900/60 border border-cyan-500/40 text-cyan-200 flex items-center justify-center font-bold text-xs">
-        AD
-      </div>
-    </div>
   </aside>
 
-  <!-- ========================================================================= -->
-  <!-- MAIN WORKSPACE                                                            -->
-  <!-- ========================================================================= -->
+  <!-- CONTENT -->
   <div class="flex-1 flex flex-col min-w-0 overflow-y-auto">
-    <!-- Top Header -->
-    <header class="no-print h-14 bg-[#0F1623] border-b border-slate-800 px-6 flex items-center justify-between sticky top-0 z-20">
-      <div class="flex items-center space-x-3">
-        <h1 class="font-semibold text-white text-base">AI Bug Tracking & Prioritization System</h1>
-        <span class="text-[11px] text-slate-400 hidden xl:inline">Smart Repository Analysis using AST, Static Analysis, NLP & Similarity Search</span>
-      </div>
-      <div class="flex items-center space-x-4">
-        <span class="bg-red-500/15 text-red-400 border border-red-500/30 px-2.5 py-1 rounded-full text-xs flex items-center gap-1.5 font-medium">
-          <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span> 8 critical issues
-        </span>
-        <div class="w-7 h-7 rounded-full bg-cyan-800 text-cyan-200 flex items-center justify-center font-semibold text-xs border border-cyan-600">
-          AD
-        </div>
-      </div>
+    <header class="h-14 bg-[#0F1623] border-b border-slate-800 px-6 flex items-center justify-between sticky top-0 z-20">
+      <h1 class="font-semibold text-white text-base">AI Bug Tracking & Prioritization System</h1>
+      <span class="bg-red-500/15 text-red-400 border border-red-500/30 px-2.5 py-1 rounded-full text-xs font-medium">8 critical issues</span>
     </header>
 
     <main class="p-6 space-y-6 max-w-[1400px] mx-auto w-full">
-
-      <!-- ===================================================================== -->
-      <!-- TAB 1: DASHBOARD (SCREENSHOT 1 & 2)                                   -->
-      <!-- ===================================================================== -->
-      <div id="tab-dashboard" class="tab-content active space-y-6">
-        <!-- Scan Repository Box (Screenshot 2) -->
-        <div class="bg-[#131B2E] border border-slate-800 rounded-xl p-6 shadow-xl">
+      <!-- TAB 1: DASHBOARD -->
+      <div id="pane-dashboard" class="tab-pane active space-y-6">
+        <div class="bg-[#131B2E] border border-slate-800 rounded-xl p-6 shadow-xl space-y-4">
           <h2 class="text-xl font-semibold text-white">Scan your repository in seconds</h2>
-          <p class="text-slate-400 text-xs mt-1 mb-4">Paste a link or upload your code. We'll do the rest.</p>
-
-          <div class="bg-[#0B0F17] border border-slate-800 rounded-lg p-5 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-            <div class="lg:col-span-6 space-y-4">
-              <div class="flex space-x-4 border-b border-slate-800 pb-2">
-                <button class="text-xs font-medium pb-2 border-b-2 border-cyan-400 text-cyan-400">GitHub Repository</button>
-                <button class="text-xs font-medium pb-2 border-b-2 border-transparent text-slate-400">Upload .zip File</button>
-              </div>
-              <div>
-                <label class="text-xs text-slate-400 block mb-1">Paste your GitHub repository link</label>
-                <input type="text" value="https://github.com/your-org/your-repo" class="w-full bg-[#131B2E] border border-slate-700 rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono" />
-                <button onclick="startScanningAnimation()" class="w-full mt-3 bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-semibold py-2 rounded-md text-xs transition-colors">
-                  Analyze Repository &rarr;
-                </button>
-              </div>
+          <div class="bg-[#0B0F17] border border-slate-800 rounded-lg p-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
+            <div class="lg:col-span-6 space-y-2">
+              <input type="text" value="https://github.com/your-org/your-repo" class="w-full bg-[#131B2E] border border-slate-700 rounded p-2 text-xs text-white" />
+              <button onclick="setTab('debug')" class="w-full bg-cyan-400 text-slate-950 font-bold py-2 rounded text-xs">Analyze Repository &rarr;</button>
             </div>
-
-            <div class="hidden lg:flex lg:col-span-1 items-center justify-center">
-              <span class="text-xs text-slate-500 font-semibold bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-full">OR</span>
-            </div>
-
-            <div onclick="startScanningAnimation()" class="lg:col-span-5 border-2 border-dashed border-slate-800 hover:border-cyan-500/40 rounded-lg p-6 flex flex-col items-center justify-center text-center bg-[#0F1623]/50 cursor-pointer">
-              <svg class="w-8 h-8 text-slate-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-              <p class="text-xs text-slate-300 font-medium">Drag and drop your .zip file here</p>
-              <span class="bg-slate-800 border border-slate-700 text-slate-200 text-xs px-3 py-1.5 rounded-md mt-2">Choose ZIP File</span>
-            </div>
-          </div>
-
-          <!-- Scanning Progress Bar -->
-          <div class="mt-6 border-t border-slate-800 pt-6 grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
-            <div class="md:col-span-5 flex items-center space-x-4">
-              <div class="w-12 h-12 rounded-full border-2 border-cyan-500/30 border-t-cyan-400 animate-spin flex items-center justify-center shrink-0">
-                <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-              </div>
-              <div>
-                <p class="text-sm font-semibold text-white">Scanning your codebase...</p>
-                <ul class="text-xs space-y-1 text-slate-400 mt-1">
-                  <li class="text-emerald-400">✓ Reading your code...</li>
-                  <li class="text-emerald-400">✓ Detecting languages...</li>
-                  <li class="text-cyan-400 animate-pulse">● Checking for problems...</li>
-                </ul>
-              </div>
-            </div>
-            <div class="md:col-span-7 space-y-2">
-              <div class="flex justify-between text-xs">
-                <span class="text-slate-300">Analyzing 1,842 files</span>
-                <span id="scan-pct" class="text-cyan-400 font-bold">67%</span>
-              </div>
-              <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                <div id="scan-bar" class="bg-cyan-400 h-full w-[67%] transition-all duration-500"></div>
-              </div>
+            <div class="hidden lg:flex lg:col-span-1 justify-center items-center text-slate-500 text-xs">OR</div>
+            <div onclick="setTab('debug')" class="lg:col-span-5 border-2 border-dashed border-slate-800 p-4 text-center cursor-pointer rounded">
+              <span class="text-xs text-slate-300">Drag & drop your .zip file here</span>
             </div>
           </div>
         </div>
 
-        <!-- KPI Breakdown (Screenshot 3) -->
-        <div class="space-y-6">
-          <div class="bg-red-950/30 border border-red-500/30 rounded-xl p-4 flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-              <span class="text-red-400 text-xl font-bold">⚠️</span>
-              <div>
-                <h3 class="font-semibold text-red-200 text-sm">8 issues need attention</h3>
-                <p class="text-xs text-red-300/70">These issues could cause security risks or system failures.</p>
-              </div>
-            </div>
-            <button onclick="switchTab('debug')" class="bg-red-500/20 text-red-300 border border-red-500/40 text-xs px-3 py-1.5 rounded-lg hover:bg-red-500/30 transition-colors">
-              Inspect in Debugging &rarr;
-            </button>
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div class="bg-[#131B2E] border border-slate-800 p-4 rounded-xl"><span class="text-slate-400 text-xs">Total Bugs</span><div class="text-2xl font-bold text-white mt-1">128</div></div>
+          <div class="bg-[#131B2E] border border-slate-800 p-4 rounded-xl"><span class="text-slate-400 text-xs">Critical</span><div class="text-2xl font-bold text-red-400 mt-1">8</div></div>
+          <div class="bg-[#131B2E] border border-slate-800 p-4 rounded-xl"><span class="text-slate-400 text-xs">High</span><div class="text-2xl font-bold text-amber-400 mt-1">32</div></div>
+          <div class="bg-[#131B2E] border border-slate-800 p-4 rounded-xl"><span class="text-slate-400 text-xs">Medium</span><div class="text-2xl font-bold text-yellow-400 mt-1">54</div></div>
+          <div class="bg-[#131B2E] border border-slate-800 p-4 rounded-xl"><span class="text-slate-400 text-xs">Low</span><div class="text-2xl font-bold text-blue-400 mt-1">34</div></div>
+        </div>
+      </div>
+
+      <!-- TAB 2: AI ANALYSIS -->
+      <div id="pane-ai" class="tab-pane space-y-6">
+        <h2 class="text-xl font-bold text-white">✨ AI Codebase Intelligence</h2>
+        <div class="bg-[#131B2E] border border-slate-800 rounded-xl p-5 space-y-3">
+          <h3 class="font-bold text-white text-sm">Overall Purpose</h3>
+          <p class="text-xs text-slate-300">Microservice backend platform managing user auth, orders, and real-time socket alerts.</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="bg-[#131B2E] border border-slate-800 p-4 rounded-xl">
+            <span class="font-mono text-xs font-bold text-white">src/db/queryBuilder.py</span>
+            <p class="text-xs text-slate-300 mt-1">Database abstraction layer. Contains unsanitized SQL injection vulnerability.</p>
           </div>
-
-          <!-- 5 Stats Cards -->
-          <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div class="bg-[#131B2E] border border-slate-800 p-4 rounded-xl">
-              <span class="text-slate-400 text-xs">Total Bugs</span>
-              <div class="text-2xl font-bold text-white mt-1">128</div>
-              <span class="text-[10px] text-slate-500">Across 2,843 files</span>
-            </div>
-            <div class="bg-[#131B2E] border border-slate-800 p-4 rounded-xl">
-              <span class="text-slate-400 text-xs">Critical</span>
-              <div class="text-2xl font-bold text-red-400 mt-1">8</div>
-              <span class="text-[10px] text-slate-500">Needs immediate attention</span>
-            </div>
-            <div class="bg-[#131B2E] border border-slate-800 p-4 rounded-xl">
-              <span class="text-slate-400 text-xs">High</span>
-              <div class="text-2xl font-bold text-amber-400 mt-1">32</div>
-              <span class="text-[10px] text-slate-500">Should be fixed soon</span>
-            </div>
-            <div class="bg-[#131B2E] border border-slate-800 p-4 rounded-xl">
-              <span class="text-slate-400 text-xs">Medium</span>
-              <div class="text-2xl font-bold text-yellow-400 mt-1">54</div>
-              <span class="text-[10px] text-slate-500">Important but not urgent</span>
-            </div>
-            <div class="bg-[#131B2E] border border-slate-800 p-4 rounded-xl col-span-2 md:col-span-1">
-              <span class="text-slate-400 text-xs">Low</span>
-              <div class="text-2xl font-bold text-blue-400 mt-1">34</div>
-              <span class="text-[10px] text-slate-500">Nice to fix</span>
-            </div>
-          </div>
-
-          <!-- Severity & Priority Bars -->
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="bg-[#131B2E] border border-slate-800 p-5 rounded-xl space-y-4">
-              <h3 class="font-semibold text-white text-xs">Issues by Severity</h3>
-              <div class="h-6 w-full rounded-md overflow-hidden flex text-[10px] font-bold text-slate-900">
-                <div class="bg-red-500 w-[6.3%] flex items-center justify-center">6.3%</div>
-                <div class="bg-amber-500 w-[25%] flex items-center justify-center">25.0%</div>
-                <div class="bg-yellow-400 w-[42.2%] flex items-center justify-center">42.2%</div>
-                <div class="bg-blue-500 w-[26.6%] flex items-center justify-center">26.6%</div>
-              </div>
-              <div class="flex justify-between text-xs text-slate-400 pt-1">
-                <span>🔴 Critical (8)</span>
-                <span>🟠 High (32)</span>
-                <span>🟡 Medium (54)</span>
-                <span>🔵 Low (34)</span>
-              </div>
-            </div>
-
-            <div class="bg-[#131B2E] border border-slate-800 p-5 rounded-xl space-y-3">
-              <h3 class="font-semibold text-white text-xs">Priority SLA Breakdown</h3>
-              <div class="space-y-2 text-xs">
-                <div class="flex items-center space-x-3">
-                  <span class="w-28 text-slate-400">P1 • Fix now</span>
-                  <div class="flex-1 bg-slate-800 h-2 rounded-full overflow-hidden"><div class="bg-red-500 h-full w-[14%]"></div></div>
-                  <span class="text-slate-300 w-16 text-right font-mono">18 (14.1%)</span>
-                </div>
-                <div class="flex items-center space-x-3">
-                  <span class="w-28 text-slate-400">P2 • Fix this week</span>
-                  <div class="flex-1 bg-slate-800 h-2 rounded-full overflow-hidden"><div class="bg-amber-500 h-full w-[30%]"></div></div>
-                  <span class="text-slate-300 w-16 text-right font-mono">38 (29.7%)</span>
-                </div>
-                <div class="flex items-center space-x-3">
-                  <span class="w-28 text-slate-400">P3 • Backlog</span>
-                  <div class="flex-1 bg-slate-800 h-2 rounded-full overflow-hidden"><div class="bg-yellow-400 h-full w-[36%]"></div></div>
-                  <span class="text-slate-300 w-16 text-right font-mono">46 (35.9%)</span>
-                </div>
-              </div>
-            </div>
+          <div class="bg-[#131B2E] border border-slate-800 p-4 rounded-xl">
+            <span class="font-mono text-xs font-bold text-white">scripts/deploy.sh</span>
+            <p class="text-xs text-slate-300 mt-1">Continuous deployment script containing plaintext AWS Secret keys.</p>
           </div>
         </div>
       </div>
 
-      <!-- ===================================================================== -->
-      <!-- TAB 2: AI ANALYSIS (OVERALL & PER-FILE INTENT)                        -->
-      <!-- ===================================================================== -->
-      <div id="tab-ai" class="tab-content space-y-6">
-        <div class="border-b border-slate-800 pb-3">
-          <h2 class="text-xl font-bold text-white">✨ AI Codebase Intelligence & Architecture</h2>
-          <p class="text-xs text-slate-400 mt-0.5">Automated NLP decomposition explaining codebase intent, file responsibilities, and architecture status.</p>
-        </div>
-
-        <!-- Overall Summary Card -->
-        <div class="bg-[#131B2E] border border-slate-800 rounded-xl p-6 space-y-4">
-          <h3 class="font-bold text-white text-base">Overall Project Summary & Purpose</h3>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-            <div class="bg-[#0B0F17] border border-slate-800 p-3.5 rounded-lg space-y-1">
-              <span class="text-slate-500 uppercase font-semibold text-[10px]">Project Intent</span>
-              <p class="text-slate-300">Microservice-based asynchronous web platform managing user authentication, dynamic order processing, inventory ETL, and websocket notifications.</p>
-            </div>
-            <div class="bg-[#0B0F17] border border-slate-800 p-3.5 rounded-lg space-y-1">
-              <span class="text-slate-500 uppercase font-semibold text-[10px]">Detected Tech Stack</span>
-              <p class="text-cyan-300 font-mono">Python 3.11, FastAPI, PostgreSQL, WebSockets, Docker, AWS S3</p>
-            </div>
-            <div class="bg-[#0B0F17] border border-slate-800 p-3.5 rounded-lg space-y-1">
-              <span class="text-slate-500 uppercase font-semibold text-[10px]">Engineer Takeaway</span>
-              <p class="text-slate-300">Core architecture is scalable, but critical SQL sanitization in <code class="text-cyan-400">queryBuilder.py</code> and AWS credential leakage in <code class="text-cyan-400">deploy.sh</code> require immediate remediation.</p>
-            </div>
+      <!-- TAB 3: DEBUGGING -->
+      <div id="pane-debug" class="tab-pane space-y-4">
+        <h2 class="text-xl font-bold text-white">🐛 Debugging & Code Issue Inspector</h2>
+        <div class="bg-[#131B2E] border border-slate-800 rounded-xl p-4 space-y-3">
+          <div class="flex justify-between items-center">
+            <span class="font-mono text-xs font-bold text-cyan-400">src/db/queryBuilder.py:118</span>
+            <span class="text-red-400 border border-red-500/30 px-2 py-0.5 rounded text-[10px]">Critical</span>
           </div>
-        </div>
-
-        <!-- Per-File Summaries -->
-        <div class="space-y-4">
-          <h3 class="font-semibold text-white text-sm">Per-File Functional Summaries (Scanned Files)</h3>
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div class="bg-[#131B2E] border border-slate-800 rounded-xl p-4 space-y-2.5">
-              <div class="flex justify-between items-center">
-                <span class="font-mono text-xs font-bold text-white">src/db/queryBuilder.py</span>
-                <span class="text-[10px] px-2 py-0.5 rounded border text-red-400 border-red-500/30 bg-red-500/10 font-medium">Security Risk</span>
-              </div>
-              <p class="text-xs text-slate-300">Database abstraction layer and dynamic SQL query generator.</p>
-              <div class="bg-[#0B0F17] border border-slate-800 p-2 rounded text-[11px] text-slate-400">
-                <strong class="text-slate-300">Intent:</strong> Constructs parameterized SQL queries for user authentication and records retrieval.
-              </div>
-            </div>
-
-            <div class="bg-[#131B2E] border border-slate-800 rounded-xl p-4 space-y-2.5">
-              <div class="flex justify-between items-center">
-                <span class="font-mono text-xs font-bold text-white">scripts/deploy.sh</span>
-                <span class="text-[10px] px-2 py-0.5 rounded border text-red-400 border-red-500/30 bg-red-500/10 font-medium">Credential Leak</span>
-              </div>
-              <p class="text-xs text-slate-300">Continuous deployment and AWS S3/CloudFront build pipeline sync.</p>
-              <div class="bg-[#0B0F17] border border-slate-800 p-2 rounded text-[11px] text-slate-400">
-                <strong class="text-slate-300">Intent:</strong> Automates packaging and deploying static frontend bundles to cloud infrastructure.
-              </div>
-            </div>
-
-            <div class="bg-[#131B2E] border border-slate-800 rounded-xl p-4 space-y-2.5">
-              <div class="flex justify-between items-center">
-                <span class="font-mono text-xs font-bold text-white">src/cart/checkout.py</span>
-                <span class="text-[10px] px-2 py-0.5 rounded border text-amber-400 border-amber-500/30 bg-amber-500/10 font-medium">Null Safety Issue</span>
-              </div>
-              <p class="text-xs text-slate-300">Shopping cart lifecycle and payment gateway processing controller.</p>
-              <div class="bg-[#0B0F17] border border-slate-800 p-2 rounded text-[11px] text-slate-400">
-                <strong class="text-slate-300">Intent:</strong> Calculates cart item subtotals, tax rates, and coordinates checkout billing API calls.
-              </div>
-            </div>
-
-            <div class="bg-[#131B2E] border border-slate-800 rounded-xl p-4 space-y-2.5">
-              <div class="flex justify-between items-center">
-                <span class="font-mono text-xs font-bold text-white">src/ws/handler.py</span>
-                <span class="text-[10px] px-2 py-0.5 rounded border text-amber-400 border-amber-500/30 bg-amber-500/10 font-medium">Memory Leak</span>
-              </div>
-              <p class="text-xs text-slate-300">Real-time bidirectional WebSocket event broadcaster and socket pool.</p>
-              <div class="bg-[#0B0F17] border border-slate-800 p-2 rounded text-[11px] text-slate-400">
-                <strong class="text-slate-300">Intent:</strong> Maintains live client notification connections and broadcasts order status telemetry.
-              </div>
-            </div>
+          <p class="text-xs font-bold text-white">SQL Injection vulnerability in user query builder</p>
+          <div class="bg-[#0B0F17] p-3 rounded font-mono text-[11px] text-red-300 border-l-2 border-red-500">
+            117 query = "SELECT * FROM users WHERE id = " + userId<br>
+            118 results = cursor.fetchall()
           </div>
+          <div class="bg-[#0F1623] p-2 rounded font-mono text-[11px]">
+            <span class="text-emerald-400">+ query = "SELECT * FROM users WHERE id = %s"</span><br>
+            <span class="text-emerald-400">+ cursor.execute(query, (userId,))</span>
+          </div>
+          <button id="btn-fix" onclick="toggleBtnFix()" class="bg-slate-800 border border-slate-700 text-slate-200 px-3 py-1.5 rounded text-xs">Mark as Resolved</button>
         </div>
       </div>
 
-      <!-- ===================================================================== -->
-      <!-- TAB 3: DEBUGGING (GROUPED BY FILE & LINE WITH CODE SNIPPET)           -->
-      <!-- ===================================================================== -->
-      <div id="tab-debug" class="tab-content space-y-6">
-        <div class="border-b border-slate-800 pb-3">
-          <h2 class="text-xl font-bold text-white">🐛 Debugging & Code Issue Inspector</h2>
-          <p class="text-xs text-slate-400 mt-0.5">Issues grouped by file name with exact line numbers, highlighted code snippets, and diff fixes.</p>
+      <!-- TAB 4: REPORT -->
+      <div id="pane-report" class="tab-pane space-y-4">
+        <div class="flex justify-between items-center">
+          <h2 class="text-xl font-bold text-white">📄 Code Resolution Audit Report</h2>
+          <button onclick="window.print()" class="bg-cyan-400 text-slate-950 font-bold px-3 py-1.5 rounded text-xs">Download Report (PDF)</button>
         </div>
-
-        <!-- Issue 1: queryBuilder.py -->
-        <div class="bg-[#131B2E] border border-slate-800 rounded-xl overflow-hidden shadow-lg">
-          <div class="bg-[#0F1623] px-5 py-3 border-b border-slate-800 flex items-center justify-between">
-            <span class="font-mono text-sm font-bold text-white">📁 src/db/queryBuilder.py</span>
-            <span class="text-xs text-red-400 bg-red-500/10 border border-red-500/30 px-2 py-0.5 rounded font-medium">Line 118 • Critical</span>
-          </div>
-
-          <div class="p-5 space-y-4">
-            <h4 class="font-semibold text-white text-sm">SQL Injection vulnerability in user query builder</h4>
-
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <!-- Code snippet -->
-              <div class="bg-[#0F1623] border border-slate-800 rounded p-3 font-mono text-[11px]">
-                <span class="text-slate-500 text-[10px] block mb-2">// Code snippet — src/db/queryBuilder.py:118</span>
-                <div class="text-slate-600">114 def getUserData(userId):</div>
-                <div class="text-slate-600">115     conn = getConnectbile()</div>
-                <div class="text-slate-600">116     cursor = conn.cursor()</div>
-                <div class="bg-red-500/20 text-red-300 border-l-2 border-red-500 pl-2">117     query = "SELECT * FROM users WHERE id = " + userId</div>
-                <div class="bg-red-500/20 text-red-300 border-l-2 border-red-500 pl-2">118     results = cursor.fetchall()</div>
-                <div class="text-slate-600">119     conn.close()</div>
-                <div class="text-slate-600">120     return results</div>
-              </div>
-
-              <!-- Explanation & Fix -->
-              <div class="space-y-3 text-xs">
-                <div>
-                  <h5 class="font-semibold text-slate-300">What's wrong</h5>
-                  <p class="text-slate-400">User input is concatenated directly into SQL query without parameterization.</p>
-                </div>
-                <div class="bg-[#0F1623] border border-slate-800 p-2.5 rounded">
-                  <h5 class="font-semibold text-slate-200 mb-1">Suggested Fix (Diff)</h5>
-                  <div class="font-mono text-[11px] bg-[#0B0F17] p-2 rounded">
-                    <div class="text-red-400">- query = "SELECT * FROM users WHERE id = " + userId</div>
-                    <div class="text-emerald-400">+ query = "SELECT * FROM users WHERE id = %s"</div>
-                    <div class="text-emerald-400">+ cursor.execute(query, (userId,))</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <button id="btn-fix-1" onclick="toggleFix('1', 'src/db/queryBuilder.py', 'SQL Injection vulnerability', 118)" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 px-3 py-1.5 rounded text-xs transition-colors font-medium">
-              ✓ Mark as Resolved
-            </button>
-          </div>
-        </div>
-
-        <!-- Issue 2: deploy.sh -->
-        <div class="bg-[#131B2E] border border-slate-800 rounded-xl overflow-hidden shadow-lg">
-          <div class="bg-[#0F1623] px-5 py-3 border-b border-slate-800 flex items-center justify-between">
-            <span class="font-mono text-sm font-bold text-white">📁 scripts/deploy.sh</span>
-            <span class="text-xs text-red-400 bg-red-500/10 border border-red-500/30 px-2 py-0.5 rounded font-medium">Line 42 • Critical</span>
-          </div>
-
-          <div class="p-5 space-y-4">
-            <h4 class="font-semibold text-white text-sm">Hardcoded AWS credentials in deployment script</h4>
-
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div class="bg-[#0F1623] border border-slate-800 rounded p-3 font-mono text-[11px]">
-                <span class="text-slate-500 text-[10px] block mb-2">// Code snippet — scripts/deploy.sh:42</span>
-                <div class="text-slate-600">40 # Setup AWS environment credentials</div>
-                <div class="bg-red-500/20 text-red-300 border-l-2 border-red-500 pl-2">41 export AWS_ACCESS_KEY_ID="AKIAIOSFODNN7EXAMPLE"</div>
-                <div class="bg-red-500/20 text-red-300 border-l-2 border-red-500 pl-2">42 export AWS_SECRET_ACCESS_KEY="wJalrXUtnFEMI/K7MDENG..."</div>
-                <div class="text-slate-600">43 aws s3 sync ./build s3://production-bucket</div>
-              </div>
-
-              <div class="space-y-3 text-xs">
-                <div>
-                  <h5 class="font-semibold text-slate-300">What's wrong</h5>
-                  <p class="text-slate-400">Plaintext AWS Secret Access Keys stored in source control.</p>
-                </div>
-                <div class="bg-[#0F1623] border border-slate-800 p-2.5 rounded">
-                  <h5 class="font-semibold text-slate-200 mb-1">Suggested Fix (Diff)</h5>
-                  <div class="font-mono text-[11px] bg-[#0B0F17] p-2 rounded">
-                    <div class="text-red-400">- export AWS_SECRET_ACCESS_KEY="wJalrXUtnFEMI..."</div>
-                    <div class="text-emerald-400">+ export AWS_SECRET_ACCESS_KEY="${ENV_AWS_SECRET}"</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <button id="btn-fix-2" onclick="toggleFix('2', 'scripts/deploy.sh', 'Hardcoded AWS credentials', 42)" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 px-3 py-1.5 rounded text-xs transition-colors font-medium">
-              ✓ Mark as Resolved
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- ===================================================================== -->
-      <!-- TAB 4: CONSOLIDATED AUDIT REPORT (WITH PDF DOWNLOAD)                  -->
-      <!-- ===================================================================== -->
-      <div id="tab-report" class="tab-content space-y-6">
-        <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-          <div>
-            <h2 class="text-xl font-bold text-white">📄 Code Vulnerability & Resolution Audit Report</h2>
-            <p class="text-xs text-slate-400 mt-0.5">Line-by-line breakdown of every issue and its real-time fix status.</p>
-          </div>
-          <button onclick="window.print()" class="no-print bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold px-4 py-2 rounded-lg text-xs flex items-center gap-2 transition-all">
-            🖨️ Download Report (PDF)
-          </button>
-        </div>
-
-        <div class="bg-[#131B2E] border border-slate-800 rounded-xl overflow-hidden print-card">
-          <table class="w-full text-left text-xs min-w-[700px]">
-            <thead>
-              <tr class="border-b border-slate-800 text-slate-400 bg-[#0F1623]">
-                <th class="py-3 px-4">#</th>
-                <th class="py-3 px-4">File Path</th>
-                <th class="py-3 px-4">Line</th>
-                <th class="py-3 px-4">Issue Description</th>
-                <th class="py-3 px-4">Severity</th>
-                <th class="py-3 px-4">Fix Status</th>
-              </tr>
+        <div class="bg-[#131B2E] border border-slate-800 rounded-xl overflow-hidden">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-[#0F1623] text-slate-400">
+              <tr><th class="p-3">File</th><th class="p-3">Line</th><th class="p-3">Issue</th><th class="p-3">Status</th></tr>
             </thead>
             <tbody class="divide-y divide-slate-800/50">
               <tr>
-                <td class="py-3 px-4 text-slate-500">1</td>
-                <td class="py-3 px-4 font-mono text-cyan-300">src/db/queryBuilder.py</td>
-                <td class="py-3 px-4 font-mono text-slate-300">:118</td>
-                <td class="py-3 px-4 text-white">SQL Injection vulnerability in user query builder</td>
-                <td class="py-3 px-4 text-red-400 font-bold">Critical</td>
-                <td class="py-3 px-4" id="report-status-1"><span class="px-2 py-0.5 rounded text-[10px] bg-red-500/10 text-red-400 border border-red-500/30">Open (Not Fixed)</span></td>
-              </tr>
-              <tr>
-                <td class="py-3 px-4 text-slate-500">2</td>
-                <td class="py-3 px-4 font-mono text-cyan-300">scripts/deploy.sh</td>
-                <td class="py-3 px-4 font-mono text-slate-300">:42</td>
-                <td class="py-3 px-4 text-white">Hardcoded AWS credentials in deployment script</td>
-                <td class="py-3 px-4 text-red-400 font-bold">Critical</td>
-                <td class="py-3 px-4" id="report-status-2"><span class="px-2 py-0.5 rounded text-[10px] bg-red-500/10 text-red-400 border border-red-500/30">Open (Not Fixed)</span></td>
-              </tr>
-              <tr>
-                <td class="py-3 px-4 text-slate-500">3</td>
-                <td class="py-3 px-4 font-mono text-cyan-300">src/cart/checkout.py</td>
-                <td class="py-3 px-4 font-mono text-slate-300">:97</td>
-                <td class="py-3 px-4 text-white">Null pointer dereference on empty cart checkout</td>
-                <td class="py-3 px-4 text-amber-400 font-bold">High</td>
-                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[10px] bg-red-500/10 text-red-400 border border-red-500/30">Open (Not Fixed)</span></td>
-              </tr>
-              <tr>
-                <td class="py-3 px-4 text-slate-500">4</td>
-                <td class="py-3 px-4 font-mono text-cyan-300">src/ws/handler.py</td>
-                <td class="py-3 px-4 font-mono text-slate-300">:214</td>
-                <td class="py-3 px-4 text-white">Memory leak in websocket connection handler</td>
-                <td class="py-3 px-4 text-amber-400 font-bold">High</td>
-                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[10px] bg-red-500/10 text-red-400 border border-red-500/30">Open (Not Fixed)</span></td>
+                <td class="p-3 font-mono text-cyan-300">src/db/queryBuilder.py</td>
+                <td class="p-3">:118</td>
+                <td class="p-3">SQL Injection</td>
+                <td class="p-3" id="rep-status"><span class="text-red-400 bg-red-500/10 px-2 py-0.5 rounded text-[10px]">Open</span></td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
-
     </main>
-
-    <!-- Footer -->
-    <footer class="no-print bg-[#0F1623] border-t border-slate-800 p-4 px-6 flex justify-between items-center text-xs text-slate-400 mt-auto">
-      <div>Repository: <strong class="text-white">your-repo (main)</strong> • 2,843 files • 128,742 LOC</div>
-      <button onclick="switchTab('dashboard')" class="text-cyan-400 hover:underline">Scan another repository &uarr;</button>
-    </footer>
   </div>
 
-  <!-- JAVASCRIPT CONTROLLER -->
   <script>
-    function switchTab(tabId) {
-      // Hide all tabs
-      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    function setTab(tabId) {
+      document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-
-      // Activate selected tab
-      document.getElementById('tab-' + tabId).classList.add('active');
-      document.getElementById('btn-tab-' + tabId).classList.add('active');
+      document.getElementById('pane-' + tabId).classList.add('active');
+      document.getElementById('btn-' + tabId).classList.add('active');
     }
 
-    function toggleFix(id, file, desc, line) {
-      const btn = document.getElementById('btn-fix-' + id);
-      const statusCell = document.getElementById('report-status-' + id);
-      
+    function toggleBtnFix() {
+      const btn = document.getElementById('btn-fix');
+      const st = document.getElementById('rep-status');
       if (btn.innerText.includes('Mark as Resolved')) {
         btn.innerText = '✓ Resolved';
-        btn.className = 'bg-emerald-600 text-white border border-emerald-500 px-3 py-1.5 rounded text-xs font-medium';
-        if (statusCell) {
-          statusCell.innerHTML = '<span class="px-2 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">✓ Fixed</span>';
-        }
+        btn.className = 'bg-emerald-600 text-white px-3 py-1.5 rounded text-xs';
+        st.innerHTML = '<span class="text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded text-[10px]">✓ Fixed</span>';
       } else {
-        btn.innerText = '✓ Mark as Resolved';
-        btn.className = 'bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 px-3 py-1.5 rounded text-xs font-medium';
-        if (statusCell) {
-          statusCell.innerHTML = '<span class="px-2 py-0.5 rounded text-[10px] bg-red-500/10 text-red-400 border border-red-500/30">Open (Not Fixed)</span>';
-        }
+        btn.innerText = 'Mark as Resolved';
+        btn.className = 'bg-slate-800 border border-slate-700 text-slate-200 px-3 py-1.5 rounded text-xs';
+        st.innerHTML = '<span class="text-red-400 bg-red-500/10 px-2 py-0.5 rounded text-[10px]">Open</span>';
       }
-    }
-
-    function startScanningAnimation() {
-      let pct = 0;
-      const bar = document.getElementById('scan-bar');
-      const text = document.getElementById('scan-pct');
-      const interval = setInterval(() => {
-        pct += 20;
-        if (pct > 100) pct = 100;
-        bar.style.width = pct + '%';
-        text.innerText = pct + '%';
-        if (pct === 100) clearInterval(interval);
-      }, 200);
     }
   </script>
 </body>
