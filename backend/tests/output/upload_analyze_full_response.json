@@ -1,0 +1,1887 @@
+{
+  "repository_id": "9bb31300-d277-479b-bbef-f104b55db388",
+  "message": "Repository analyzed successfully.",
+  "analysis": {
+    "repository_path": "repositories\\9bb31300-d277-479b-bbef-f104b55db388",
+    "summary": {
+      "total_files": 3,
+      "supported_files": 3,
+      "languages": {
+        "JavaScript": 1,
+        "Java": 1,
+        "Python": 1
+      }
+    },
+    "files": [
+      {
+        "success": true,
+        "file": "repositories\\9bb31300-d277-479b-bbef-f104b55db388\\app.js",
+        "language": "JavaScript",
+        "ast": {
+          "type": "program",
+          "start": {
+            "line": 0,
+            "column": 0,
+            "byte": 0
+          },
+          "end": {
+            "line": 7,
+            "column": 0,
+            "byte": 134
+          },
+          "text": "function greet(name) {\n    return \"Hello, \" + name;\n}\n\nfunction divide(a, b) {\n    return a / b;  // bug: no division-by-zero guard\n}\n",
+          "children": [
+            {
+              "type": "function_declaration",
+              "start": {
+                "line": 0,
+                "column": 0,
+                "byte": 0
+              },
+              "end": {
+                "line": 2,
+                "column": 1,
+                "byte": 53
+              },
+              "text": "function greet(name) {\n    return \"Hello, \" + name;\n}",
+              "children": [
+                {
+                  "type": "function",
+                  "start": {
+                    "line": 0,
+                    "column": 0,
+                    "byte": 0
+                  },
+                  "end": {
+                    "line": 0,
+                    "column": 8,
+                    "byte": 8
+                  },
+                  "text": "function",
+                  "children": []
+                },
+                {
+                  "type": "identifier",
+                  "start": {
+                    "line": 0,
+                    "column": 9,
+                    "byte": 9
+                  },
+                  "end": {
+                    "line": 0,
+                    "column": 14,
+                    "byte": 14
+                  },
+                  "text": "greet",
+                  "children": []
+                },
+                {
+                  "type": "formal_parameters",
+                  "start": {
+                    "line": 0,
+                    "column": 14,
+                    "byte": 14
+                  },
+                  "end": {
+                    "line": 0,
+                    "column": 20,
+                    "byte": 20
+                  },
+                  "text": "(name)",
+                  "children": [
+                    {
+                      "type": "(",
+                      "start": {
+                        "line": 0,
+                        "column": 14,
+                        "byte": 14
+                      },
+                      "end": {
+                        "line": 0,
+                        "column": 15,
+                        "byte": 15
+                      },
+                      "text": "(",
+                      "children": []
+                    },
+                    {
+                      "type": "identifier",
+                      "start": {
+                        "line": 0,
+                        "column": 15,
+                        "byte": 15
+                      },
+                      "end": {
+                        "line": 0,
+                        "column": 19,
+                        "byte": 19
+                      },
+                      "text": "name",
+                      "children": []
+                    },
+                    {
+                      "type": ")",
+                      "start": {
+                        "line": 0,
+                        "column": 19,
+                        "byte": 19
+                      },
+                      "end": {
+                        "line": 0,
+                        "column": 20,
+                        "byte": 20
+                      },
+                      "text": ")",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "type": "statement_block",
+                  "start": {
+                    "line": 0,
+                    "column": 21,
+                    "byte": 21
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": 1,
+                    "byte": 53
+                  },
+                  "text": "{\n    return \"Hello, \" + name;\n}",
+                  "children": [
+                    {
+                      "type": "{",
+                      "start": {
+                        "line": 0,
+                        "column": 21,
+                        "byte": 21
+                      },
+                      "end": {
+                        "line": 0,
+                        "column": 22,
+                        "byte": 22
+                      },
+                      "text": "{",
+                      "children": []
+                    },
+                    {
+                      "type": "return_statement",
+                      "start": {
+                        "line": 1,
+                        "column": 4,
+                        "byte": 27
+                      },
+                      "end": {
+                        "line": 1,
+                        "column": 28,
+                        "byte": 51
+                      },
+                      "text": "return \"Hello, \" + name;",
+                      "children": [
+                        {
+                          "type": "return",
+                          "start": {
+                            "line": 1,
+                            "column": 4,
+                            "byte": 27
+                          },
+                          "end": {
+                            "line": 1,
+                            "column": 10,
+                            "byte": 33
+                          },
+                          "text": "return",
+                          "children": []
+                        },
+                        {
+                          "type": "binary_expression",
+                          "start": {
+                            "line": 1,
+                            "column": 11,
+                            "byte": 34
+                          },
+                          "end": {
+                            "line": 1,
+                            "column": 27,
+                            "byte": 50
+                          },
+                          "text": "\"Hello, \" + name",
+                          "children": [
+                            {
+                              "type": "string",
+                              "start": {
+                                "line": 1,
+                                "column": 11,
+                                "byte": 34
+                              },
+                              "end": {
+                                "line": 1,
+                                "column": 20,
+                                "byte": 43
+                              },
+                              "text": "\"Hello, \"",
+                              "children": [
+                                {
+                                  "type": "\"",
+                                  "start": {
+                                    "line": 1,
+                                    "column": 11,
+                                    "byte": 34
+                                  },
+                                  "end": {
+                                    "line": 1,
+                                    "column": 12,
+                                    "byte": 35
+                                  },
+                                  "text": "\"",
+                                  "children": []
+                                },
+                                {
+                                  "type": "string_fragment",
+                                  "start": {
+                                    "line": 1,
+                                    "column": 12,
+                                    "byte": 35
+                                  },
+                                  "end": {
+                                    "line": 1,
+                                    "column": 19,
+                                    "byte": 42
+                                  },
+                                  "text": "Hello, ",
+                                  "children": []
+                                },
+                                {
+                                  "type": "\"",
+                                  "start": {
+                                    "line": 1,
+                                    "column": 19,
+                                    "byte": 42
+                                  },
+                                  "end": {
+                                    "line": 1,
+                                    "column": 20,
+                                    "byte": 43
+                                  },
+                                  "text": "\"",
+                                  "children": []
+                                }
+                              ]
+                            },
+                            {
+                              "type": "+",
+                              "start": {
+                                "line": 1,
+                                "column": 21,
+                                "byte": 44
+                              },
+                              "end": {
+                                "line": 1,
+                                "column": 22,
+                                "byte": 45
+                              },
+                              "text": "+",
+                              "children": []
+                            },
+                            {
+                              "type": "identifier",
+                              "start": {
+                                "line": 1,
+                                "column": 23,
+                                "byte": 46
+                              },
+                              "end": {
+                                "line": 1,
+                                "column": 27,
+                                "byte": 50
+                              },
+                              "text": "name",
+                              "children": []
+                            }
+                          ]
+                        },
+                        {
+                          "type": ";",
+                          "start": {
+                            "line": 1,
+                            "column": 27,
+                            "byte": 50
+                          },
+                          "end": {
+                            "line": 1,
+                            "column": 28,
+                            "byte": 51
+                          },
+                          "text": ";",
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "type": "}",
+                      "start": {
+                        "line": 2,
+                        "column": 0,
+                        "byte": 52
+                      },
+                      "end": {
+                        "line": 2,
+                        "column": 1,
+                        "byte": 53
+                      },
+                      "text": "}",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "function_declaration",
+              "start": {
+                "line": 4,
+                "column": 0,
+                "byte": 55
+              },
+              "end": {
+                "line": 6,
+                "column": 1,
+                "byte": 133
+              },
+              "text": "function divide(a, b) {\n    return a / b;  // bug: no division-by-zero guard\n}",
+              "children": [
+                {
+                  "type": "function",
+                  "start": {
+                    "line": 4,
+                    "column": 0,
+                    "byte": 55
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": 8,
+                    "byte": 63
+                  },
+                  "text": "function",
+                  "children": []
+                },
+                {
+                  "type": "identifier",
+                  "start": {
+                    "line": 4,
+                    "column": 9,
+                    "byte": 64
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": 15,
+                    "byte": 70
+                  },
+                  "text": "divide",
+                  "children": []
+                },
+                {
+                  "type": "formal_parameters",
+                  "start": {
+                    "line": 4,
+                    "column": 15,
+                    "byte": 70
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": 21,
+                    "byte": 76
+                  },
+                  "text": "(a, b)",
+                  "children": [
+                    {
+                      "type": "(",
+                      "start": {
+                        "line": 4,
+                        "column": 15,
+                        "byte": 70
+                      },
+                      "end": {
+                        "line": 4,
+                        "column": 16,
+                        "byte": 71
+                      },
+                      "text": "(",
+                      "children": []
+                    },
+                    {
+                      "type": "identifier",
+                      "start": {
+                        "line": 4,
+                        "column": 16,
+                        "byte": 71
+                      },
+                      "end": {
+                        "line": 4,
+                        "column": 17,
+                        "byte": 72
+                      },
+                      "text": "a",
+                      "children": []
+                    },
+                    {
+                      "type": ",",
+                      "start": {
+                        "line": 4,
+                        "column": 17,
+                        "byte": 72
+                      },
+                      "end": {
+                        "line": 4,
+                        "column": 18,
+                        "byte": 73
+                      },
+                      "text": ",",
+                      "children": []
+                    },
+                    {
+                      "type": "identifier",
+                      "start": {
+                        "line": 4,
+                        "column": 19,
+                        "byte": 74
+                      },
+                      "end": {
+                        "line": 4,
+                        "column": 20,
+                        "byte": 75
+                      },
+                      "text": "b",
+                      "children": []
+                    },
+                    {
+                      "type": ")",
+                      "start": {
+                        "line": 4,
+                        "column": 20,
+                        "byte": 75
+                      },
+                      "end": {
+                        "line": 4,
+                        "column": 21,
+                        "byte": 76
+                      },
+                      "text": ")",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "type": "statement_block",
+                  "start": {
+                    "line": 4,
+                    "column": 22,
+                    "byte": 77
+                  },
+                  "end": {
+                    "line": 6,
+                    "column": 1,
+                    "byte": 133
+                  },
+                  "text": "{\n    return a / b;  // bug: no division-by-zero guard\n}",
+                  "children": [
+                    {
+                      "type": "{",
+                      "start": {
+                        "line": 4,
+                        "column": 22,
+                        "byte": 77
+                      },
+                      "end": {
+                        "line": 4,
+                        "column": 23,
+                        "byte": 78
+                      },
+                      "text": "{",
+                      "children": []
+                    },
+                    {
+                      "type": "return_statement",
+                      "start": {
+                        "line": 5,
+                        "column": 4,
+                        "byte": 83
+                      },
+                      "end": {
+                        "line": 5,
+                        "column": 17,
+                        "byte": 96
+                      },
+                      "text": "return a / b;",
+                      "children": [
+                        {
+                          "type": "return",
+                          "start": {
+                            "line": 5,
+                            "column": 4,
+                            "byte": 83
+                          },
+                          "end": {
+                            "line": 5,
+                            "column": 10,
+                            "byte": 89
+                          },
+                          "text": "return",
+                          "children": []
+                        },
+                        {
+                          "type": "binary_expression",
+                          "start": {
+                            "line": 5,
+                            "column": 11,
+                            "byte": 90
+                          },
+                          "end": {
+                            "line": 5,
+                            "column": 16,
+                            "byte": 95
+                          },
+                          "text": "a / b",
+                          "children": [
+                            {
+                              "type": "identifier",
+                              "start": {
+                                "line": 5,
+                                "column": 11,
+                                "byte": 90
+                              },
+                              "end": {
+                                "line": 5,
+                                "column": 12,
+                                "byte": 91
+                              },
+                              "text": "a",
+                              "children": []
+                            },
+                            {
+                              "type": "/",
+                              "start": {
+                                "line": 5,
+                                "column": 13,
+                                "byte": 92
+                              },
+                              "end": {
+                                "line": 5,
+                                "column": 14,
+                                "byte": 93
+                              },
+                              "text": "/",
+                              "children": []
+                            },
+                            {
+                              "type": "identifier",
+                              "start": {
+                                "line": 5,
+                                "column": 15,
+                                "byte": 94
+                              },
+                              "end": {
+                                "line": 5,
+                                "column": 16,
+                                "byte": 95
+                              },
+                              "text": "b",
+                              "children": []
+                            }
+                          ]
+                        },
+                        {
+                          "type": ";",
+                          "start": {
+                            "line": 5,
+                            "column": 16,
+                            "byte": 95
+                          },
+                          "end": {
+                            "line": 5,
+                            "column": 17,
+                            "byte": 96
+                          },
+                          "text": ";",
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "type": "comment",
+                      "start": {
+                        "line": 5,
+                        "column": 19,
+                        "byte": 98
+                      },
+                      "end": {
+                        "line": 5,
+                        "column": 52,
+                        "byte": 131
+                      },
+                      "text": "// bug: no division-by-zero guard",
+                      "children": []
+                    },
+                    {
+                      "type": "}",
+                      "start": {
+                        "line": 6,
+                        "column": 0,
+                        "byte": 132
+                      },
+                      "end": {
+                        "line": 6,
+                        "column": 1,
+                        "byte": 133
+                      },
+                      "text": "}",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "success": true,
+        "file": "repositories\\9bb31300-d277-479b-bbef-f104b55db388\\Main.java",
+        "language": "Java",
+        "ast": {
+          "type": "program",
+          "start": {
+            "line": 0,
+            "column": 0,
+            "byte": 0
+          },
+          "end": {
+            "line": 5,
+            "column": 0,
+            "byte": 118
+          },
+          "text": "public class Main {\n    public static void main(String[] args) {\n        System.out.println(\"Hello, World!\");\n    }\n}\n",
+          "children": [
+            {
+              "type": "class_declaration",
+              "start": {
+                "line": 0,
+                "column": 0,
+                "byte": 0
+              },
+              "end": {
+                "line": 4,
+                "column": 1,
+                "byte": 117
+              },
+              "text": "public class Main {\n    public static void main(String[] args) {\n        System.out.println(\"Hello, World!\");\n    }\n}",
+              "children": [
+                {
+                  "type": "modifiers",
+                  "start": {
+                    "line": 0,
+                    "column": 0,
+                    "byte": 0
+                  },
+                  "end": {
+                    "line": 0,
+                    "column": 6,
+                    "byte": 6
+                  },
+                  "text": "public",
+                  "children": [
+                    {
+                      "type": "public",
+                      "start": {
+                        "line": 0,
+                        "column": 0,
+                        "byte": 0
+                      },
+                      "end": {
+                        "line": 0,
+                        "column": 6,
+                        "byte": 6
+                      },
+                      "text": "public",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "type": "class",
+                  "start": {
+                    "line": 0,
+                    "column": 7,
+                    "byte": 7
+                  },
+                  "end": {
+                    "line": 0,
+                    "column": 12,
+                    "byte": 12
+                  },
+                  "text": "class",
+                  "children": []
+                },
+                {
+                  "type": "identifier",
+                  "start": {
+                    "line": 0,
+                    "column": 13,
+                    "byte": 13
+                  },
+                  "end": {
+                    "line": 0,
+                    "column": 17,
+                    "byte": 17
+                  },
+                  "text": "Main",
+                  "children": []
+                },
+                {
+                  "type": "class_body",
+                  "start": {
+                    "line": 0,
+                    "column": 18,
+                    "byte": 18
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": 1,
+                    "byte": 117
+                  },
+                  "text": "{\n    public static void main(String[] args) {\n        System.out.println(\"Hello, World!\");\n    }\n}",
+                  "children": [
+                    {
+                      "type": "{",
+                      "start": {
+                        "line": 0,
+                        "column": 18,
+                        "byte": 18
+                      },
+                      "end": {
+                        "line": 0,
+                        "column": 19,
+                        "byte": 19
+                      },
+                      "text": "{",
+                      "children": []
+                    },
+                    {
+                      "type": "method_declaration",
+                      "start": {
+                        "line": 1,
+                        "column": 4,
+                        "byte": 24
+                      },
+                      "end": {
+                        "line": 3,
+                        "column": 5,
+                        "byte": 115
+                      },
+                      "text": "public static void main(String[] args) {\n        System.out.println(\"Hello, World!\");\n    }",
+                      "children": [
+                        {
+                          "type": "modifiers",
+                          "start": {
+                            "line": 1,
+                            "column": 4,
+                            "byte": 24
+                          },
+                          "end": {
+                            "line": 1,
+                            "column": 17,
+                            "byte": 37
+                          },
+                          "text": "public static",
+                          "children": [
+                            {
+                              "type": "public",
+                              "start": {
+                                "line": 1,
+                                "column": 4,
+                                "byte": 24
+                              },
+                              "end": {
+                                "line": 1,
+                                "column": 10,
+                                "byte": 30
+                              },
+                              "text": "public",
+                              "children": []
+                            },
+                            {
+                              "type": "static",
+                              "start": {
+                                "line": 1,
+                                "column": 11,
+                                "byte": 31
+                              },
+                              "end": {
+                                "line": 1,
+                                "column": 17,
+                                "byte": 37
+                              },
+                              "text": "static",
+                              "children": []
+                            }
+                          ]
+                        },
+                        {
+                          "type": "void_type",
+                          "start": {
+                            "line": 1,
+                            "column": 18,
+                            "byte": 38
+                          },
+                          "end": {
+                            "line": 1,
+                            "column": 22,
+                            "byte": 42
+                          },
+                          "text": "void",
+                          "children": []
+                        },
+                        {
+                          "type": "identifier",
+                          "start": {
+                            "line": 1,
+                            "column": 23,
+                            "byte": 43
+                          },
+                          "end": {
+                            "line": 1,
+                            "column": 27,
+                            "byte": 47
+                          },
+                          "text": "main",
+                          "children": []
+                        },
+                        {
+                          "type": "formal_parameters",
+                          "start": {
+                            "line": 1,
+                            "column": 27,
+                            "byte": 47
+                          },
+                          "end": {
+                            "line": 1,
+                            "column": 42,
+                            "byte": 62
+                          },
+                          "text": "(String[] args)",
+                          "children": [
+                            {
+                              "type": "(",
+                              "start": {
+                                "line": 1,
+                                "column": 27,
+                                "byte": 47
+                              },
+                              "end": {
+                                "line": 1,
+                                "column": 28,
+                                "byte": 48
+                              },
+                              "text": "(",
+                              "children": []
+                            },
+                            {
+                              "type": "formal_parameter",
+                              "start": {
+                                "line": 1,
+                                "column": 28,
+                                "byte": 48
+                              },
+                              "end": {
+                                "line": 1,
+                                "column": 41,
+                                "byte": 61
+                              },
+                              "text": "String[] args",
+                              "children": [
+                                {
+                                  "type": "array_type",
+                                  "start": {
+                                    "line": 1,
+                                    "column": 28,
+                                    "byte": 48
+                                  },
+                                  "end": {
+                                    "line": 1,
+                                    "column": 36,
+                                    "byte": 56
+                                  },
+                                  "text": "String[]",
+                                  "children": [
+                                    {
+                                      "type": "type_identifier",
+                                      "start": {
+                                        "line": 1,
+                                        "column": 28,
+                                        "byte": 48
+                                      },
+                                      "end": {
+                                        "line": 1,
+                                        "column": 34,
+                                        "byte": 54
+                                      },
+                                      "text": "String",
+                                      "children": []
+                                    },
+                                    {
+                                      "type": "dimensions",
+                                      "start": {
+                                        "line": 1,
+                                        "column": 34,
+                                        "byte": 54
+                                      },
+                                      "end": {
+                                        "line": 1,
+                                        "column": 36,
+                                        "byte": 56
+                                      },
+                                      "text": "[]",
+                                      "children": [
+                                        {
+                                          "type": "[",
+                                          "start": {
+                                            "line": 1,
+                                            "column": 34,
+                                            "byte": 54
+                                          },
+                                          "end": {
+                                            "line": 1,
+                                            "column": 35,
+                                            "byte": 55
+                                          },
+                                          "text": "[",
+                                          "children": []
+                                        },
+                                        {
+                                          "type": "]",
+                                          "start": {
+                                            "line": 1,
+                                            "column": 35,
+                                            "byte": 55
+                                          },
+                                          "end": {
+                                            "line": 1,
+                                            "column": 36,
+                                            "byte": 56
+                                          },
+                                          "text": "]",
+                                          "children": []
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "identifier",
+                                  "start": {
+                                    "line": 1,
+                                    "column": 37,
+                                    "byte": 57
+                                  },
+                                  "end": {
+                                    "line": 1,
+                                    "column": 41,
+                                    "byte": 61
+                                  },
+                                  "text": "args",
+                                  "children": []
+                                }
+                              ]
+                            },
+                            {
+                              "type": ")",
+                              "start": {
+                                "line": 1,
+                                "column": 41,
+                                "byte": 61
+                              },
+                              "end": {
+                                "line": 1,
+                                "column": 42,
+                                "byte": 62
+                              },
+                              "text": ")",
+                              "children": []
+                            }
+                          ]
+                        },
+                        {
+                          "type": "block",
+                          "start": {
+                            "line": 1,
+                            "column": 43,
+                            "byte": 63
+                          },
+                          "end": {
+                            "line": 3,
+                            "column": 5,
+                            "byte": 115
+                          },
+                          "text": "{\n        System.out.println(\"Hello, World!\");\n    }",
+                          "children": [
+                            {
+                              "type": "{",
+                              "start": {
+                                "line": 1,
+                                "column": 43,
+                                "byte": 63
+                              },
+                              "end": {
+                                "line": 1,
+                                "column": 44,
+                                "byte": 64
+                              },
+                              "text": "{",
+                              "children": []
+                            },
+                            {
+                              "type": "expression_statement",
+                              "start": {
+                                "line": 2,
+                                "column": 8,
+                                "byte": 73
+                              },
+                              "end": {
+                                "line": 2,
+                                "column": 44,
+                                "byte": 109
+                              },
+                              "text": "System.out.println(\"Hello, World!\");",
+                              "children": [
+                                {
+                                  "type": "method_invocation",
+                                  "start": {
+                                    "line": 2,
+                                    "column": 8,
+                                    "byte": 73
+                                  },
+                                  "end": {
+                                    "line": 2,
+                                    "column": 43,
+                                    "byte": 108
+                                  },
+                                  "text": "System.out.println(\"Hello, World!\")",
+                                  "children": [
+                                    {
+                                      "type": "field_access",
+                                      "start": {
+                                        "line": 2,
+                                        "column": 8,
+                                        "byte": 73
+                                      },
+                                      "end": {
+                                        "line": 2,
+                                        "column": 18,
+                                        "byte": 83
+                                      },
+                                      "text": "System.out",
+                                      "children": [
+                                        {
+                                          "type": "identifier",
+                                          "start": {
+                                            "line": 2,
+                                            "column": 8,
+                                            "byte": 73
+                                          },
+                                          "end": {
+                                            "line": 2,
+                                            "column": 14,
+                                            "byte": 79
+                                          },
+                                          "text": "System",
+                                          "children": []
+                                        },
+                                        {
+                                          "type": ".",
+                                          "start": {
+                                            "line": 2,
+                                            "column": 14,
+                                            "byte": 79
+                                          },
+                                          "end": {
+                                            "line": 2,
+                                            "column": 15,
+                                            "byte": 80
+                                          },
+                                          "text": ".",
+                                          "children": []
+                                        },
+                                        {
+                                          "type": "identifier",
+                                          "start": {
+                                            "line": 2,
+                                            "column": 15,
+                                            "byte": 80
+                                          },
+                                          "end": {
+                                            "line": 2,
+                                            "column": 18,
+                                            "byte": 83
+                                          },
+                                          "text": "out",
+                                          "children": []
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": ".",
+                                      "start": {
+                                        "line": 2,
+                                        "column": 18,
+                                        "byte": 83
+                                      },
+                                      "end": {
+                                        "line": 2,
+                                        "column": 19,
+                                        "byte": 84
+                                      },
+                                      "text": ".",
+                                      "children": []
+                                    },
+                                    {
+                                      "type": "identifier",
+                                      "start": {
+                                        "line": 2,
+                                        "column": 19,
+                                        "byte": 84
+                                      },
+                                      "end": {
+                                        "line": 2,
+                                        "column": 26,
+                                        "byte": 91
+                                      },
+                                      "text": "println",
+                                      "children": []
+                                    },
+                                    {
+                                      "type": "argument_list",
+                                      "start": {
+                                        "line": 2,
+                                        "column": 26,
+                                        "byte": 91
+                                      },
+                                      "end": {
+                                        "line": 2,
+                                        "column": 43,
+                                        "byte": 108
+                                      },
+                                      "text": "(\"Hello, World!\")",
+                                      "children": [
+                                        {
+                                          "type": "(",
+                                          "start": {
+                                            "line": 2,
+                                            "column": 26,
+                                            "byte": 91
+                                          },
+                                          "end": {
+                                            "line": 2,
+                                            "column": 27,
+                                            "byte": 92
+                                          },
+                                          "text": "(",
+                                          "children": []
+                                        },
+                                        {
+                                          "type": "string_literal",
+                                          "start": {
+                                            "line": 2,
+                                            "column": 27,
+                                            "byte": 92
+                                          },
+                                          "end": {
+                                            "line": 2,
+                                            "column": 42,
+                                            "byte": 107
+                                          },
+                                          "text": "\"Hello, World!\"",
+                                          "children": [
+                                            {
+                                              "type": "\"",
+                                              "start": {
+                                                "line": 2,
+                                                "column": 27,
+                                                "byte": 92
+                                              },
+                                              "end": {
+                                                "line": 2,
+                                                "column": 28,
+                                                "byte": 93
+                                              },
+                                              "text": "\"",
+                                              "children": []
+                                            },
+                                            {
+                                              "type": "string_fragment",
+                                              "start": {
+                                                "line": 2,
+                                                "column": 28,
+                                                "byte": 93
+                                              },
+                                              "end": {
+                                                "line": 2,
+                                                "column": 41,
+                                                "byte": 106
+                                              },
+                                              "text": "Hello, World!",
+                                              "children": []
+                                            },
+                                            {
+                                              "type": "\"",
+                                              "start": {
+                                                "line": 2,
+                                                "column": 41,
+                                                "byte": 106
+                                              },
+                                              "end": {
+                                                "line": 2,
+                                                "column": 42,
+                                                "byte": 107
+                                              },
+                                              "text": "\"",
+                                              "children": []
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": ")",
+                                          "start": {
+                                            "line": 2,
+                                            "column": 42,
+                                            "byte": 107
+                                          },
+                                          "end": {
+                                            "line": 2,
+                                            "column": 43,
+                                            "byte": 108
+                                          },
+                                          "text": ")",
+                                          "children": []
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": ";",
+                                  "start": {
+                                    "line": 2,
+                                    "column": 43,
+                                    "byte": 108
+                                  },
+                                  "end": {
+                                    "line": 2,
+                                    "column": 44,
+                                    "byte": 109
+                                  },
+                                  "text": ";",
+                                  "children": []
+                                }
+                              ]
+                            },
+                            {
+                              "type": "}",
+                              "start": {
+                                "line": 3,
+                                "column": 4,
+                                "byte": 114
+                              },
+                              "end": {
+                                "line": 3,
+                                "column": 5,
+                                "byte": 115
+                              },
+                              "text": "}",
+                              "children": []
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "}",
+                      "start": {
+                        "line": 4,
+                        "column": 0,
+                        "byte": 116
+                      },
+                      "end": {
+                        "line": 4,
+                        "column": 1,
+                        "byte": 117
+                      },
+                      "text": "}",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "success": true,
+        "file": "repositories\\9bb31300-d277-479b-bbef-f104b55db388\\main.py",
+        "language": "Python",
+        "ast": {
+          "type": "module",
+          "start": {
+            "line": 0,
+            "column": 0,
+            "byte": 0
+          },
+          "end": {
+            "line": 5,
+            "column": 0,
+            "byte": 99
+          },
+          "text": "def add(a, b):\n    return a + b\n\ndef divide(a, b):\n    return a / b  # bug: no zero-division guard\n",
+          "children": [
+            {
+              "type": "function_definition",
+              "start": {
+                "line": 0,
+                "column": 0,
+                "byte": 0
+              },
+              "end": {
+                "line": 1,
+                "column": 16,
+                "byte": 31
+              },
+              "text": "def add(a, b):\n    return a + b",
+              "children": [
+                {
+                  "type": "def",
+                  "start": {
+                    "line": 0,
+                    "column": 0,
+                    "byte": 0
+                  },
+                  "end": {
+                    "line": 0,
+                    "column": 3,
+                    "byte": 3
+                  },
+                  "text": "def",
+                  "children": []
+                },
+                {
+                  "type": "identifier",
+                  "start": {
+                    "line": 0,
+                    "column": 4,
+                    "byte": 4
+                  },
+                  "end": {
+                    "line": 0,
+                    "column": 7,
+                    "byte": 7
+                  },
+                  "text": "add",
+                  "children": []
+                },
+                {
+                  "type": "parameters",
+                  "start": {
+                    "line": 0,
+                    "column": 7,
+                    "byte": 7
+                  },
+                  "end": {
+                    "line": 0,
+                    "column": 13,
+                    "byte": 13
+                  },
+                  "text": "(a, b)",
+                  "children": [
+                    {
+                      "type": "(",
+                      "start": {
+                        "line": 0,
+                        "column": 7,
+                        "byte": 7
+                      },
+                      "end": {
+                        "line": 0,
+                        "column": 8,
+                        "byte": 8
+                      },
+                      "text": "(",
+                      "children": []
+                    },
+                    {
+                      "type": "identifier",
+                      "start": {
+                        "line": 0,
+                        "column": 8,
+                        "byte": 8
+                      },
+                      "end": {
+                        "line": 0,
+                        "column": 9,
+                        "byte": 9
+                      },
+                      "text": "a",
+                      "children": []
+                    },
+                    {
+                      "type": ",",
+                      "start": {
+                        "line": 0,
+                        "column": 9,
+                        "byte": 9
+                      },
+                      "end": {
+                        "line": 0,
+                        "column": 10,
+                        "byte": 10
+                      },
+                      "text": ",",
+                      "children": []
+                    },
+                    {
+                      "type": "identifier",
+                      "start": {
+                        "line": 0,
+                        "column": 11,
+                        "byte": 11
+                      },
+                      "end": {
+                        "line": 0,
+                        "column": 12,
+                        "byte": 12
+                      },
+                      "text": "b",
+                      "children": []
+                    },
+                    {
+                      "type": ")",
+                      "start": {
+                        "line": 0,
+                        "column": 12,
+                        "byte": 12
+                      },
+                      "end": {
+                        "line": 0,
+                        "column": 13,
+                        "byte": 13
+                      },
+                      "text": ")",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "type": ":",
+                  "start": {
+                    "line": 0,
+                    "column": 13,
+                    "byte": 13
+                  },
+                  "end": {
+                    "line": 0,
+                    "column": 14,
+                    "byte": 14
+                  },
+                  "text": ":",
+                  "children": []
+                },
+                {
+                  "type": "block",
+                  "start": {
+                    "line": 1,
+                    "column": 4,
+                    "byte": 19
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 16,
+                    "byte": 31
+                  },
+                  "text": "return a + b",
+                  "children": [
+                    {
+                      "type": "return_statement",
+                      "start": {
+                        "line": 1,
+                        "column": 4,
+                        "byte": 19
+                      },
+                      "end": {
+                        "line": 1,
+                        "column": 16,
+                        "byte": 31
+                      },
+                      "text": "return a + b",
+                      "children": [
+                        {
+                          "type": "return",
+                          "start": {
+                            "line": 1,
+                            "column": 4,
+                            "byte": 19
+                          },
+                          "end": {
+                            "line": 1,
+                            "column": 10,
+                            "byte": 25
+                          },
+                          "text": "return",
+                          "children": []
+                        },
+                        {
+                          "type": "binary_operator",
+                          "start": {
+                            "line": 1,
+                            "column": 11,
+                            "byte": 26
+                          },
+                          "end": {
+                            "line": 1,
+                            "column": 16,
+                            "byte": 31
+                          },
+                          "text": "a + b",
+                          "children": [
+                            {
+                              "type": "identifier",
+                              "start": {
+                                "line": 1,
+                                "column": 11,
+                                "byte": 26
+                              },
+                              "end": {
+                                "line": 1,
+                                "column": 12,
+                                "byte": 27
+                              },
+                              "text": "a",
+                              "children": []
+                            },
+                            {
+                              "type": "+",
+                              "start": {
+                                "line": 1,
+                                "column": 13,
+                                "byte": 28
+                              },
+                              "end": {
+                                "line": 1,
+                                "column": 14,
+                                "byte": 29
+                              },
+                              "text": "+",
+                              "children": []
+                            },
+                            {
+                              "type": "identifier",
+                              "start": {
+                                "line": 1,
+                                "column": 15,
+                                "byte": 30
+                              },
+                              "end": {
+                                "line": 1,
+                                "column": 16,
+                                "byte": 31
+                              },
+                              "text": "b",
+                              "children": []
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "function_definition",
+              "start": {
+                "line": 3,
+                "column": 0,
+                "byte": 33
+              },
+              "end": {
+                "line": 4,
+                "column": 47,
+                "byte": 98
+              },
+              "text": "def divide(a, b):\n    return a / b  # bug: no zero-division guard",
+              "children": [
+                {
+                  "type": "def",
+                  "start": {
+                    "line": 3,
+                    "column": 0,
+                    "byte": 33
+                  },
+                  "end": {
+                    "line": 3,
+                    "column": 3,
+                    "byte": 36
+                  },
+                  "text": "def",
+                  "children": []
+                },
+                {
+                  "type": "identifier",
+                  "start": {
+                    "line": 3,
+                    "column": 4,
+                    "byte": 37
+                  },
+                  "end": {
+                    "line": 3,
+                    "column": 10,
+                    "byte": 43
+                  },
+                  "text": "divide",
+                  "children": []
+                },
+                {
+                  "type": "parameters",
+                  "start": {
+                    "line": 3,
+                    "column": 10,
+                    "byte": 43
+                  },
+                  "end": {
+                    "line": 3,
+                    "column": 16,
+                    "byte": 49
+                  },
+                  "text": "(a, b)",
+                  "children": [
+                    {
+                      "type": "(",
+                      "start": {
+                        "line": 3,
+                        "column": 10,
+                        "byte": 43
+                      },
+                      "end": {
+                        "line": 3,
+                        "column": 11,
+                        "byte": 44
+                      },
+                      "text": "(",
+                      "children": []
+                    },
+                    {
+                      "type": "identifier",
+                      "start": {
+                        "line": 3,
+                        "column": 11,
+                        "byte": 44
+                      },
+                      "end": {
+                        "line": 3,
+                        "column": 12,
+                        "byte": 45
+                      },
+                      "text": "a",
+                      "children": []
+                    },
+                    {
+                      "type": ",",
+                      "start": {
+                        "line": 3,
+                        "column": 12,
+                        "byte": 45
+                      },
+                      "end": {
+                        "line": 3,
+                        "column": 13,
+                        "byte": 46
+                      },
+                      "text": ",",
+                      "children": []
+                    },
+                    {
+                      "type": "identifier",
+                      "start": {
+                        "line": 3,
+                        "column": 14,
+                        "byte": 47
+                      },
+                      "end": {
+                        "line": 3,
+                        "column": 15,
+                        "byte": 48
+                      },
+                      "text": "b",
+                      "children": []
+                    },
+                    {
+                      "type": ")",
+                      "start": {
+                        "line": 3,
+                        "column": 15,
+                        "byte": 48
+                      },
+                      "end": {
+                        "line": 3,
+                        "column": 16,
+                        "byte": 49
+                      },
+                      "text": ")",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "type": ":",
+                  "start": {
+                    "line": 3,
+                    "column": 16,
+                    "byte": 49
+                  },
+                  "end": {
+                    "line": 3,
+                    "column": 17,
+                    "byte": 50
+                  },
+                  "text": ":",
+                  "children": []
+                },
+                {
+                  "type": "block",
+                  "start": {
+                    "line": 4,
+                    "column": 4,
+                    "byte": 55
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": 47,
+                    "byte": 98
+                  },
+                  "text": "return a / b  # bug: no zero-division guard",
+                  "children": [
+                    {
+                      "type": "return_statement",
+                      "start": {
+                        "line": 4,
+                        "column": 4,
+                        "byte": 55
+                      },
+                      "end": {
+                        "line": 4,
+                        "column": 16,
+                        "byte": 67
+                      },
+                      "text": "return a / b",
+                      "children": [
+                        {
+                          "type": "return",
+                          "start": {
+                            "line": 4,
+                            "column": 4,
+                            "byte": 55
+                          },
+                          "end": {
+                            "line": 4,
+                            "column": 10,
+                            "byte": 61
+                          },
+                          "text": "return",
+                          "children": []
+                        },
+                        {
+                          "type": "binary_operator",
+                          "start": {
+                            "line": 4,
+                            "column": 11,
+                            "byte": 62
+                          },
+                          "end": {
+                            "line": 4,
+                            "column": 16,
+                            "byte": 67
+                          },
+                          "text": "a / b",
+                          "children": [
+                            {
+                              "type": "identifier",
+                              "start": {
+                                "line": 4,
+                                "column": 11,
+                                "byte": 62
+                              },
+                              "end": {
+                                "line": 4,
+                                "column": 12,
+                                "byte": 63
+                              },
+                              "text": "a",
+                              "children": []
+                            },
+                            {
+                              "type": "/",
+                              "start": {
+                                "line": 4,
+                                "column": 13,
+                                "byte": 64
+                              },
+                              "end": {
+                                "line": 4,
+                                "column": 14,
+                                "byte": 65
+                              },
+                              "text": "/",
+                              "children": []
+                            },
+                            {
+                              "type": "identifier",
+                              "start": {
+                                "line": 4,
+                                "column": 15,
+                                "byte": 66
+                              },
+                              "end": {
+                                "line": 4,
+                                "column": 16,
+                                "byte": 67
+                              },
+                              "text": "b",
+                              "children": []
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "comment",
+                      "start": {
+                        "line": 4,
+                        "column": 18,
+                        "byte": 69
+                      },
+                      "end": {
+                        "line": 4,
+                        "column": 47,
+                        "byte": 98
+                      },
+                      "text": "# bug: no zero-division guard",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
