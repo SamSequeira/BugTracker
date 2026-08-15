@@ -2,6 +2,7 @@
 // Manages backend requests, 4s AbortController timeout, live/demo state, caching, and graceful fallbacks.
 
 import { DEFAULT_STATS, DEFAULT_BUGS, DEFAULT_AI_SUMMARY } from "./mockData.js";
+import { fetchGitHubRepo, parseGitHubUrl, RepoAccessError, setGitHubToken, getGitHubToken } from "./github.js";
 
 const DEFAULT_API_URL = "http://localhost:8000/api";
 const TIMEOUT_MS = 4000;
@@ -90,6 +91,15 @@ class ApiService {
       this.notifyStatus(false);
       throw err;
     }
+  }
+
+  // Set/get GitHub Personal Access Token for private repo scanning
+  setGitHubToken(token) {
+    setGitHubToken(token);
+  }
+
+  getGitHubToken() {
+    return getGitHubToken();
   }
 
   // Quick test connection helper for Settings Modal
@@ -217,27 +227,52 @@ class ApiService {
   // 2. REPOSITORY & SCAN ENDPOINTS
   // =========================================================================
 
-  // POST /api/scan
+  // Scan a GitHub URL directly via the GitHub public API (no backend needed)
+  // Returns { success, live, data: { aiSummary, stats } } or throws RepoAccessError
+  async scanGitHubRepo(repoUrl) {
+    // fetchGitHubRepo throws RepoAccessError for private/invalid repos — let it bubble up
+    const result = await fetchGitHubRepo(repoUrl);
+    return {
+      success: true,
+      live: true,
+      data: {
+        aiSummary: result.aiSummary,
+        stats: result.stats,
+        repoMeta: {
+          name: result.repoData.name,
+          fullName: result.repoData.full_name,
+          description: result.repoData.description,
+          stars: result.repoData.stargazers_count,
+          forks: result.repoData.forks_count,
+          openIssues: result.repoData.open_issues_count,
+          defaultBranch: result.repoData.default_branch,
+          pushedAt: result.repoData.pushed_at,
+          languages: result.languages,
+          totalFiles: result.totalFiles,
+          owner: result.owner,
+          repo: result.repo,
+        },
+      },
+    };
+  }
+
+  // POST /api/scan (backend path — kept as fallback for ZIP uploads)
   async startScan(payload, isFile = false) {
     try {
       const options = isFile
         ? { method: "POST", body: payload }
         : {
-            method: "POST",
-            body: JSON.stringify(payload),
-          };
+          method: "POST",
+          body: JSON.stringify(payload),
+        };
       const data = await this.request("/scan", options);
       return { success: true, live: true, data };
     } catch (err) {
-      console.warn("Backend /api/scan unreachable, utilizing demo pipeline:", err.message);
+      console.warn("Backend /api/scan unreachable:", err.message);
       return {
-        success: true,
+        success: false,
         live: false,
-        data: {
-          status: "completed",
-          progress: 100,
-          message: "Scan completed via AI engine fallback",
-        },
+        data: null,
       };
     }
   }
