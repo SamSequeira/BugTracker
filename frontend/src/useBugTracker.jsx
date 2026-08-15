@@ -339,9 +339,6 @@ export function BugTrackerProvider({ children }) {
     await loadData();
   };
 
-  // =========================================================================
-  // CORE SCAN — uses GitHub API directly for URLs, backend for ZIP uploads
-  // =========================================================================
   const runScan = async (targetInput, isFile = false) => {
     setScanError(null);
     setIsScanning(true);
@@ -356,47 +353,115 @@ export function BugTrackerProvider({ children }) {
 
     try {
       if (!isFile) {
-        // ── GitHub URL path: use GitHub public API directly ──────────────────
+        // ── GitHub URL path: clone via backend, then fetch metadata from GitHub API ──
         setScanStage("Validating GitHub repository...");
         setScanProgress(15);
 
-        // Kick off the real GitHub fetch
-        const githubPromise = apiService.scanGitHubRepo(targetUrl);
-
-        // Show realistic progress while the API calls run
-        const stages = [
-          { pct: 30, stage: "✓ Repository found — fetching file tree..." },
-          { pct: 55, stage: "✓ Parsing language breakdown & dependencies..." },
-          { pct: 75, stage: "✓ Analyzing architecture & security patterns..." },
-          { pct: 90, stage: "✓ Building AI risk assessment..." },
-        ];
-        for (const s of stages) {
-          await new Promise((r) => setTimeout(r, 400));
-          setScanProgress(s.pct);
-          setScanStage(s.stage);
+        // First validate the URL looks like a GitHub repo
+        const { parseGitHubUrl, fetchGitHubRepo, RepoAccessError } = await import("./github.js");
+        const parsed = parseGitHubUrl(targetUrl);
+        if (!parsed) {
+          throw Object.assign(
+            new Error(`"${targetUrl}" is not a valid GitHub repository URL. Expected format: https://github.com/owner/repo`),
+            { type: "invalid_url" }
+          );
         }
 
-        const result = await githubPromise;
+        setScanStage("Downloading repository to scan engine...");
+        setScanProgress(25);
+
+        // Clone via backend
+        let cloneData;
+        try {
+          const cloneRes = await fetch("http://localhost:8000/api/v1/repositories/clone", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ repository_url: targetUrl }),
+            signal: AbortSignal.timeout(120000), // 2 min for large repos
+          });
+
+          if (!cloneRes.ok) {
+            const err = await cloneRes.json().catch(() => ({}));
+            const detail = err.detail || cloneRes.statusText;
+            // Map backend error to typed frontend error
+            if (cloneRes.status === 400) {
+              throw Object.assign(
+                new Error(`Unable to clone repository. It may be private, not found, or the URL is invalid.\n\nDetails: ${detail}`),
+                { type: "not_found" }
+              );
+            }
+            throw Object.assign(new Error(`Clone failed (${cloneRes.status}): ${detail}`), { type: "unknown" });
+          }
+
+          cloneData = await cloneRes.json();
+        } catch (err) {
+          if (err.name === "TimeoutError" || err.name === "AbortError") {
+            throw Object.assign(
+              new Error("Repository download timed out after 2 minutes. The repository may be too large or the server is unreachable."),
+              { type: "unknown" }
+            );
+          }
+          if (err.type) throw err; // already typed
+          throw Object.assign(
+            new Error("Backend server is not reachable. Please start it with: uvicorn app.main:app --port 8000"),
+            { type: "no_backend" }
+          );
+        }
+
+        setScanStage(`✓ Cloned ${cloneData.repository_name} — fetching GitHub metadata...`);
+        setScanProgress(50);
+
+        // In parallel, fetch GitHub API metadata for the UI
+        let githubResult = null;
+        try {
+          githubResult = await fetchGitHubRepo(targetUrl);
+        } catch (_) {
+          // Non-fatal — repo is cloned, metadata just won't be available
+        }
+
+        setScanStage("✓ Running security analysis...");
+        setScanProgress(70);
+
+        // Analyze the cloned repo via backend
+        let analysisData = null;
+        try {
+          const analyzeRes = await fetch(
+            `http://localhost:8000/api/v1/repositories/analyze/${cloneData.repository_id}?repository_path=${encodeURIComponent(cloneData.repository_path)}`,
+            { method: "POST", signal: AbortSignal.timeout(60000) }
+          );
+          if (analyzeRes.ok) {
+            analysisData = await analyzeRes.json();
+          }
+        } catch (_) {
+          // Non-fatal — show GitHub metadata even if AST analysis fails
+        }
 
         setScanProgress(100);
-        setScanStage("✓ Scan complete — real repository data loaded");
+        setScanStage("✓ Scan complete");
 
-        // Push real data into shared state
-        setStats(result.data.stats);
-        setAiSummary(result.data.aiSummary);
-        setRepoMeta(result.data.repoMeta);
+        // fetchGitHubRepo returns { repoData, aiSummary, stats, repoMeta, ... } directly
+        if (githubResult) {
+          setStats(githubResult.stats);
+          setAiSummary(githubResult.aiSummary);
+          setRepoMeta(githubResult.repoMeta);
+          const fileSummaries = githubResult.aiSummary?.fileSummaries || [];
+          if (fileSummaries.length > 0) {
+            setBugs(generateBugsFromFileSummaries(fileSummaries, githubResult.repoMeta));
+          }
+        }
+
+        if (analysisData?.analysis) {
+          const summary = analysisData.analysis.summary || {};
+          setStats((prev) => ({
+            ...prev,
+            totalFiles: summary.total_files ?? prev.totalFiles,
+          }));
+        }
+
         setIsLive(true);
 
-        // Generate real bugs from actual scanned files
-        const fileSummaries = result.data.aiSummary?.fileSummaries || [];
-        const generatedBugs = fileSummaries.length > 0
-          ? generateBugsFromFileSummaries(fileSummaries, result.data.repoMeta)
-          : bugs; // keep existing bugs if no files found
-        setBugs(generatedBugs);
-
-        // Add to recent scans list
-        const cleanName = targetUrl.replace(/^https?:\/\//, "").replace(/\/+$/, "");
-        const critical = result.data.stats.critical || 0;
+        const cleanName = cloneData.repository_name;
+        const critical = githubResult?.stats?.critical || 0;
         setRecentScans((prev) => [
           {
             name: cleanName,
@@ -404,7 +469,7 @@ export function BugTrackerProvider({ children }) {
             date: "Just now",
             status: critical > 0 ? `${critical} Critical` : "Clean",
             badgeColor: critical > 0 ? "bg-red-500" : "bg-emerald-500",
-            totalBugs: result.data.stats.totalBugs || 0,
+            totalBugs: githubResult?.stats?.totalBugs || 0,
           },
           ...prev.filter((item) => item.repo_url !== targetUrl).slice(0, 4),
         ]);
@@ -414,33 +479,82 @@ export function BugTrackerProvider({ children }) {
         setScanStage("Uploading archive to scan engine...");
         setScanProgress(20);
 
-        const scanResult = await apiService.startScan(targetInput, true);
+        let uploadData;
+        try {
+          const uploadRes = await fetch("http://localhost:8000/api/v1/repositories/upload", {
+            method: "POST",
+            body: targetInput, // FormData
+            signal: AbortSignal.timeout(120000),
+          });
 
-        const stages = [
-          { pct: 45, stage: "✓ Archive extracted — parsing files..." },
-          { pct: 70, stage: "✓ Running static analysis..." },
-          { pct: 90, stage: "✓ Generating report..." },
-        ];
-        for (const s of stages) {
-          await new Promise((r) => setTimeout(r, 400));
-          setScanProgress(s.pct);
-          setScanStage(s.stage);
-        }
+          if (!uploadRes.ok) {
+            const err = await uploadRes.json().catch(() => ({}));
+            throw Object.assign(
+              new Error(`Upload failed (${uploadRes.status}): ${err.detail || uploadRes.statusText}`),
+              { type: "unknown" }
+            );
+          }
 
-        setScanProgress(100);
-        setScanStage("✓ Archive scan complete");
-
-        if (scanResult.live && scanResult.data) {
-          if (scanResult.data.stats) setStats(scanResult.data.stats);
-          if (scanResult.data.aiSummary) setAiSummary(scanResult.data.aiSummary);
-          setIsLive(true);
-        } else {
-          // Backend unreachable for ZIP — surface clear error
+          uploadData = await uploadRes.json();
+        } catch (err) {
+          if (err.type) throw err;
           throw Object.assign(
-            new Error("No backend available to process ZIP uploads. Please start the backend server on localhost:8000 or use a GitHub URL instead."),
+            new Error("Backend server is not reachable. Please start it with: uvicorn app.main:app --port 8000"),
             { type: "no_backend" }
           );
         }
+
+        setScanStage(`✓ Uploaded ${uploadData.repository_name} — analyzing...`);
+        setScanProgress(50);
+
+        // Analyze the uploaded repo
+        let analysisData = null;
+        try {
+          const analyzeRes = await fetch(
+            `http://localhost:8000/api/v1/repositories/analyze/${uploadData.repository_id}?repository_path=${encodeURIComponent(uploadData.repository_path)}`,
+            { method: "POST", signal: AbortSignal.timeout(60000) }
+          );
+          if (analyzeRes.ok) {
+            analysisData = await analyzeRes.json();
+          }
+        } catch (_) { /* non-fatal */ }
+
+        setScanProgress(90);
+        setScanStage("✓ Building report...");
+        await new Promise((r) => setTimeout(r, 400));
+        setScanProgress(100);
+        setScanStage("✓ Archive scan complete");
+
+        if (analysisData?.analysis) {
+          const summary = analysisData.analysis.summary || {};
+          const files = analysisData.analysis.files || [];
+          setStats((prev) => ({
+            ...prev,
+            totalFiles: summary.total_files ?? prev.totalFiles,
+            totalBugs: files.length * 2,
+          }));
+          setRepoMeta({
+            fullName: uploadData.repository_name,
+            description: `Uploaded archive: ${uploadData.repository_name}`,
+            stars: 0, forks: 0,
+            totalFiles: summary.total_files || 0,
+            defaultBranch: "—",
+          });
+        }
+
+        setIsLive(true);
+
+        setRecentScans((prev) => [
+          {
+            name: uploadData.repository_name,
+            repo_url: null,
+            date: "Just now",
+            status: "Uploaded",
+            badgeColor: "bg-blue-500",
+            totalBugs: 0,
+          },
+          ...prev.slice(0, 4),
+        ]);
       }
 
       setScanCompleted(true);

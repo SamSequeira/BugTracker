@@ -27,7 +27,7 @@ import requests
 
 BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000/api/v1")
 
-OUTPUT_DIR = Path(__file__).parent / "output"
+OUTPUT_DIR = Path(__file__).parent / "api_output"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # ---------------------------------------------------------------------------
