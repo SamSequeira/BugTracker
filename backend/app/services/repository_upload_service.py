@@ -1,9 +1,24 @@
+"""
+repository_upload_service.py
+-----------------------------
+Handles ZIP / single-file uploads:
+  1. Save to local disk under repositories/<uuid>-<name>/
+  2. Extract ZIP contents locally (for analysis)
+  3. Upload the original ZIP to S3 (if S3 is enabled)
+"""
+
+import logging
 import shutil
 import uuid
 import zipfile
 from pathlib import Path
 
 from fastapi import UploadFile
+
+from app.services.s3_service import S3UploadError, s3_service
+from app.core.config import s3_config
+
+logger = logging.getLogger(__name__)
 
 
 class RepositoryUploadError(Exception):
@@ -24,6 +39,10 @@ class RepositoryUploadService:
         self.workspace = Path("repositories")
         self.workspace.mkdir(parents=True, exist_ok=True)
 
+    # ------------------------------------------------------------------
+    # Public
+    # ------------------------------------------------------------------
+
     async def upload_file(self, file: UploadFile) -> dict:
         if not file.filename:
             raise RepositoryUploadError("No file was provided.")
@@ -34,14 +53,17 @@ class RepositoryUploadService:
 
         repository_id = str(uuid.uuid4())
         repository_name = Path(filename).stem
-        # Folder name: <uuid>-<repo-name>
+        # Folder: repositories/<uuid>-<repo-name>/
         repository_path = self.workspace / f"{repository_id}-{repository_name}"
         repository_path.mkdir(parents=True, exist_ok=True)
 
         try:
             if filename.lower().endswith(".zip"):
-                await self._save_and_extract_zip(file, repository_path)
+                zip_local_path = await self._save_and_extract_zip(
+                    file, repository_path, filename
+                )
             else:
+                zip_local_path = None
                 await self._save_code_file(file, repository_path / filename)
 
         except RepositoryUploadError:
@@ -53,11 +75,48 @@ class RepositoryUploadService:
                 "Unable to process the uploaded file."
             ) from error
 
-        return {
+        # ------------------------------------------------------------------
+        # S3 upload (non-fatal — local files remain available for analysis)
+        # ------------------------------------------------------------------
+        s3_uri: str | None = None
+        s3_key: str | None = None
+
+        if s3_service.enabled:
+            try:
+                if zip_local_path and zip_local_path.exists():
+                    # Use the original ZIP that was saved temporarily
+                    s3_key = f"{s3_config.prefix}/{repository_id}-{repository_name}.zip"
+                    s3_uri = s3_service.upload_file(zip_local_path, s3_key)
+                    # Clean up temp ZIP now that it's in S3
+                    zip_local_path.unlink(missing_ok=True)
+                else:
+                    # Single code file — zip it before uploading
+                    zip_local_path = repository_path / f"{repository_name}.zip"
+                    self._zip_directory(repository_path, zip_local_path)
+                    s3_key = f"{s3_config.prefix}/{repository_id}-{repository_name}.zip"
+                    s3_uri = s3_service.upload_file(zip_local_path, s3_key)
+                    zip_local_path.unlink(missing_ok=True)
+
+            except S3UploadError as exc:
+                # Log but don't fail the request — local copy is still usable
+                logger.warning("S3 upload failed (local copy retained): %s", exc)
+        else:
+            logger.debug("S3 uploads disabled — skipping for %s", repository_name)
+
+        result = {
             "repository_id": repository_id,
             "repository_name": repository_name,
             "repository_path": str(repository_path),
         }
+        if s3_uri:
+            result["s3_uri"] = s3_uri
+            result["s3_key"] = s3_key
+
+        return result
+
+    # ------------------------------------------------------------------
+    # Private helpers
+    # ------------------------------------------------------------------
 
     async def _save_code_file(self, file: UploadFile, destination: Path) -> None:
         extension = destination.suffix.lower()
@@ -67,9 +126,19 @@ class RepositoryUploadService:
             )
         await self._save_stream(file, destination)
 
-    async def _save_and_extract_zip(self, file: UploadFile, destination: Path) -> None:
-        zip_path = destination / "_upload.zip"
+    async def _save_and_extract_zip(
+        self,
+        file: UploadFile,
+        destination: Path,
+        original_filename: str,
+    ) -> Path:
+        """
+        Save the uploaded ZIP to disk and extract it.
+        Returns the path to the saved ZIP file (caller decides when to delete it).
+        """
+        zip_path = destination / original_filename
         await self._save_stream(file, zip_path)
+
         try:
             with zipfile.ZipFile(zip_path, "r") as archive:
                 for member in archive.infolist():
@@ -80,11 +149,12 @@ class RepositoryUploadService:
                         )
                 archive.extractall(destination)
         except zipfile.BadZipFile as error:
+            zip_path.unlink(missing_ok=True)
             raise RepositoryUploadError(
                 "The uploaded file is not a valid ZIP archive."
             ) from error
-        finally:
-            zip_path.unlink(missing_ok=True)
+
+        return zip_path
 
     async def _save_stream(self, file: UploadFile, destination: Path) -> None:
         total_size = 0
@@ -103,6 +173,14 @@ class RepositoryUploadService:
                     output.write(chunk)
         finally:
             await file.close()
+
+    @staticmethod
+    def _zip_directory(source_dir: Path, output_zip: Path) -> None:
+        """Zip all files inside source_dir into output_zip."""
+        with zipfile.ZipFile(output_zip, "w", zipfile.ZIP_DEFLATED) as zf:
+            for file_path in source_dir.rglob("*"):
+                if file_path.is_file() and file_path != output_zip:
+                    zf.write(file_path, file_path.relative_to(source_dir))
 
     @staticmethod
     def _is_safe_path(base_path: Path, target_path: Path) -> bool:

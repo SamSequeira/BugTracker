@@ -25,7 +25,7 @@ router = APIRouter(
 
 # ============================================================
 # CLONE REPOSITORY
-# GitHub URL → Clone → ZIP → S3
+# GitHub URL → Clone locally → ZIP → S3
 # ============================================================
 
 @router.post(
@@ -41,7 +41,6 @@ async def clone_repository(
         result = await repository_service.clone_repository(
             str(request.repository_url)
         )
-
         return RepositoryCloneResponse(
             message="Repository downloaded successfully.",
             **result,
@@ -66,7 +65,7 @@ async def clone_repository(
 
 # ============================================================
 # UPLOAD REPOSITORY
-# Existing team functionality — unchanged
+# ZIP → local extract → S3
 # ============================================================
 
 @router.post(
@@ -79,10 +78,7 @@ async def upload_repository(
 ) -> RepositoryCloneResponse:
 
     try:
-        result = await repository_upload_service.upload_file(
-            file
-        )
-
+        result = await repository_upload_service.upload_file(file)
         return RepositoryCloneResponse(
             message="Repository uploaded successfully.",
             **result,
@@ -97,7 +93,6 @@ async def upload_repository(
 
 # ============================================================
 # ANALYZE REPOSITORY
-# Existing team functionality — unchanged
 # ============================================================
 
 @router.post(
@@ -110,12 +105,9 @@ async def analyze_repository(
 ) -> dict:
 
     try:
-        analysis_result = (
-            await repository_analysis_service.analyze_repository(
-                repository_path
-            )
+        analysis_result = await repository_analysis_service.analyze_repository(
+            repository_path
         )
-
         return {
             "repository_id": repository_id,
             "message": "Repository analyzed successfully.",
@@ -127,7 +119,6 @@ async def analyze_repository(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(error),
         ) from error
-
     except Exception as error:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -137,7 +128,6 @@ async def analyze_repository(
 
 # ============================================================
 # ANALYZE SINGLE FILE
-# Existing team functionality — unchanged
 # ============================================================
 
 @router.post(
@@ -152,28 +142,19 @@ async def analyze_file(
         contents = await file.read()
 
         with tempfile.NamedTemporaryFile(
-            suffix=Path(file.filename).suffix
-            if file.filename
-            else "",
+            suffix=Path(file.filename).suffix if file.filename else "",
             delete=False,
         ) as tmp_file:
-
             tmp_file.write(contents)
             tmp_path = tmp_file.name
 
         try:
-            analysis_result = (
-                await repository_analysis_service.analyze_file(
-                    tmp_path
-                )
-            )
-
+            analysis_result = await repository_analysis_service.analyze_file(tmp_path)
             return {
                 "filename": file.filename,
                 "message": "File analyzed successfully.",
                 "analysis": analysis_result,
             }
-
         finally:
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
@@ -183,7 +164,6 @@ async def analyze_file(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(error),
         ) from error
-
     except Exception as error:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
