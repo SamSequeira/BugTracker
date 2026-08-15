@@ -23,18 +23,23 @@ router = APIRouter(
 )
 
 
+# ============================================================
+# CLONE REPOSITORY
+# GitHub URL → Clone → ZIP → S3
+# ============================================================
+
 @router.post(
     "/clone",
     response_model=RepositoryCloneResponse,
     status_code=status.HTTP_201_CREATED,
 )
 async def clone_repository(
-    request: RepositoryCloneRequest,
+    github_url: str,
 ) -> RepositoryCloneResponse:
 
     try:
         result = await repository_service.clone_repository(
-            str(request.repository_url)
+            github_url
         )
 
         return RepositoryCloneResponse(
@@ -58,6 +63,11 @@ async def clone_repository(
             detail=str(error),
         ) from error
 
+
+# ============================================================
+# UPLOAD REPOSITORY
+# Existing team functionality — unchanged
+# ============================================================
 
 @router.post(
     "/upload",
@@ -85,6 +95,11 @@ async def upload_repository(
         ) from error
 
 
+# ============================================================
+# ANALYZE REPOSITORY
+# Existing team functionality — unchanged
+# ============================================================
+
 @router.post(
     "/analyze/{repository_id}",
     status_code=status.HTTP_200_OK,
@@ -93,38 +108,37 @@ async def analyze_repository(
     repository_id: str,
     repository_path: str,
 ) -> dict:
-    """
-    Analyze a repository for language detection and AST generation.
-    
-    Args:
-        repository_id: ID of the repository
-        repository_path: Path to the repository directory
-        
-    Returns:
-        Analysis results with detected languages and AST for each file
-    """
+
     try:
-        analysis_result = await repository_analysis_service.analyze_repository(
-            repository_path
+        analysis_result = (
+            await repository_analysis_service.analyze_repository(
+                repository_path
+            )
         )
-        
+
         return {
             "repository_id": repository_id,
             "message": "Repository analyzed successfully.",
             "analysis": analysis_result,
         }
-    
+
     except ValueError as error:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(error),
         ) from error
+
     except Exception as error:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Analysis failed: {str(error)}",
         ) from error
 
+
+# ============================================================
+# ANALYZE SINGLE FILE
+# Existing team functionality — unchanged
+# ============================================================
 
 @router.post(
     "/analyze-file",
@@ -133,45 +147,43 @@ async def analyze_repository(
 async def analyze_file(
     file: UploadFile = File(...),
 ) -> dict:
-    """
-    Analyze a single uploaded file for language detection and AST generation.
-    
-    Args:
-        file: The code file to analyze
-        
-    Returns:
-        Analysis results with language and AST
-    """
+
     try:
-        # Save file temporarily
         contents = await file.read()
-        
+
         with tempfile.NamedTemporaryFile(
-            suffix=Path(file.filename).suffix if file.filename else "",
-            delete=False
+            suffix=Path(file.filename).suffix
+            if file.filename
+            else "",
+            delete=False,
         ) as tmp_file:
+
             tmp_file.write(contents)
             tmp_path = tmp_file.name
-        
+
         try:
-            # Analyze the file
-            analysis_result = await repository_analysis_service.analyze_file(tmp_path)
-            
+            analysis_result = (
+                await repository_analysis_service.analyze_file(
+                    tmp_path
+                )
+            )
+
             return {
                 "filename": file.filename,
                 "message": "File analyzed successfully.",
                 "analysis": analysis_result,
             }
+
         finally:
-            # Clean up temporary file
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
-    
+
     except ValueError as error:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(error),
         ) from error
+
     except Exception as error:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
