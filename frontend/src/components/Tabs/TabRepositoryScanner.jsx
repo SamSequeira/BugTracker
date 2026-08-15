@@ -9,7 +9,7 @@ const ERROR_LABELS = {
   invalid_token: "Invalid GitHub Token",
   rate_limited: "GitHub API Rate Limit",
   invalid_url: "Invalid URL",
-  no_backend: "Backend Unavailable",
+  no_backend: "Backend Server Unavailable",
   unknown: "Scan Error",
 };
 

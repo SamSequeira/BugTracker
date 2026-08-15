@@ -1,8 +1,8 @@
 {
-  "repository_id": "9bb31300-d277-479b-bbef-f104b55db388",
+  "repository_id": "3819a48d-18e9-4ee4-afe5-2e5cbc2f4336",
   "message": "Repository analyzed successfully.",
   "analysis": {
-    "repository_path": "repositories\\9bb31300-d277-479b-bbef-f104b55db388",
+    "repository_path": "repositories\\3819a48d-18e9-4ee4-afe5-2e5cbc2f4336-full_project",
     "summary": {
       "total_files": 3,
       "supported_files": 3,
@@ -15,7 +15,7 @@
     "files": [
       {
         "success": true,
-        "file": "repositories\\9bb31300-d277-479b-bbef-f104b55db388\\app.js",
+        "file": "repositories\\3819a48d-18e9-4ee4-afe5-2e5cbc2f4336-full_project\\app.js",
         "language": "JavaScript",
         "ast": {
           "type": "program",
@@ -647,7 +647,7 @@
       },
       {
         "success": true,
-        "file": "repositories\\9bb31300-d277-479b-bbef-f104b55db388\\Main.java",
+        "file": "repositories\\3819a48d-18e9-4ee4-afe5-2e5cbc2f4336-full_project\\Main.java",
         "language": "Java",
         "ast": {
           "type": "program",
@@ -1328,7 +1328,7 @@
       },
       {
         "success": true,
-        "file": "repositories\\9bb31300-d277-479b-bbef-f104b55db388\\main.py",
+        "file": "repositories\\3819a48d-18e9-4ee4-afe5-2e5cbc2f4336-full_project\\main.py",
         "language": "Python",
         "ast": {
           "type": "module",

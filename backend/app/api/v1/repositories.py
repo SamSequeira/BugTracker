@@ -34,12 +34,12 @@ router = APIRouter(
     status_code=status.HTTP_201_CREATED,
 )
 async def clone_repository(
-    github_url: str,
+    request: RepositoryCloneRequest,
 ) -> RepositoryCloneResponse:
 
     try:
         result = await repository_service.clone_repository(
-            github_url
+            str(request.repository_url)
         )
 
         return RepositoryCloneResponse(
