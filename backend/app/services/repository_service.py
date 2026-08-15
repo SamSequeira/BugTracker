@@ -1,10 +1,26 @@
+"""
+repository_service.py
+---------------------
+Handles GitHub repository cloning:
+  1. Clone into repositories/<uuid>-<name>/
+  2. Zip the cloned folder
+  3. Upload the ZIP to S3 (if S3 is enabled)
+  4. Remove the ZIP (cloned folder stays for analysis)
+"""
+
 import asyncio
+import logging
 import shutil
 import uuid
+import zipfile
 from pathlib import Path
 from urllib.parse import urlparse
 
 from app.utils.git import GitCloneError, clone_repository
+from app.services.s3_service import S3UploadError, s3_service
+from app.core.config import s3_config
+
+logger = logging.getLogger(__name__)
 
 
 class RepositoryCloneService:
@@ -13,17 +29,14 @@ class RepositoryCloneService:
         self.workspace = Path("repositories")
         self.workspace.mkdir(parents=True, exist_ok=True)
 
-    async def clone_repository(
-        self,
-        repository_url: str,
-    ) -> dict:
+    # ------------------------------------------------------------------
+    # Public
+    # ------------------------------------------------------------------
 
+    async def clone_repository(self, repository_url: str) -> dict:
         repository_id = str(uuid.uuid4())
-
-        repository_name = self._get_repository_name(
-            repository_url
-        )
-
+        repository_name = self._get_repository_name(repository_url)
+        # Folder: repositories/<uuid>-<repo-name>/
         repository_path = self.workspace / f"{repository_id}-{repository_name}"
 
         try:
@@ -32,46 +45,69 @@ class RepositoryCloneService:
                 repository_url,
                 repository_path,
             )
-
         except GitCloneError:
             if repository_path.exists():
-                shutil.rmtree(
-                    repository_path,
-                    ignore_errors=True,
-                )
+                shutil.rmtree(repository_path, ignore_errors=True)
             raise
 
-        return {
+        # ------------------------------------------------------------------
+        # S3 upload (non-fatal)
+        # ------------------------------------------------------------------
+        s3_uri: str | None = None
+        s3_key: str | None = None
+
+        if s3_service.enabled:
+            zip_path = repository_path.parent / f"{repository_id}-{repository_name}.zip"
+            try:
+                await asyncio.to_thread(
+                    self._zip_directory, repository_path, zip_path
+                )
+                s3_key = f"{s3_config.prefix}/{repository_id}-{repository_name}.zip"
+                s3_uri = s3_service.upload_file(zip_path, s3_key)
+            except S3UploadError as exc:
+                logger.warning("S3 upload failed (local copy retained): %s", exc)
+            finally:
+                zip_path.unlink(missing_ok=True)
+        else:
+            logger.debug("S3 uploads disabled — skipping for %s", repository_name)
+
+        result = {
             "repository_id": repository_id,
             "repository_name": repository_name,
             "repository_path": str(repository_path),
         }
+        if s3_uri:
+            result["s3_uri"] = s3_uri
+            result["s3_key"] = s3_key
+
+        return result
+
+    # ------------------------------------------------------------------
+    # Private helpers
+    # ------------------------------------------------------------------
 
     @staticmethod
-    def _get_repository_name(
-        repository_url: str,
-    ) -> str:
-
+    def _get_repository_name(repository_url: str) -> str:
         parsed_url = urlparse(repository_url)
-
         path = parsed_url.path.rstrip("/")
-
         if not path:
             raise ValueError(
                 "Repository URL does not contain a repository name."
             )
-
         repository_name = path.split("/")[-1]
-
         if repository_name.endswith(".git"):
             repository_name = repository_name[:-4]
-
         if not repository_name:
-            raise ValueError(
-                "Invalid repository name."
-            )
-
+            raise ValueError("Invalid repository name.")
         return repository_name
+
+    @staticmethod
+    def _zip_directory(source_dir: Path, output_zip: Path) -> None:
+        """Zip all files in source_dir into output_zip."""
+        with zipfile.ZipFile(output_zip, "w", zipfile.ZIP_DEFLATED) as zf:
+            for file_path in source_dir.rglob("*"):
+                if file_path.is_file():
+                    zf.write(file_path, file_path.relative_to(source_dir))
 
 
 repository_service = RepositoryCloneService()
