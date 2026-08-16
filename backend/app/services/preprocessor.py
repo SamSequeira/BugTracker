@@ -169,7 +169,125 @@ def preprocess_java(code: str) -> str:
 
     return "".join(result)
 
-
 def preprocess_javascript(code: str) -> str:
-    """Preprocess JavaScript source code."""
-    return code
+    """Preprocess JavaScript source code.
+
+    Removes:
+    - Single-line comments (//)
+    - Multi-line comments (/* ... */)
+    - Excessive blank lines
+    - Trailing whitespace
+
+    Preserves:
+    - Strings
+    - Template literals
+    - URLs inside strings
+    - Code indentation
+    """
+
+    result = []
+    i = 0
+    n = len(code)
+
+    # Track whether we are inside a string/template literal
+    in_string = False
+    string_char = None
+
+    while i < n:
+        char = code[i]
+
+        # --------------------------------------------------
+        # Inside a string or template literal
+        # --------------------------------------------------
+        if in_string:
+            result.append(char)
+
+            # Handle escaped characters
+            if char == "\\" and i + 1 < n:
+                i += 1
+                result.append(code[i])
+
+            # End of string/template
+            elif char == string_char:
+                in_string = False
+                string_char = None
+
+            i += 1
+            continue
+
+        # --------------------------------------------------
+        # Start of string / template literal
+        # --------------------------------------------------
+        if char in ('"', "'", "`"):
+            in_string = True
+            string_char = char
+            result.append(char)
+            i += 1
+            continue
+
+        # --------------------------------------------------
+        # Single-line comment //
+        # --------------------------------------------------
+        if char == "/" and i + 1 < n and code[i + 1] == "/":
+            i += 2
+
+            # Skip until end of line
+            while i < n and code[i] != "\n":
+                i += 1
+
+            # Preserve newline
+            if i < n:
+                result.append("\n")
+                i += 1
+
+            continue
+
+        # --------------------------------------------------
+        # Multi-line comment /* ... */
+        # --------------------------------------------------
+        if char == "/" and i + 1 < n and code[i + 1] == "*":
+            i += 2
+
+            # Preserve newlines inside comment so that
+            # source line numbers are not completely changed
+            while i < n:
+                if code[i] == "*" and i + 1 < n and code[i + 1] == "/":
+                    i += 2
+                    break
+
+                if code[i] == "\n":
+                    result.append("\n")
+
+                i += 1
+
+            continue
+
+        # Normal character
+        result.append(char)
+        i += 1
+
+    # ------------------------------------------------------
+    # Clean trailing whitespace and excessive blank lines
+    # ------------------------------------------------------
+
+    processed_code = "".join(result)
+
+    lines = processed_code.splitlines()
+
+    cleaned_lines = []
+    previous_blank = False
+
+    for line in lines:
+        line = line.rstrip()
+
+        if line.strip() == "":
+            if previous_blank:
+                continue
+
+            previous_blank = True
+            cleaned_lines.append("")
+        else:
+            previous_blank = False
+            cleaned_lines.append(line)
+
+    return "\n".join(cleaned_lines).strip()

@@ -1,4 +1,4 @@
-from app.services.preprocessor import preprocess_code
+from app.services.preprocessor import preprocess_code, preprocess_javascript
 
 
 python_code = '''
@@ -34,3 +34,37 @@ try:
 except SyntaxError as e:
     print("Valid Python syntax: NO")
     print(e)
+javascript_code = """
+// Normal comment
+
+function hello() {
+
+    // Comment inside function
+    console.log("Hello");
+
+}
+
+/* Multi-line
+   comment
+   here */
+
+const text = "// This is NOT a comment";
+
+const url = "https://example.com";
+
+const template = `Hello // this is not a comment`;
+
+let x = 10;      // Inline comment
+
+let y = 20;
+
+console.log(x + y);
+"""
+
+processed = preprocess_javascript(javascript_code)
+
+print("========== JAVASCRIPT ORIGINAL ==========")
+print(javascript_code)
+
+print("========== JAVASCRIPT PROCESSED ==========")
+print(processed)
