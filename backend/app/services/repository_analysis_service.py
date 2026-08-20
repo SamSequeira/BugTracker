@@ -8,7 +8,9 @@ from typing import Dict, Any
 
 from app.services.ast_generator import ast_generator
 from app.services.language_detector import detect_language
-
+from app.services.candidate_issue_service import (
+    candidate_issue_service
+)
 
 class RepositoryAnalysisService:
     """Orchestrates repository analysis: language detection + AST generation."""
@@ -28,12 +30,24 @@ class RepositoryAnalysisService:
             raise ValueError(f"Repository path not found: {repo_path}")
 
         # Run analysis in thread pool to avoid blocking
-        analysis_result = await asyncio.to_thread(
+        # Step 1: Generate AST
+        ast_result = await asyncio.to_thread(
             ast_generator.generate_ast_for_repository,
             str(repo_path)
         )
 
-        return self._format_analysis_result(analysis_result)
+        # Step 2: Run Static Analysis
+        candidate_result = await asyncio.to_thread(
+            candidate_issue_service.generate_from_repository,
+            ast_result
+        )
+
+        return {
+            "repository_path": str(repo_path),
+            "ast_analysis": self._format_analysis_result(ast_result),
+            "candidate_issues": candidate_result["candidate_issues"],
+            "total_candidate_issues": candidate_result["total_candidate_issues"],
+        }
 
     def _format_analysis_result(self, result: Dict[str, Any]) -> Dict[str, Any]:
         """Format AST generation results for API response."""
