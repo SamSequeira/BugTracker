@@ -106,7 +106,8 @@ async def analyze_repository(
 
     try:
         analysis_result = await repository_analysis_service.analyze_repository(
-            repository_path
+            repository_path,
+            repository_id,
         )
         return {
             "repository_id": repository_id,

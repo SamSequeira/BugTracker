@@ -19,10 +19,14 @@ Usage
         print(issue.to_dict())
 """
 
+import logging
 from typing import Dict, Any, List, Optional
 
 from .models import CandidateIssue
 from .rules import ALL_RULES
+
+
+logger = logging.getLogger(__name__)
 
 
 class StaticAnalyzer:
@@ -43,6 +47,8 @@ class StaticAnalyzer:
         language: str,
         file_path: str,
         source_code: Optional[str] = None,
+        repository_id: Optional[str] = None,
+        similarity_service: Any = None,
     ) -> Dict[str, Any]:
         """
         Run every applicable rule and return a result dict.
@@ -89,10 +95,42 @@ class StaticAnalyzer:
                     "error": f"{type(exc).__name__}: {exc}",
                 })
 
+        serialized_issues = []
+        similarity_result_factory = None
+        if repository_id is not None:
+            # Imported lazily to avoid a package import cycle: the similarity
+            # service consumes CandidateIssue from this package.
+            from app.services.bug_similarity_service import BugSimilarityService
+
+            similarity_result_factory = BugSimilarityService
+        for issue in issues:
+            serialized_issue = issue.to_dict()
+            if repository_id is not None:
+                if similarity_service is None:
+                    serialized_issue["similarity"] = similarity_result_factory.unavailable_result()
+                else:
+                    try:
+                        raw_similarity = similarity_service.add_and_find(issue, repository_id)
+                        serialized_issue["similarity"] = similarity_result_factory.safe_result(
+                            raw_similarity
+                        )
+                    except Exception:  # noqa: BLE001 - similarity must not hide findings
+                        logger.warning(
+                            "Similarity processing failed for repository=%s rule=%s "
+                            "file=%s line=%s",
+                            repository_id,
+                            issue.rule_id,
+                            issue.file_path,
+                            issue.line_number,
+                            exc_info=True,
+                        )
+                        serialized_issue["similarity"] = similarity_result_factory.unavailable_result()
+            serialized_issues.append(serialized_issue)
+
         return {
             "file_path": file_path,
             "language": language,
-            "issues": [i.to_dict() for i in issues],
+            "issues": serialized_issues,
             "issue_count": len(issues),
             "rules_run": rules_run,
             "errors": errors,
@@ -101,6 +139,8 @@ class StaticAnalyzer:
     def analyze_repository(
         self,
         ast_for_repository: Dict[str, Any],
+        repository_id: Optional[str] = None,
+        similarity_service: Any = None,
     ) -> Dict[str, Any]:
         """
         Convenience wrapper: accepts the full dict returned by
@@ -132,6 +172,8 @@ class StaticAnalyzer:
                 ast=file_result["ast"],
                 language=file_result["language"],
                 file_path=file_result["file"],
+                repository_id=repository_id,
+                similarity_service=similarity_service,
             )
             total_issues += file_analysis["issue_count"]
             results.append(file_analysis)
