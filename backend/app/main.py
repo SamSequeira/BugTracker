@@ -5,7 +5,9 @@ from .services.language_detector import detect_language
 from .services.preprocessor import preprocess_code
 
 from app.api.v1.repositories import router as repositories_router
-
+from app.api.v1.candidate_issues import (
+    router as candidate_issues_router
+)
 app = FastAPI(
     title="AI Bug Tracking System",
     version="1.0.0"
@@ -25,6 +27,7 @@ app.include_router(
     prefix="/api/v1",
     tags=["Repositories"]
 )
+app.include_router(candidate_issues_router)
 
 @app.get("/")
 async def root():

@@ -28,28 +28,34 @@ class ASTGenerator:
         self._parsers = {}
         self._init_parsers()
 
-    def _init_parsers(self) -> None:
-        """Initialize tree-sitter parsers for all supported languages."""
+    def _init_parsers(self):
         try:
-            # Python parser
-            py_language = Language(tspython.language(), "python")
-            py_parser = Parser()
-            py_parser.set_language(py_language)
-            self._parsers["Python"] = py_parser
+            # Create Tree-sitter language objects
+            py_language = Language(tspython.language())
+            java_language = Language(tsjava.language())
+            js_language = Language(tsjavascript.language())
 
-            # JavaScript parser
-            js_language = Language(tsjavascript.language(), "javascript")
+            # Create Python parser
+            py_parser = Parser()
+            py_parser.language = py_language
+
+            # Create Java parser
+            java_parser = Parser()
+            java_parser.language = java_language
+
+            # Create JavaScript parser
             js_parser = Parser()
-            js_parser.set_language(js_language)
+            js_parser.language = js_language
+
+            # Store parsers
+            self._parsers["Python"] = py_parser
+            self._parsers["Java"] = java_parser
             self._parsers["JavaScript"] = js_parser
 
-            # Java parser
-            java_language = Language(tsjava.language(), "java")
-            java_parser = Parser()
-            java_parser.set_language(java_language)
-            self._parsers["Java"] = java_parser
         except Exception as e:
-            raise ASTGenerationError(f"Failed to initialize parsers: {str(e)}") from e
+            raise ASTGenerationError(
+                f"Failed to initialize parsers: {str(e)}"
+            ) from e
 
     def detect_language(self, filename: str) -> Optional[str]:
         """Detect language from file extension."""
