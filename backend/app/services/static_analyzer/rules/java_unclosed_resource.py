@@ -14,11 +14,16 @@ Java AST pattern (tree-sitter):
 The rule walks ancestors: if none is a try_with_resources_statement the
 creation is flagged.
 
-Covered resource types (common Java I/O and JDBC classes):
-  FileReader, FileWriter, FileInputStream, FileOutputStream,
-  BufferedReader, BufferedWriter, InputStreamReader, OutputStreamWriter,
-  PrintWriter, RandomAccessFile, Connection, Statement, PreparedStatement,
-  ResultSet, Socket, ServerSocket
+Root-cause note (F-13, F-14)
+-----------------------------
+The original list was missing several very common Java resource types.
+Added: Scanner, DataInputStream, DataOutputStream, InputStream,
+OutputStream, ObjectInputStream, ObjectOutputStream, ZipInputStream,
+ZipOutputStream, GZIPInputStream, GZIPOutputStream, JarInputStream,
+HttpURLConnection, URLConnection.
+
+Covered resource types (common Java I/O, NIO, and JDBC classes):
+  (see _RESOURCE_TYPES set below)
 """
 
 from typing import Iterator, List, Set
@@ -27,13 +32,30 @@ from ..base_rule import BaseRule
 from ..models import CandidateIssue
 
 _RESOURCE_TYPES: Set[str] = {
+    # java.io — character streams
     "FileReader", "FileWriter",
-    "FileInputStream", "FileOutputStream",
-    "BufferedReader", "BufferedWriter",
     "InputStreamReader", "OutputStreamWriter",
-    "PrintWriter", "RandomAccessFile",
-    "Connection", "Statement", "PreparedStatement", "ResultSet",
+    "BufferedReader", "BufferedWriter",
+    "PrintWriter", "PrintStream",
+    # java.io — byte streams
+    "FileInputStream", "FileOutputStream",
+    "BufferedInputStream", "BufferedOutputStream",
+    "DataInputStream", "DataOutputStream",       # F-13/F-14 fix
+    "ObjectInputStream", "ObjectOutputStream",
+    "InputStream", "OutputStream",               # F-13/F-14 fix
+    "RandomAccessFile",
+    # java.util — Scanner reads a resource
+    "Scanner",                                   # F-13 fix
+    # java.util.zip / java.util.jar
+    "ZipInputStream", "ZipOutputStream",
+    "GZIPInputStream", "GZIPOutputStream",
+    "JarInputStream", "JarOutputStream",
+    # java.net
     "Socket", "ServerSocket",
+    "HttpURLConnection", "URLConnection",
+    # java.sql (JDBC)
+    "Connection", "Statement", "PreparedStatement",
+    "CallableStatement", "ResultSet",
 }
 
 
