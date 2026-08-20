@@ -5,3 +5,5 @@ __pycache__/
 .pytest_cache/
 chroma_db/
 repositories/
+# Local generated analysis data
+data/
