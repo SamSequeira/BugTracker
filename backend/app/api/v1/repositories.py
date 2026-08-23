@@ -1,9 +1,10 @@
 from fastapi import APIRouter, HTTPException, status, File, UploadFile
+from fastapi.responses import JSONResponse
 from pathlib import Path
 import tempfile
 import os
 
-from app.schemas.repositories import (
+from app.schemas.repository import (
     RepositoryCloneRequest,
     RepositoryCloneResponse,
 )
@@ -107,13 +108,12 @@ async def analyze_repository(
     try:
         analysis_result = await repository_analysis_service.analyze_repository(
             repository_path,
-            repository_id,
         )
-        return {
+        return JSONResponse(content={
             "repository_id": repository_id,
             "message": "Repository analyzed successfully.",
             "analysis": analysis_result,
-        }
+        })
 
     except ValueError as error:
         raise HTTPException(

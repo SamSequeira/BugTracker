@@ -86,5 +86,13 @@ class S3Config:
             return False
         return bool(_optional("S3_BUCKET_NAME") and _optional("AWS_REGION"))
 
+class Settings:
+    @property
+    def DATABASE_URL(self) -> str:
+        return _require("DATABASE_URL")
+
+
+settings = Settings()
+
 
 s3_config = S3Config()
