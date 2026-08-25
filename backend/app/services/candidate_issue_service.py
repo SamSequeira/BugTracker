@@ -112,6 +112,23 @@ class CandidateIssueService:
                 ),
         }
 
+    def generate_enriched_from_repository(
+        self,
+        ast_for_repository: Dict[str, Any],
+        repository_id: str | None = None,
+    ) -> Dict[str, Any]:
+        """
+        Generate candidate issues and enrich them into full bug reports.
+        """
+        from app.services.bug_report_service import bug_report_service
+
+        candidate_result = self.generate_from_repository(ast_for_repository)
+        return bug_report_service.generate_repository_reports(
+            ast_result=ast_for_repository,
+            candidate_result=candidate_result,
+            repository_id=repository_id,
+        )
+
 
 # Global instance
 candidate_issue_service = CandidateIssueService()

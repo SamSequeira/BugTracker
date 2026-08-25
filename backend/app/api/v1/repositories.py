@@ -170,3 +170,65 @@ async def analyze_file(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Analysis failed: {str(error)}",
         ) from error
+
+
+# ============================================================
+# EXPORT REPOSITORY REPORT
+# ============================================================
+
+@router.get(
+    "/export/{repository_id}",
+    status_code=status.HTTP_200_OK,
+)
+async def export_repository_analysis(
+    repository_id: str,
+    repository_path: str,
+    format: str = "pdf",
+):
+    """
+    Export repository analysis and bug reports in various formats:
+    Supported formats: pdf, csv, json, md, html
+    """
+    from fastapi.responses import Response
+    from app.services.bug_report_service import bug_report_service
+
+    path = Path(repository_path)
+    if not path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Repository path not found: {repository_path}",
+        )
+
+    try:
+        analysis_result = await repository_analysis_service.analyze_repository(
+            repository_path,
+            repository_id=repository_id,
+        )
+
+        content, media_type, filename = bug_report_service.export_reports(
+            reports=analysis_result.get("bug_reports", []),
+            format_type=format,
+            summary_stats=analysis_result.get("summary_stats"),
+            repo_info={
+                "id": repository_id,
+                "path": repository_path,
+                "name": path.name,
+            },
+        )
+
+        headers = {
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Access-Control-Expose-Headers": "Content-Disposition",
+        }
+        return Response(content=content, media_type=media_type, headers=headers)
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        ) from error
+    except Exception as error:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Export failed: {str(error)}",
+        ) from error

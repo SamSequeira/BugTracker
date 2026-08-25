@@ -8,45 +8,81 @@ from typing import Dict, Any
 
 from app.services.ast_generator import ast_generator
 from app.services.language_detector import detect_language
-from app.services.candidate_issue_service import (
-    candidate_issue_service
-)
+from app.services.candidate_issue_service import candidate_issue_service
+from app.services.static_analyzer.analyzer import static_analyzer
+
 
 class RepositoryAnalysisService:
-    """Orchestrates repository analysis: language detection + AST generation."""
+    """Orchestrates repository analysis: language detection + AST + Static Analysis + Bug Enrichment."""
 
-    async def analyze_repository(self, repo_path: str) -> Dict[str, Any]:
+    def __init__(self, similarity_service: Any = None) -> None:
+        self.similarity_service = similarity_service
+
+    async def analyze_repository(
+        self,
+        repo_path: str,
+        repository_id: str | None = None,
+    ) -> Dict[str, Any]:
         """
-        Analyze a repository for language detection and AST generation.
+        Analyze a repository for language detection, AST generation,
+        static analysis, candidate issues, and enriched bug reports.
         
         Args:
             repo_path: Path to the repository
+            repository_id: Optional repository identifier
             
         Returns:
-            Comprehensive analysis results
+            Comprehensive analysis results with enriched bug reports
         """
+        from app.services.bug_report_service import bug_report_service
+
         repo_path = Path(repo_path)
         if not repo_path.exists():
             raise ValueError(f"Repository path not found: {repo_path}")
 
-        # Run analysis in thread pool to avoid blocking
-        # Step 1: Generate AST
+        # Step 1: Generate AST in thread pool
         ast_result = await asyncio.to_thread(
             ast_generator.generate_ast_for_repository,
             str(repo_path)
         )
 
         # Step 2: Run Static Analysis
+        static_analysis_result = await asyncio.to_thread(
+            static_analyzer.analyze_repository,
+            ast_result,
+            repository_id,
+            self.similarity_service,
+        )
+
+        # Step 3: Run Candidate Issue Generation
         candidate_result = await asyncio.to_thread(
             candidate_issue_service.generate_from_repository,
             ast_result
         )
 
+        # Step 4: Generate Enriched Bug Reports
+        report_data = await asyncio.to_thread(
+            bug_report_service.generate_repository_reports,
+            ast_result,
+            candidate_result,
+            repository_id,
+            str(repo_path),
+        )
+
+        formatted_ast = self._format_analysis_result(ast_result)
+
         return {
+            "repository_id": repository_id,
             "repository_path": str(repo_path),
-            "ast_analysis": self._format_analysis_result(ast_result),
+            "summary": formatted_ast["summary"],
+            "files": formatted_ast["files"],
+            "ast_analysis": formatted_ast,
+            "static_analysis": static_analysis_result,
             "candidate_issues": candidate_result["candidate_issues"],
             "total_candidate_issues": candidate_result["total_candidate_issues"],
+            "bug_reports": report_data["bug_reports"],
+            "total_reports": report_data["total_reports"],
+            "summary_stats": report_data["summary_stats"],
         }
 
     def _format_analysis_result(self, result: Dict[str, Any]) -> Dict[str, Any]:
@@ -58,7 +94,10 @@ class RepositoryAnalysisService:
                 "supported_files": result["supported_files"],
                 "languages": result["languages_detected"],
             },
-            "files": result["files_analyzed"],
+            "files": [
+                {k: v for k, v in f.items() if k != "ast"}
+                for f in result.get("files_analyzed", [])
+            ],
         }
 
     async def analyze_file(self, file_path: str) -> Dict[str, Any]:
