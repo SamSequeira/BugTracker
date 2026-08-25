@@ -30,22 +30,42 @@ class ASTGenerator:
 
     def _init_parsers(self):
         try:
-            # Create Tree-sitter language objects
-            py_language = Language(tspython.language())
-            java_language = Language(tsjava.language())
-            js_language = Language(tsjavascript.language())
+            # Create Tree-sitter language objects (handles tree-sitter >=0.22 and <0.22)
+            try:
+                py_language = Language(tspython.language())
+            except TypeError:
+                py_language = Language(tspython.language(), "python")
+
+            try:
+                java_language = Language(tsjava.language())
+            except TypeError:
+                java_language = Language(tsjava.language(), "java")
+
+            try:
+                js_language = Language(tsjavascript.language())
+            except TypeError:
+                js_language = Language(tsjavascript.language(), "javascript")
 
             # Create Python parser
             py_parser = Parser()
-            py_parser.language = py_language
+            if hasattr(py_parser, "set_language"):
+                py_parser.set_language(py_language)
+            else:
+                py_parser.language = py_language
 
             # Create Java parser
             java_parser = Parser()
-            java_parser.language = java_language
+            if hasattr(java_parser, "set_language"):
+                java_parser.set_language(java_language)
+            else:
+                java_parser.language = java_language
 
             # Create JavaScript parser
             js_parser = Parser()
-            js_parser.language = js_language
+            if hasattr(js_parser, "set_language"):
+                js_parser.set_language(js_language)
+            else:
+                js_parser.language = js_language
 
             # Store parsers
             self._parsers["Python"] = py_parser

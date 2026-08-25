@@ -5,7 +5,17 @@ from __future__ import annotations
 import hashlib
 import json
 
-import pytest
+try:
+    import pytest
+except ImportError:
+    class DummyPytest:
+        @staticmethod
+        def fixture(fn):
+            return fn
+        @staticmethod
+        def approx(val):
+            return val
+    pytest = DummyPytest()
 
 from app.services.bug_similarity_service import BugSimilarityService
 from app.services.static_analyzer.models import CandidateIssue
@@ -103,10 +113,11 @@ def test_clearly_different_issue_is_not_duplicate(service):
     assert result["similarity"] == pytest.approx(0.0)
 
 
-def test_duplicate_threshold_is_configurable(tmp_path):
+def test_duplicate_threshold_is_configurable(tmp_path, client=None):
     service = BugSimilarityService(
         persist_dir=tmp_path / "chroma",
         model=DeterministicModel(),
+        client=client,
         threshold=1.0,
     )
     service.store_issue(make_issue(), "repo-a")
@@ -137,3 +148,101 @@ def test_similarity_failure_returns_json_safe_unavailable_result(service):
     assert issue.to_dict() == original_issue
     assert result == BugSimilarityService.unavailable_result()
     json.dumps(result)
+
+
+class MockCollection:
+    def __init__(self):
+        self._data = {}
+
+    def count(self):
+        return len(self._data)
+
+    def upsert(self, ids, embeddings, documents, metadatas):
+        for i, emb, doc, meta in zip(ids, embeddings, documents, metadatas):
+            self._data[i] = {"emb": emb, "doc": doc, "meta": meta}
+
+    def query(self, query_embeddings, n_results, include):
+        import numpy as np
+        q_emb = np.array(query_embeddings[0])
+        matches = []
+        for doc_id, doc_val in self._data.items():
+            d_emb = np.array(doc_val["emb"])
+            dot = np.dot(q_emb, d_emb)
+            norm = (np.linalg.norm(q_emb) * np.linalg.norm(d_emb)) or 1e-9
+            cos_sim = dot / norm
+            cos_dist = max(0.0, 1.0 - cos_sim)
+            matches.append((doc_id, doc_val["meta"], cos_dist))
+        matches.sort(key=lambda x: x[2])
+        top = matches[:n_results]
+        return {
+            "ids": [[m[0] for m in top]],
+            "metadatas": [[m[1] for m in top]],
+            "distances": [[m[2] for m in top]],
+        }
+
+
+class MockChromaClient:
+    def __init__(self):
+        self._collections = {}
+
+    def get_or_create_collection(self, name, metadata=None):
+        if name not in self._collections:
+            self._collections[name] = MockCollection()
+        return self._collections[name]
+
+
+if __name__ == "__main__":
+    import tempfile
+    import pathlib
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_p = pathlib.Path(tmp_dir)
+
+        def make_svc(thresh=0.85):
+            return BugSimilarityService(
+                persist_dir=tmp_p / "chroma",
+                model=DeterministicModel(),
+                client=MockChromaClient(),
+                threshold=thresh,
+            )
+
+        print("\n" + "=" * 60)
+        print("  Bug Similarity Test Suite")
+        print("=" * 60 + "\n")
+
+        test_issue_id_is_deterministic_and_repository_scoped()
+        print("  ✓ test_issue_id_is_deterministic_and_repository_scoped")
+
+        test_issue_text_is_normalized_and_uses_meaningful_fields()
+        print("  ✓ test_issue_text_is_normalized_and_uses_meaningful_fields")
+
+        svc = make_svc()
+        test_store_issue_upserts_with_stable_id(svc)
+        print("  ✓ test_store_issue_upserts_with_stable_id")
+
+        svc = make_svc()
+        test_first_issue_has_no_matches_and_is_stored(svc)
+        print("  ✓ test_first_issue_has_no_matches_and_is_stored")
+
+        svc = make_svc()
+        test_clearly_similar_issue_is_duplicate(svc)
+        print("  ✓ test_clearly_similar_issue_is_duplicate")
+
+        svc = make_svc()
+        test_clearly_different_issue_is_not_duplicate(svc)
+        print("  ✓ test_clearly_different_issue_is_not_duplicate")
+
+        test_duplicate_threshold_is_configurable(tmp_p, client=MockChromaClient())
+        print("  ✓ test_duplicate_threshold_is_configurable")
+
+        svc = make_svc()
+        test_add_and_find_prevents_self_match(svc)
+        print("  ✓ test_add_and_find_prevents_self_match")
+
+        svc = make_svc()
+        test_similarity_failure_returns_json_safe_unavailable_result(svc)
+        print("  ✓ test_similarity_failure_returns_json_safe_unavailable_result")
+
+        print("\n" + "=" * 60)
+        print("  Results: 9 passed, 0 failed")
+        print("=" * 60 + "\n")

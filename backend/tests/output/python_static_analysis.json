@@ -1,19 +1,20 @@
 {
-  "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpwzmm_xqi.py",
+  "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpnysanka0.py",
   "language": "Python",
   "issues": [
     {
       "rule_id": "PY_DIV_001",
       "issue_type": "division_by_zero",
-      "message": "Division by potentially zero value: the divisor `b` is not a numeric literal.  Add a zero-guard before dividing.",
-      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpwzmm_xqi.py",
+      "message": "Division by potentially zero value: the divisor `b` may be zero at runtime.  Add a zero-guard before dividing.",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpnysanka0.py",
       "line_number": 2,
       "column": 11,
       "code_snippet": "a / b",
       "evidence": {
         "operator": "/",
         "right_operand": "b",
-        "right_node_type": "identifier"
+        "right_node_type": "identifier",
+        "classification": "potentially_zero"
       },
       "severity": "high"
     },
@@ -21,7 +22,7 @@
       "rule_id": "PY_RES_001",
       "issue_type": "unclosed_resource",
       "message": "open() called outside a `with` statement.  Use `with open(...) as f:` to guarantee the file is closed even when an exception occurs.",
-      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpwzmm_xqi.py",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpnysanka0.py",
       "line_number": 5,
       "column": 8,
       "code_snippet": "open(path, \"r\")",
