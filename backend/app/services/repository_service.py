@@ -16,6 +16,10 @@ import zipfile
 from pathlib import Path
 from urllib.parse import urlparse
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.repository import Repository
+from app.repositories.repository_repo import repository_repository
 from app.utils.git import GitCloneError, clone_repository
 from app.services.s3_service import S3UploadError, s3_service
 from app.core.config import s3_config
@@ -33,7 +37,9 @@ class RepositoryCloneService:
     # Public
     # ------------------------------------------------------------------
 
-    async def clone_repository(self, repository_url: str) -> dict:
+    async def clone_repository(
+        self, repository_url: str, db: AsyncSession
+    ) -> dict:
         repository_id = str(uuid.uuid4())
         repository_name = self._get_repository_name(repository_url)
         # Folder: repositories/<uuid>-<repo-name>/
@@ -51,10 +57,13 @@ class RepositoryCloneService:
             raise
 
         # ------------------------------------------------------------------
-        # S3 upload (non-fatal)
+        # A persisted Repository must point to a durable S3 archive.
         # ------------------------------------------------------------------
         s3_uri: str | None = None
         s3_key: str | None = None
+
+        if not s3_service.enabled:
+            raise S3UploadError("S3 uploads are not configured.")
 
         if s3_service.enabled:
             zip_path = repository_path.parent / f"{repository_id}-{repository_name}.zip"
@@ -64,21 +73,30 @@ class RepositoryCloneService:
                 )
                 s3_key = f"{s3_config.prefix}/{repository_id}-{repository_name}.zip"
                 s3_uri = s3_service.upload_file(zip_path, s3_key)
-            except S3UploadError as exc:
-                logger.warning("S3 upload failed (local copy retained): %s", exc)
             finally:
                 zip_path.unlink(missing_ok=True)
         else:
             logger.debug("S3 uploads disabled — skipping for %s", repository_name)
 
+        repository = Repository(
+            id=repository_id,
+            name=repository_name,
+            source_url=repository_url,
+            s3_key=s3_key,
+        )
+        try:
+            await repository_repository.create(db, repository)
+            await db.commit()
+        except Exception:
+            await db.rollback()
+            raise
+
         result = {
-            "repository_id": repository_id,
+            "repository_id": repository.id,
             "repository_name": repository_name,
-            "repository_path": str(repository_path),
         }
-        if s3_uri:
-            result["s3_uri"] = s3_uri
-            result["s3_key"] = s3_key
+        result["s3_uri"] = s3_uri
+        result["s3_key"] = s3_key
 
         return result
 

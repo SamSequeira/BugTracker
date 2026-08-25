@@ -14,7 +14,10 @@ import zipfile
 from pathlib import Path
 
 from fastapi import UploadFile
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.repository import Repository
+from app.repositories.repository_repo import repository_repository
 from app.services.s3_service import S3UploadError, s3_service
 from app.core.config import s3_config
 
@@ -43,7 +46,7 @@ class RepositoryUploadService:
     # Public
     # ------------------------------------------------------------------
 
-    async def upload_file(self, file: UploadFile) -> dict:
+    async def upload_file(self, file: UploadFile, db: AsyncSession) -> dict:
         if not file.filename:
             raise RepositoryUploadError("No file was provided.")
 
@@ -81,6 +84,9 @@ class RepositoryUploadService:
         s3_uri: str | None = None
         s3_key: str | None = None
 
+        if not s3_service.enabled:
+            raise S3UploadError("S3 uploads are not configured.")
+
         if s3_service.enabled:
             try:
                 if zip_local_path and zip_local_path.exists():
@@ -97,20 +103,31 @@ class RepositoryUploadService:
                     s3_uri = s3_service.upload_file(zip_local_path, s3_key)
                     zip_local_path.unlink(missing_ok=True)
 
-            except S3UploadError as exc:
+            except S3UploadError:
+                raise
                 # Log but don't fail the request — local copy is still usable
-                logger.warning("S3 upload failed (local copy retained): %s", exc)
         else:
             logger.debug("S3 uploads disabled — skipping for %s", repository_name)
 
+        repository = Repository(
+            id=repository_id,
+            name=repository_name,
+            source_url=None,
+            s3_key=s3_key,
+        )
+        try:
+            await repository_repository.create(db, repository)
+            await db.commit()
+        except Exception:
+            await db.rollback()
+            raise
+
         result = {
-            "repository_id": repository_id,
+            "repository_id": repository.id,
             "repository_name": repository_name,
-            "repository_path": str(repository_path),
         }
-        if s3_uri:
-            result["s3_uri"] = s3_uri
-            result["s3_key"] = s3_key
+        result["s3_uri"] = s3_uri
+        result["s3_key"] = s3_key
 
         return result
 
