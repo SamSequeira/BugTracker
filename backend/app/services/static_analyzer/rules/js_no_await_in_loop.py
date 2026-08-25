@@ -90,12 +90,16 @@ class JavaScriptNoAwaitInLoop(BaseRule):
             current = parent_map[id(current)]
             if current["type"] in _LOOP_TYPES:
                 return True
-            # Stop at function boundaries — await in a nested async function
-            # is its own concern
+            # Stop at function/method boundaries — await in a nested async
+            # function or class method is its own concern, not sequential
+            # awaiting in the outer loop.
             if current["type"] in (
                 "function_declaration",
                 "function_expression",
                 "arrow_function",
+                "method_definition",     # F-20 fix: class methods are boundaries
+                "generator_function",
+                "generator_function_declaration",
             ):
                 return False
         return False

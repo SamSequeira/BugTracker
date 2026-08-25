@@ -78,13 +78,15 @@ class BaseRule(ABC):
         Return the source text for *node* using source_lines as a fallback
         when node["text"] is empty or spans multiple lines ambiguously.
         """
-        text = node.get("text", "").strip()
+        raw_text = node.get("text")
+        text = str(raw_text).strip() if raw_text is not None else ""
         if text:
             # Prefer the embedded text; trim to first line for brevity
             first_line = text.split("\n")[0].strip()
             return first_line if first_line else text
         # Fallback: pull from source_lines
-        line_idx = node["start"]["line"]
+        start = node.get("start") or {}
+        line_idx = start.get("line", 0)
         if 0 <= line_idx < len(source_lines):
             return source_lines[line_idx].rstrip()
         return ""
@@ -98,13 +100,16 @@ class BaseRule(ABC):
         evidence: dict,
     ) -> CandidateIssue:
         """Convenience factory — builds a CandidateIssue from a node."""
+        start = node.get("start") or {}
+        line_num = start.get("line", 0) + 1
+        col_num = start.get("column", 0)
         return CandidateIssue(
             rule_id=self.rule_id,
             issue_type=self.issue_type,
             message=message,
             file_path=file_path,
-            line_number=node["start"]["line"] + 1,   # convert to 1-based
-            column=node["start"]["column"],
+            line_number=line_num,   # convert to 1-based
+            column=col_num,
             code_snippet=self._snippet(node, source_lines),
             evidence=evidence,
             severity=self.severity,
