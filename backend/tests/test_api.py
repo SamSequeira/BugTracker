@@ -6,7 +6,7 @@ Requires the FastAPI server to be running at BASE_URL.
 
 Start the server first:
     cd backend
-    uvicorn app.main:app --reload --port 8000
+    uvicorn app.main:app --reload --reload-dir app --reload-exclude repositories --port 8000
 
 Then run:
     python -m pytest tests/test_api.py -v
@@ -276,7 +276,7 @@ if __name__ == "__main__":
 
     if not _check_server():
         print("✗  Server is not reachable at", BASE_URL)
-        print("   Start it with:  uvicorn app.main:app --reload --port 8000")
+        print("   Start it with:  uvicorn app.main:app --reload --reload-dir app --reload-exclude repositories --port 8000")
         print("   (run from the backend/ directory)\n")
         sys.exit(1)
 
