@@ -8,6 +8,7 @@ from app.api.v1.repositories import router as repositories_router
 from app.api.v1.candidate_issues import (
     router as candidate_issues_router
 )
+from app.api.v1.auth import router as auth_router
 app = FastAPI(
     title="AI Bug Tracking System",
     version="1.0.0"
@@ -28,6 +29,11 @@ app.include_router(
     tags=["Repositories"]
 )
 app.include_router(candidate_issues_router)
+app.include_router(
+    auth_router,
+    prefix="/api/v1",
+    tags=["Authentication"],
+)
 
 @app.get("/")
 async def root():
