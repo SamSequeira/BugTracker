@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import DateTime, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -7,6 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from data.dbconnection.base import Base
 
 if TYPE_CHECKING:
+    from app.models.analysis_run import AnalysisRun
     from app.models.user import User
 
 
@@ -54,4 +55,10 @@ class Repository(Base):
     user: Mapped[Optional["User"]] = relationship(
         "User",
         back_populates="repositories",
+    )
+
+    analysis_runs: Mapped[List["AnalysisRun"]] = relationship(
+        "AnalysisRun",
+        back_populates="repository",
+        cascade="all, delete-orphan",
     )

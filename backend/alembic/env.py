@@ -9,11 +9,19 @@ from alembic import context
 from data.dbconnection.base import Base
 
 # Import all models so SQLAlchemy registers them
-from app.models.repository import Repository
-from app.models.analysis_run import AnalysisRun
-from app.models.candidate_issues import CandidateIssue
-from app.models.issue_status import IssueStatus
-from app.models.user import User
+from app.models import (
+    User,
+    Repository,
+    AnalysisRun,
+    ArchitectureSummary,
+    AnalysisTechnology,
+    ArchitectureComponent,
+    SourceFile,
+    CandidateIssue,
+    IssueStatus,
+    IssueRecommendation,
+    IssueSimilarity,
+)
 
 from app.core.config import settings
 
