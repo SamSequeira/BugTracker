@@ -21,7 +21,10 @@ from app.services.language_detector import detect_language
 
 
 class RepositoryAnalysisService:
-    """Orchestrates repository analysis: language detection + AST generation."""
+    """Orchestrates repository analysis: language detection + AST + Static Analysis + Bug Enrichment."""
+
+    def __init__(self, similarity_service: Any = None) -> None:
+        self.similarity_service = similarity_service
 
     @staticmethod
     def get_local_repository_path(repository_id: str, repository_name: str) -> Path:
@@ -30,14 +33,18 @@ class RepositoryAnalysisService:
 
     async def analyze_repository(self, repo_path: str) -> Dict[str, Any]:
         """
-        Analyze a repository for language detection and AST generation.
+        Analyze a repository for language detection, AST generation,
+        static analysis, candidate issues, and enriched bug reports.
         
         Args:
             repo_path: Path to the repository
+            repository_id: Optional repository identifier
             
         Returns:
-            Comprehensive analysis results
+            Comprehensive analysis results with enriched bug reports
         """
+        from app.services.bug_report_service import bug_report_service
+
         repo_path = Path(repo_path)
         if not repo_path.exists():
             raise ValueError(f"Repository path not found: {repo_path}")
@@ -57,10 +64,17 @@ class RepositoryAnalysisService:
 
         # Step 3: Return clean response without dumping massive AST hierarchies
         return {
+            "repository_id": repository_id,
             "repository_path": str(repo_path),
-            "ast_analysis": self._format_analysis_result(ast_result),
+            "summary": formatted_ast["summary"],
+            "files": formatted_ast["files"],
+            "ast_analysis": formatted_ast,
+            "static_analysis": static_analysis_result,
             "candidate_issues": candidate_result["candidate_issues"],
             "total_candidate_issues": candidate_result["total_candidate_issues"],
+            "bug_reports": report_data["bug_reports"],
+            "total_reports": report_data["total_reports"],
+            "summary_stats": report_data["summary_stats"],
         }
 
     def _format_analysis_result(self, result: Dict[str, Any]) -> Dict[str, Any]:
