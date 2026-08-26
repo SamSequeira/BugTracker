@@ -25,3 +25,7 @@ sentence-transformers
 SQLAlchemy==2.0.52
 asyncpg==0.31.0
 alembic==1.19.1
+PyJWT==2.11.0
+pwdlib[argon2]==0.3.0
+email-validator==2.3.0
+aiosqlite==0.22.1

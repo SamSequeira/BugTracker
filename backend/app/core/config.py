@@ -89,8 +89,30 @@ class S3Config:
 class Settings:
     @property
     def DATABASE_URL(self) -> str:
-        return _require("DATABASE_URL")
+        """Database URL suitable for SQLAlchemy's async engine."""
+        url = _require("DATABASE_URL")
+        if url.startswith("postgresql://"):
+            return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        if url.startswith("sqlite://"):
+            return url.replace("sqlite://", "sqlite+aiosqlite://", 1)
+        return url
 
+    @property
+    def JWT_SECRET_KEY(self) -> str:
+        return _require("JWT_SECRET_KEY")
+
+    @property
+    def JWT_ALGORITHM(self) -> str:
+        return _optional("JWT_ALGORITHM", "HS256")
+
+    @property
+    def ACCESS_TOKEN_EXPIRE_MINUTES(self) -> int:
+        return int(
+            _optional(
+                "ACCESS_TOKEN_EXPIRE_MINUTES",
+                "60"
+            )
+        )
 
 settings = Settings()
 
