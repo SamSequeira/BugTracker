@@ -14,8 +14,15 @@ import re
 from pathlib import Path
 from typing import Any
 
-import chromadb
-from sentence_transformers import SentenceTransformer
+try:
+    import chromadb
+except ImportError:
+    chromadb = None
+
+try:
+    from sentence_transformers import SentenceTransformer
+except ImportError:
+    SentenceTransformer = None
 
 from app.services.static_analyzer.models import CandidateIssue
 
@@ -52,16 +59,28 @@ class BugSimilarityService:
             raise ValueError("BUG_SIMILARITY_THRESHOLD must be between 0 and 1.")
 
         self._model = model
-        self._client = client or chromadb.PersistentClient(path=str(self.persist_dir))
-        self._collection = self._client.get_or_create_collection(
-            name=collection_name,
-            metadata={"hnsw:space": "cosine"},
-        )
+        if client is not None:
+            self._client = client
+            self._collection = self._client.get_or_create_collection(
+                name=collection_name,
+                metadata={"hnsw:space": "cosine"},
+            )
+        elif chromadb is not None:
+            self._client = chromadb.PersistentClient(path=str(self.persist_dir))
+            self._collection = self._client.get_or_create_collection(
+                name=collection_name,
+                metadata={"hnsw:space": "cosine"},
+            )
+        else:
+            self._client = None
+            self._collection = None
 
     @property
     def model(self) -> Any:
         """Load MiniLM only when the service is actually used."""
         if self._model is None:
+            if SentenceTransformer is None:
+                raise RuntimeError("sentence-transformers is not installed")
             self._model = SentenceTransformer(DEFAULT_MODEL_NAME)
         return self._model
 
@@ -102,6 +121,8 @@ class BugSimilarityService:
     def store_issue(self, issue: CandidateIssue, repository_id: str) -> str:
         """Upsert an issue so re-analysis updates, rather than duplicates, its vector."""
         issue_id = self.issue_id(issue, repository_id)
+        if self._collection is None:
+            return issue_id
         text = self.build_issue_text(issue)
         self._collection.upsert(
             ids=[issue_id],
@@ -124,6 +145,8 @@ class BugSimilarityService:
         similarity``), not a percentage.  Scores below are therefore converted
         with ``similarity = 1 - distance`` and clamped to [0, 1].
         """
+        if self._collection is None:
+            return self._result(False, 0.0, [])
         if top_k < 1:
             raise ValueError("top_k must be at least 1.")
 
