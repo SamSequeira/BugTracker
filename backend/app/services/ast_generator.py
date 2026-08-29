@@ -123,13 +123,15 @@ class ASTGenerator:
             raise ASTGenerationError(f"Language '{language}' is not supported")
 
         try:
-            file_path = Path(file_path)
-            if not file_path.exists():
+            path_obj = Path(file_path)
+            if not path_obj.exists():
                 raise ASTGenerationError(f"File not found: {file_path}")
 
             # Read source file
-            with open(file_path, 'rb') as f:
+            with open(path_obj, 'rb') as f:
                 source_code = f.read()
+
+            line_count = len(source_code.splitlines())
 
             # Parse the code
             parser = self._parsers[language]
@@ -140,15 +142,24 @@ class ASTGenerator:
 
             return {
                 "success": True,
-                "file": str(file_path),
+                "file": str(path_obj),
+                "file_name": path_obj.name,
+                "extension": path_obj.suffix,
                 "language": language,
+                "line_count": line_count,
+                "is_supported": True,
                 "ast": ast_json,
             }
         except (FileNotFoundError, OSError, ValueError) as e:
+            path_obj = Path(file_path)
             return {
                 "success": False,
-                "file": str(file_path),
+                "file": str(path_obj),
+                "file_name": path_obj.name if hasattr(path_obj, "name") else "",
+                "extension": path_obj.suffix if hasattr(path_obj, "suffix") else "",
                 "language": language,
+                "line_count": 0,
+                "is_supported": False,
                 "error": str(e),
             }
 
@@ -193,6 +204,7 @@ class ASTGenerator:
                     results["files_analyzed"].append(ast_result)
 
         return results
+
 
 
 # Global instance

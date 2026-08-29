@@ -17,6 +17,11 @@ async def test_successful_analysis_persistence():
     """TEST 1: SUCCESSFUL PERSISTENCE"""
     run_id = str(uuid.uuid4())
     mock_db = AsyncMock()
+    mock_db.add_all = MagicMock()
+    mock_db.add = MagicMock()
+    mock_db.flush = AsyncMock()
+    mock_db.commit = AsyncMock()
+    mock_db.rollback = AsyncMock()
 
     analysis_run_mock = AnalysisRun(
         id=run_id,
@@ -58,12 +63,27 @@ async def test_successful_analysis_persistence():
     }
 
     with patch(
+        "app.services.repository_analysis_service.technology_repository.create_bulk",
+        new_callable=AsyncMock,
+    ), patch(
+        "app.services.repository_analysis_service.architecture_component_repository.create_bulk",
+        new_callable=AsyncMock,
+    ), patch(
+        "app.services.repository_analysis_service.source_file_repository.create_bulk",
+        new_callable=AsyncMock,
+    ), patch(
         "app.services.repository_analysis_service.candidate_issue_repository.create_bulk",
         new_callable=AsyncMock,
     ) as mock_issue_create, patch(
         "app.services.repository_analysis_service.issue_status_repository.create_bulk",
         new_callable=AsyncMock,
-    ) as mock_status_create:
+    ) as mock_status_create, patch(
+        "app.services.repository_analysis_service.issue_recommendation_repository.create_bulk",
+        new_callable=AsyncMock,
+    ), patch(
+        "app.services.repository_analysis_service.architecture_summary_repository.create_or_update",
+        new_callable=AsyncMock,
+    ) as mock_summary_save:
 
         updated_run = await repository_analysis_service.complete_analysis_run(
             mock_db,
@@ -80,6 +100,7 @@ async def test_successful_analysis_persistence():
         # Verify DAL repositories were called with mapped objects
         mock_issue_create.assert_called_once()
         mock_status_create.assert_called_once()
+        mock_summary_save.assert_called_once()
 
         # Verify exactly one commit for the final persistence phase
         mock_db.commit.assert_called_once()
@@ -118,6 +139,11 @@ async def test_database_persistence_failure_rollback():
     """TEST 3: DATABASE PERSISTENCE FAILURE ROLLBACK"""
     run_id = str(uuid.uuid4())
     mock_db = AsyncMock()
+    mock_db.add_all = MagicMock()
+    mock_db.add = MagicMock()
+    mock_db.flush = AsyncMock()
+    mock_db.commit = AsyncMock()
+    mock_db.rollback = AsyncMock()
 
     analysis_run_mock = AnalysisRun(
         id=run_id,

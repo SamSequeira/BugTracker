@@ -2,13 +2,15 @@
 candidate_issue_mapper.py
 -------------------------
 Translates Static Analyzer output (dataclass or dict) into
-PostgreSQL ORM model instances (CandidateIssue & IssueStatus).
+PostgreSQL ORM model instances (CandidateIssue, IssueStatus, and IssueRecommendation).
 """
 
 import uuid
-from typing import Any, Dict, List, Tuple, Union
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from app.models.candidate_issues import CandidateIssue as CandidateIssueORM
+from app.models.issue_recommendation import IssueRecommendation as IssueRecommendationORM
 from app.models.issue_status import IssueStatus as IssueStatusORM
 from app.services.static_analyzer.models import CandidateIssue as CandidateIssueDataclass
 
@@ -39,10 +41,99 @@ class CandidateIssueMapper:
             description += f"\n\nCode Snippet:\n{code_snippet.strip()}"
         return description
 
+    @staticmethod
+    def _resolve_source_file_id(
+        file_path: str,
+        source_file_map: Optional[Dict[str, str]] = None,
+    ) -> Optional[str]:
+        """Resolve source_file_id from file_path against lookup map."""
+        if not source_file_map or not file_path:
+            return None
+
+        # 1. Direct exact lookup
+        if file_path in source_file_map:
+            return source_file_map[file_path]
+
+        # 2. Normalized POSIX path lookup
+        norm_posix = Path(file_path).as_posix()
+        if norm_posix in source_file_map:
+            return source_file_map[norm_posix]
+
+        # 3. Path with backslashes replaced
+        alt_path = file_path.replace("\\", "/")
+        if alt_path in source_file_map:
+            return source_file_map[alt_path]
+
+        # 4. Filename-only suffix match as fallback
+        file_name = Path(file_path).name
+        for mapped_path, sf_id in source_file_map.items():
+            if mapped_path.endswith(file_name) or norm_posix.endswith(mapped_path):
+                return sf_id
+
+        return None
+
+    def extract_recommendations(
+        self,
+        finding: Union[CandidateIssueDataclass, Dict[str, Any]],
+        candidate_issue_id: str,
+    ) -> List[IssueRecommendationORM]:
+        """Extract and instantiate IssueRecommendationORM objects for a finding."""
+        recommendations: List[IssueRecommendationORM] = []
+
+        if isinstance(finding, CandidateIssueDataclass):
+            return recommendations
+
+        # 1. Check for list of recommendations
+        raw_recs = finding.get("recommendations")
+        if isinstance(raw_recs, list) and raw_recs:
+            for idx, rec in enumerate(raw_recs, start=1):
+                if isinstance(rec, dict):
+                    rec_text = rec.get("recommendation") or rec.get("text") or rec.get("message") or ""
+                    if rec_text:
+                        recommendations.append(
+                            IssueRecommendationORM(
+                                id=str(uuid.uuid4()),
+                                candidate_issue_id=candidate_issue_id,
+                                recommendation=rec_text,
+                                diff_remove=rec.get("diff_remove"),
+                                diff_add=rec.get("diff_add"),
+                                priority_order=rec.get("priority_order", idx),
+                                fix_type=rec.get("fix_type", "suggestion"),
+                            )
+                        )
+                elif isinstance(rec, str) and rec.strip():
+                    recommendations.append(
+                        IssueRecommendationORM(
+                            id=str(uuid.uuid4()),
+                            candidate_issue_id=candidate_issue_id,
+                            recommendation=rec.strip(),
+                            priority_order=idx,
+                            fix_type="suggestion",
+                        )
+                    )
+
+        # 2. Check for single recommendation / diff attributes on finding directly
+        elif finding.get("recommendation") or finding.get("diff_add") or finding.get("suggested_fix"):
+            rec_text = str(finding.get("recommendation") or finding.get("suggested_fix") or "Apply code patch")
+            recommendations.append(
+                IssueRecommendationORM(
+                    id=str(uuid.uuid4()),
+                    candidate_issue_id=candidate_issue_id,
+                    recommendation=rec_text,
+                    diff_remove=finding.get("diff_remove"),
+                    diff_add=finding.get("diff_add"),
+                    priority_order=1,
+                    fix_type=finding.get("fix_type", "code_patch" if finding.get("diff_add") else "suggestion"),
+                )
+            )
+
+        return recommendations
+
     def to_orm(
         self,
         finding: Union[CandidateIssueDataclass, Dict[str, Any]],
         analysis_run_id: str,
+        source_file_id: Optional[str] = None,
     ) -> Tuple[CandidateIssueORM, IssueStatusORM]:
         """
         Convert a single finding (dataclass or dict) into a pair of
@@ -56,6 +147,9 @@ class CandidateIssueMapper:
             line_number = finding.line_number
             code_snippet = finding.code_snippet
             severity = finding.severity
+            security_impact = None
+            issue_key = None
+            assigned_to_user_id = None
         else:
             rule_id = finding.get("rule_id", "")
             issue_type = finding.get("issue_type", "unknown_issue")
@@ -64,6 +158,11 @@ class CandidateIssueMapper:
             line_number = finding.get("line_number")
             code_snippet = finding.get("code_snippet")
             severity = finding.get("severity", "medium")
+            security_impact = finding.get("security_impact")
+            issue_key = finding.get("issue_key")
+            assigned_to_user_id = finding.get("assigned_to_user_id")
+            if source_file_id is None:
+                source_file_id = finding.get("source_file_id")
 
         issue_id = str(uuid.uuid4())
         title = self._format_title(issue_type, rule_id)
@@ -72,9 +171,15 @@ class CandidateIssueMapper:
 
         candidate_issue_orm = CandidateIssueORM(
             id=issue_id,
+            issue_key=issue_key,
+            rule_id=rule_id if rule_id else None,
             analysis_run_id=analysis_run_id,
+            source_file_id=source_file_id,
+            assigned_to_user_id=assigned_to_user_id,
             title=title,
             description=description,
+            security_impact=security_impact,
+            code_snippet=code_snippet,
             file_path=file_path,
             line_number=line_number,
             severity=severity,
@@ -94,19 +199,59 @@ class CandidateIssueMapper:
         self,
         findings: List[Union[CandidateIssueDataclass, Dict[str, Any]]],
         analysis_run_id: str,
+        source_file_map: Optional[Dict[str, str]] = None,
     ) -> Tuple[List[CandidateIssueORM], List[IssueStatusORM]]:
         """
-        Convert a list of findings into lists of CandidateIssueORM and IssueStatusORM.
+        Convert a list of findings into lists of CandidateIssueORM and IssueStatusORM,
+        linking each candidate issue to source_file_id if source_file_map is provided.
         """
         issues: List[CandidateIssueORM] = []
         statuses: List[IssueStatusORM] = []
 
         for finding in findings:
-            issue_orm, status_orm = self.to_orm(finding, analysis_run_id)
+            fpath = finding.file_path if isinstance(finding, CandidateIssueDataclass) else finding.get("file_path", "")
+            sf_id = self._resolve_source_file_id(fpath, source_file_map)
+
+            issue_orm, status_orm = self.to_orm(
+                finding,
+                analysis_run_id,
+                source_file_id=sf_id,
+            )
             issues.append(issue_orm)
             statuses.append(status_orm)
 
         return issues, statuses
+
+    def to_orm_bulk_with_relations(
+        self,
+        findings: List[Union[CandidateIssueDataclass, Dict[str, Any]]],
+        analysis_run_id: str,
+        source_file_map: Optional[Dict[str, str]] = None,
+    ) -> Tuple[List[CandidateIssueORM], List[IssueStatusORM], List[IssueRecommendationORM]]:
+        """
+        Convert a list of findings into CandidateIssueORM, IssueStatusORM, and
+        extracted IssueRecommendationORM lists, with full SourceFile linking.
+        """
+        issues: List[CandidateIssueORM] = []
+        statuses: List[IssueStatusORM] = []
+        recommendations: List[IssueRecommendationORM] = []
+
+        for finding in findings:
+            fpath = finding.file_path if isinstance(finding, CandidateIssueDataclass) else finding.get("file_path", "")
+            sf_id = self._resolve_source_file_id(fpath, source_file_map)
+
+            issue_orm, status_orm = self.to_orm(
+                finding,
+                analysis_run_id,
+                source_file_id=sf_id,
+            )
+            recs = self.extract_recommendations(finding, issue_orm.id)
+
+            issues.append(issue_orm)
+            statuses.append(status_orm)
+            recommendations.extend(recs)
+
+        return issues, statuses, recommendations
 
 
 candidate_issue_mapper = CandidateIssueMapper()

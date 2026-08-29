@@ -1,6 +1,68 @@
 // src/components/Tabs/TabAiArchitecture.jsx - Tab 2: AI Codebase Architecture & Dynamic File Cards
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { useBugTracker } from "../../useBugTracker.jsx";
+import { apiService } from "../../api.js";
+
+// ---------------------------------------------------------------------------
+// Map a backend ArchitectureTopologyResponse → the shape the existing UI uses
+// ---------------------------------------------------------------------------
+function mapBackendToUiSummary(data) {
+  // Tech stack: primary technologies shown prominently as badge strings
+  const techStack = (data.primary_technologies || []).map((t) =>
+    t.version ? `${t.name} ${t.version}` : t.name
+  );
+
+  // Main components
+  const mainComponents = (data.components || []).map((c) => ({
+    name: c.name,
+    description: c.description || c.root_path || "",
+  }));
+
+  // Risks derived from health_assessment (single block → one risk item)
+  const potentialRisks = data.summary?.health_assessment
+    ? [{ title: "Health Assessment", severity: "Info", description: data.summary.health_assessment }]
+    : [];
+
+  // Recommendations: architecture_overview as a single item
+  const recommendations = data.summary?.architecture_overview
+    ? [data.summary.architecture_overview]
+    : [];
+
+  // File summaries from all components' source_files + uncategorized_files
+  const allSourceFiles = [
+    ...(data.components || []).flatMap((c) => c.source_files || []),
+    ...(data.uncategorized_files || []),
+  ];
+  const fileSummaries = allSourceFiles.map((sf) => ({
+    id: sf.id,
+    file: sf.file_path || sf.file_name,
+    role: sf.role || "Source File",
+    intent: sf.intent || "",
+    status: sf.is_supported ? "Clean" : "Documentation",
+    statusColor: sf.is_supported
+      ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10"
+      : "text-slate-400 border-slate-600/30 bg-slate-500/10",
+    lines: sf.line_count || 0,
+    language: sf.language || "Unknown",
+  }));
+
+  return {
+    intent: data.summary?.intent || "",
+    techStack,
+    architectureOverview: data.summary?.architecture_overview || "",
+    healthAssessment: data.summary?.health_assessment || "",
+    mainComponents,
+    potentialRisks,
+    recommendations,
+    fileSummaries,
+    // metadata for the status badge
+    _totalTechnologies: data.total_technologies || 0,
+    _totalPrimary: data.total_primary_technologies || 0,
+    _totalComponents: data.total_components || 0,
+    _totalFiles: data.total_source_files || 0,
+    _parserVersion: data.summary?.parser_version || null,
+  };
+}
 
 export default function TabAiArchitecture() {
   const {
@@ -12,13 +74,64 @@ export default function TabAiArchitecture() {
     setActiveTab,
     setActiveDrawerBug,
     bugs,
+    currentRepositoryId,
   } = useBugTracker();
 
   const [selectedFileModal, setSelectedFileModal] = useState(null);
 
+  // Backend architecture data state
+  const [archData, setArchData] = useState(null);       // mapped UI summary from backend
+  const [archLoading, setArchLoading] = useState(false);
+  const [archError, setArchError] = useState(null);     // null | { message, status }
+
+  // Fetch architecture for a known repository ID.
+  const fetchArchitecture = useCallback(async (repoId) => {
+    if (!repoId) return;
+    setArchLoading(true);
+    setArchError(null);
+    const res = await apiService.getRepositoryArchitecture(repoId);
+    setArchLoading(false);
+    if (res.live && res.data) {
+      setArchData(mapBackendToUiSummary(res.data));
+    } else {
+      setArchData(null);
+      setArchError({ message: res.error || "Architecture data not yet available.", status: res.status });
+    }
+  }, []);
+
+  useEffect(() => {
+    // Always clear stale data before resolving the target repository,
+    // so we never show a previous repository's architecture while loading.
+    setArchData(null);
+    setArchError(null);
+
+    if (currentRepositoryId) {
+      // Case 1: a repository was scanned through the frontend this session — use it directly.
+      fetchArchitecture(currentRepositoryId);
+    } else {
+      // Case 2 (temporary fallback): no frontend scan yet.
+      // Fetch the repository list and use the most recently created repository.
+      // This covers repositories created/analyzed via Swagger or the backend directly.
+      (async () => {
+        const listRes = await apiService.getRepositories();
+        const repos = listRes.data; // already guaranteed to be an array
+        if (repos.length === 0) {
+          // No repositories at all — stay on demo data.
+          return;
+        }
+        // list_all() orders by created_at DESC, so index 0 is the latest.
+        const latestId = repos[0].id;
+        await fetchArchitecture(latestId);
+      })();
+    }
+  }, [currentRepositoryId, fetchArchitecture]);
+
+  // Use backend data when available; fall back to context aiSummary (mock/GitHub)
+  const displaySummary = archData || aiSummary;
+
   // Dynamic filter for file cards
   const filteredFiles = useMemo(() => {
-    const fileList = aiSummary?.fileSummaries || [];
+    const fileList = displaySummary?.fileSummaries || [];
     const query = aiSearchQuery.toLowerCase().trim();
 
     return fileList.filter((f) => {
@@ -38,7 +151,7 @@ export default function TabAiArchitecture() {
 
       return matchesSearch && matchesCategory;
     });
-  }, [aiSummary, aiSearchQuery, selectedFileFilter]);
+  }, [displaySummary, aiSearchQuery, selectedFileFilter]);
 
   const handleCardClick = (fileItem) => {
     // Check if there is an associated bug for this file
@@ -70,9 +183,26 @@ export default function TabAiArchitecture() {
 
           <div className="flex items-center space-x-2 text-xs text-slate-400 bg-[#0B0F17] px-3 py-1.5 rounded-xl border border-slate-800">
             <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
-            <span>AST Semantic Parser v2.4</span>
+            <span>{archData?._parserVersion || "AST Semantic Parser v2.4"}</span>
           </div>
         </div>
+
+        {/* Loading state */}
+        {archLoading && (
+          <div className="flex items-center gap-2 text-xs text-cyan-400 bg-cyan-500/5 border border-cyan-500/20 rounded-xl px-4 py-2.5">
+            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+            Loading architecture data for this repository…
+          </div>
+        )}
+
+        {/* Error / no-analysis-yet state (only shown when a backend repo was resolved) */}
+        {!archLoading && archError && (
+          <div className="text-xs text-amber-400 bg-amber-500/5 border border-amber-500/20 rounded-xl px-4 py-2.5">
+            {archError.status === 404
+              ? "No completed analysis found for this repository yet. Run a scan first."
+              : archError.message}
+          </div>
+        )}
 
         {/* System Intent & Architecture Summary */}
         <div className="space-y-4">
@@ -81,7 +211,7 @@ export default function TabAiArchitecture() {
               Identified System Intent & Architecture
             </h3>
             <p className="text-xs sm:text-sm text-slate-200 leading-relaxed bg-[#0B0F17]/80 border border-slate-800 rounded-xl p-4">
-              {aiSummary.intent || "Enterprise microservice platform orchestrating authentication, checkout workflows, and WebSocket telemetry."}
+              {displaySummary?.intent || "Enterprise microservice platform orchestrating authentication, checkout workflows, and WebSocket telemetry."}
             </p>
           </div>
 
@@ -91,7 +221,7 @@ export default function TabAiArchitecture() {
               Detected Technology Stack
             </h3>
             <div className="flex flex-wrap gap-2">
-              {(aiSummary.techStack || []).map((tech, idx) => (
+              {(displaySummary?.techStack || []).map((tech, idx) => (
                 <span
                   key={idx}
                   className="bg-[#0B0F17] border border-cyan-500/30 text-cyan-300 font-mono text-xs px-3 py-1 rounded-lg flex items-center gap-1.5 shadow-xs"
@@ -113,7 +243,7 @@ export default function TabAiArchitecture() {
             <span>🧩</span> Main Architecture Components
           </h3>
           <div className="space-y-2.5">
-            {(aiSummary.mainComponents || []).map((comp, idx) => (
+            {(displaySummary?.mainComponents || []).map((comp, idx) => (
               <div
                 key={idx}
                 className="bg-[#0B0F17] border border-slate-800/80 rounded-xl p-3.5 space-y-1"
@@ -135,7 +265,7 @@ export default function TabAiArchitecture() {
               <span>⚠️</span> Potential Risks & Hotspots
             </h3>
             <div className="space-y-2.5">
-              {(aiSummary.potentialRisks || []).map((risk, idx) => (
+              {(displaySummary?.potentialRisks || []).map((risk, idx) => (
                 <div
                   key={idx}
                   className="bg-[#0B0F17] border border-red-500/20 rounded-xl p-3.5 space-y-1"
@@ -158,7 +288,7 @@ export default function TabAiArchitecture() {
               💡 Primary AI Remediation Strategy
             </span>
             <ul className="text-xs text-slate-300 space-y-1.5 list-disc pl-4">
-              {(aiSummary.recommendations || []).slice(0, 3).map((rec, idx) => (
+              {(displaySummary?.recommendations || []).slice(0, 3).map((rec, idx) => (
                 <li key={idx}>{rec}</li>
               ))}
             </ul>

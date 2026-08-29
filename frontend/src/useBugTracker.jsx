@@ -230,6 +230,8 @@ export function BugTrackerProvider({ children }) {
   const [scanCompleted, setScanCompleted] = useState(false);
   const [scanError, setScanError] = useState(null); // null | { message, type }
   const [githubToken, setGithubTokenState] = useState(() => apiService.getGitHubToken() || "");
+  const [currentRepositoryId, setCurrentRepositoryId] = useState(null);
+
 
   // 7. Filters and Search Queries
   const [bugSearchQuery, setBugSearchQuery] = useState("");
@@ -450,6 +452,11 @@ export function BugTrackerProvider({ children }) {
           }
         }
 
+        // Store the backend repository_id so the Architecture tab can fetch topology data
+        if (cloneData?.repository_id) {
+          setCurrentRepositoryId(cloneData.repository_id);
+        }
+
         if (analysisData?.analysis) {
           const summary = analysisData.analysis.summary || {};
           setStats((prev) => ({
@@ -540,6 +547,11 @@ export function BugTrackerProvider({ children }) {
             totalFiles: summary.total_files || 0,
             defaultBranch: "—",
           });
+        }
+
+        // Store the backend repository_id so the Architecture tab can fetch topology data
+        if (uploadData?.repository_id) {
+          setCurrentRepositoryId(uploadData.repository_id);
         }
 
         setIsLive(true);
@@ -671,6 +683,7 @@ export function BugTrackerProvider({ children }) {
     apiUrl, updateApiUrl, isLive, loadData,
     stats, bugs, aiSummary, recentScans, repoMeta,
     repoUrl, setRepoUrl,
+    currentRepositoryId,
     isScanning, scanProgress, scanStage, scanCompleted,
     scanError, clearScanError,
     githubToken, saveGithubToken,

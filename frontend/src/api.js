@@ -349,6 +349,36 @@ class ApiService {
       return { live: false, data: this.cache["ai-summary"] || DEFAULT_AI_SUMMARY };
     }
   }
+
+  // =========================================================================
+  // 6. ARCHITECTURE & TOPOLOGY
+  // =========================================================================
+
+  // GET /api/v1/repositories/
+  // Returns all repositories ordered newest-first: [{ id, name, created_at, ... }]
+  // Used as a temporary fallback when currentRepositoryId is not yet set in state.
+  async getRepositories() {
+    try {
+      const data = await this.request("/v1/repositories/");
+      return { live: true, data: Array.isArray(data) ? data : [] };
+    } catch (err) {
+      return { live: false, data: [] };
+    }
+  }
+
+  // GET /api/v1/repositories/{repositoryId}/architecture
+  // Returns the persisted Architecture & Topology data for the latest completed
+  // analysis run belonging to this specific repository. Never triggers analysis.
+  async getRepositoryArchitecture(repositoryId) {
+    if (!repositoryId) return { live: false, data: null, error: "No repository ID" };
+    try {
+      const data = await this.request(`/v1/repositories/${repositoryId}/architecture`);
+      return { live: true, data };
+    } catch (err) {
+      const status = err.message?.match(/HTTP Error (\d+)/)?.[1];
+      return { live: false, data: null, error: err.message, status: status ? parseInt(status) : null };
+    }
+  }
 }
 
 export const apiService = new ApiService();
