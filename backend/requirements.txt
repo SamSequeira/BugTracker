@@ -29,3 +29,8 @@ PyJWT==2.11.0
 pwdlib[argon2]==0.3.0
 email-validator==2.3.0
 aiosqlite==0.22.1
+
+numpy==2.5.2
+scikit-learn==1.9.0
+torch==2.13.0
+transformers==5.15.0
