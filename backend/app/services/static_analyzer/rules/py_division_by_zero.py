@@ -17,8 +17,8 @@ DEFINITELY_NON_ZERO  — literal like `1`, `-1`, `2.5`, `True`; constant
 POTENTIALLY_ZERO     — anything else (variables, function calls, …)
                        → reported as a potential issue (warning)
 
-Control-flow guards & branch-aware state tracking (Phase 5.6 & 5.7)
---------------------------------------------------------------------
+Control-flow guards & branch-aware state tracking
+--------------------------------------------------
 A `POTENTIALLY_ZERO` divisor may be suppressed by a preceding guard of
 one of these forms in the same lexical scope:
 
@@ -357,12 +357,16 @@ class PythonDivisionByZero(BaseRule):
         if len(children) < 3:
             return
         op_text = children[1].get("text") or "/"
+        self.record_syntax_match()
+        is_test = self._is_test_file(file_path)
+
         right_node = children[2]
-        right_text = right_node.get("text") or "?"
+        right_text = (right_node.get("text") or "?").strip()
         right_type = right_node.get("type", "unknown")
 
         cls = self._classify(right_node)
         if cls == _Z.DEFINITELY_NON_ZERO:
+            self.record_suppression(f"provably_non_zero_{right_text}")
             return
 
         if cls == _Z.DEFINITELY_ZERO:
@@ -370,13 +374,16 @@ class PythonDivisionByZero(BaseRule):
                 node=binop_node,
                 file_path=file_path,
                 source_lines=source_lines,
-                message=f"Division by zero: the divisor `{right_text}` is always zero.",
+                message=f"Division by zero: divisor `{right_text}` is provably zero.",
                 evidence={
                     "operator": op_text,
                     "right_operand": right_text,
                     "right_node_type": right_type,
                     "classification": "definitely_zero",
+                    "confidence": "high",
+                    "reason": "Divisor is statically evaluated as zero.",
                 },
+                confidence="high",
             )
             return
 
@@ -385,39 +392,47 @@ class PythonDivisionByZero(BaseRule):
         if name:
             fact = facts.get(name)
             if fact in ("GUARDED", "DEFINITELY_NON_ZERO"):
+                self.record_suppression(f"flow_guarded_variable_{name}")
                 return  # Safe
             if fact == "DEFINITELY_ZERO":
                 yield self._make_issue(
                     node=binop_node,
                     file_path=file_path,
                     source_lines=source_lines,
-                    message=f"Division by zero: the divisor `{right_text}` is always zero.",
+                    message=f"Division by zero: divisor `{right_text}` is provably zero from preceding flow.",
                     evidence={
                         "operator": op_text,
                         "right_operand": right_text,
                         "right_node_type": right_type,
                         "classification": "definitely_zero",
+                        "confidence": "high",
+                        "reason": f"Data-flow analysis confirmed variable `{name}` has value 0 at this point.",
                     },
+                    confidence="high",
                 )
                 return
 
         # General potentially-zero warning
+        confidence = "low" if is_test else "medium"
         yield self._make_issue(
             node=binop_node,
             file_path=file_path,
             source_lines=source_lines,
             message=(
-                f"Division by potentially zero value: the divisor "
-                f"`{right_text}` may be zero at runtime.  "
-                f"Add a zero-guard before dividing."
+                f"Division by potentially zero value: divisor `{right_text}` "
+                f"is not guarded against zero."
             ),
             evidence={
                 "operator": op_text,
                 "right_operand": right_text,
                 "right_node_type": right_type,
                 "classification": "potentially_zero",
+                "confidence": confidence,
+                "reason": f"Dynamic divisor `{right_text}` has no active zero guard in flow state.",
             },
+            confidence=confidence,
         )
+
 
     def _classify_assignment_rhs(self, rhs: Optional[dict]) -> _Z:
         if rhs is None:

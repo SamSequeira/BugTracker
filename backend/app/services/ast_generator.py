@@ -2,9 +2,11 @@
 AST Generator Service - Generates Abstract Syntax Trees for supported languages.
 """
 
+import os
 from pathlib import Path
 from typing import Dict, Optional, Any
 from tree_sitter import Language, Parser
+
 import tree_sitter_python as tspython
 import tree_sitter_javascript as tsjavascript
 import tree_sitter_java as tsjava
@@ -174,25 +176,26 @@ class ASTGenerator:
             "supported_files": 0,
         }
 
-        # Scan for code files
-        for file_path in repo_path.rglob("*"):
-            if file_path.is_file():
+        ignore_dirs = {".git", ".github", "node_modules", "build", "dist", ".gradle", "__pycache__", ".venv", "venv", ".idea"}
+
+        for root, dirs, files in os.walk(repo_path):
+            dirs[:] = [d for d in dirs if d not in ignore_dirs]
+            for file_name in files:
                 results["total_files"] += 1
-                language = self.detect_language(file_path.name)
+                language = self.detect_language(file_name)
 
                 if language:
                     results["supported_files"] += 1
-
-                    # Update language count
                     if language not in results["languages_detected"]:
                         results["languages_detected"][language] = 0
                     results["languages_detected"][language] += 1
 
-                    # Generate AST
-                    ast_result = self.generate_ast(str(file_path), language)
+                    full_path = os.path.join(root, file_name)
+                    ast_result = self.generate_ast(full_path, language)
                     results["files_analyzed"].append(ast_result)
 
         return results
+
 
 
 # Global instance

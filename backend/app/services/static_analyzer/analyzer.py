@@ -185,6 +185,16 @@ class StaticAnalyzer:
             "results": results,
         }
 
+    def get_all_metrics(self) -> Dict[str, Any]:
+        """Aggregate suppression and reporting metrics across all registered rules."""
+        return {rule.rule_id: rule.get_metrics() for rule in self._rules}
+
+    def reset_all_metrics(self) -> None:
+        """Reset metrics counters across all registered rules."""
+        for rule in self._rules:
+            rule.reset_metrics()
+
 
 # Module-level singleton
 static_analyzer = StaticAnalyzer()
+

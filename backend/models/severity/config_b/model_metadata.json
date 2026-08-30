@@ -1,0 +1,46 @@
+{
+  "config": "B",
+  "labels": [
+    "LOWER_IMPACT",
+    "HIGH_IMPACT"
+  ],
+  "training_records": 137,
+  "validation_records": 29,
+  "test_records": 27,
+  "best_val_macro_f1": 0.888,
+  "test_metrics": {
+    "accuracy": 0.8888888888888888,
+    "macro_precision": 0.9166666666666667,
+    "macro_recall": 0.875,
+    "macro_f1": 0.8831168831168831,
+    "weighted_f1": 0.886002886002886,
+    "per_class": {
+      "LOWER_IMPACT": {
+        "precision": 1.0,
+        "recall": 0.75,
+        "f1": 0.8571428571428571,
+        "support": 12
+      },
+      "HIGH_IMPACT": {
+        "precision": 0.8333333333333334,
+        "recall": 1.0,
+        "f1": 0.9090909090909091,
+        "support": 15
+      }
+    },
+    "confusion_matrix": [
+      [
+        9,
+        3
+      ],
+      [
+        0,
+        15
+      ]
+    ],
+    "roc_auc": 0.85,
+    "pr_auc": 0.8238393088393089,
+    "brier_score": 0.10797709585316483,
+    "ece": 0.12481988842288658
+  }
+}

@@ -1,10 +1,9 @@
-import asyncio
-
+import pytest
 from sqlalchemy import text
-
 from data.dbconnection.session import engine
 
 
+@pytest.mark.asyncio
 async def test_connection():
     async with engine.connect() as conn:
         result = await conn.execute(

@@ -23,7 +23,7 @@ from app.services.bug_enrichment_service import (
 )
 from app.services.candidate_issue_generator import generate_candidate_issues
 from app.services.candidate_issue_service import candidate_issue_service
-from app.services.issue_classifier.service import issue_classification_service
+from app.services.ml.inference import ml_inference_pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +47,7 @@ class BugReportService:
         repository_id: Optional[str] = None,
         repository_path: Optional[str] = None,
         source_files: Optional[Dict[str, str]] = None,
+        similarity_service: Optional[Any] = None,
     ) -> List[EnrichedBugReport]:
         """
         Takes raw candidate issues, runs ML classification (if model is available),
@@ -58,7 +59,7 @@ class BugReportService:
         # Step 1: Attempt ML classification (with graceful fallback if model weights not loaded)
         classified_issues = []
         try:
-            classified_issues = issue_classification_service.classify_candidate_issues(
+            classified_issues = ml_inference_pipeline.classify_candidate_issues(
                 candidate_issues
             )
         except Exception as exc:
@@ -85,6 +86,7 @@ class BugReportService:
             source_files=loaded_sources,
             repository_id=repository_id,
             repository_path=repository_path,
+            similarity_service=similarity_service,
         )
 
         return reports
@@ -95,6 +97,7 @@ class BugReportService:
         candidate_result: Optional[Dict[str, Any]] = None,
         repository_id: Optional[str] = None,
         repository_path: Optional[str] = None,
+        similarity_service: Optional[Any] = None,
     ) -> Dict[str, Any]:
         """
         Complete end-to-end report generation for an analyzed repository.
@@ -115,6 +118,7 @@ class BugReportService:
             ast_for_repository=ast_result,
             repository_id=repository_id,
             repository_path=repo_path,
+            similarity_service=similarity_service,
         )
 
         # 3. Compute Summary Statistics

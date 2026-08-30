@@ -68,6 +68,10 @@ class CandidateIssueService:
                         "severity",
                         "medium"
                     ),
+                    confidence=issue.get(
+                        "confidence",
+                        "medium"
+                    ),
                 )
 
                 issue_objects.append(issue_object)

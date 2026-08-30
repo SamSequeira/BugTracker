@@ -135,7 +135,7 @@ async def analyze_repository(
             detail="Repository not found.",
         )
 
-    # PHASE 1: INITIALIZATION
+    # STAGE 1: INITIALIZATION
     analysis_run = AnalysisRun(
         id=str(uuid.uuid4()),
         repository_id=repository.id,
@@ -154,7 +154,7 @@ async def analyze_repository(
 
     analysis_run_id = analysis_run.id
 
-    # PHASE 2: LONG-RUNNING STATIC ANALYSIS
+    # STAGE 2: LONG-RUNNING STATIC ANALYSIS
     try:
         repository_path = repository_analysis_service.get_local_repository_path(
             repository.id, repository.name
@@ -179,7 +179,7 @@ async def analyze_repository(
             detail=f"Analysis failed: {str(error)}",
         ) from error
 
-    # PHASE 3: PERSIST FINDINGS & COMPLETE ANALYSIS RUN
+    # STAGE 3: PERSIST FINDINGS & COMPLETE ANALYSIS RUN
     try:
         updated_analysis_run = await repository_analysis_service.complete_analysis_run(
             db,

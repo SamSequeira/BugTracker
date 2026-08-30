@@ -124,62 +124,77 @@ class PythonBareExcept(BaseRule):
         source_lines: List[str],
     ) -> Iterator[CandidateIssue]:
 
+        is_test = self._is_test_file(file_path)
+
         for node in self._walk(ast):
-            if node["type"] != "except_clause":
+            if node.get("type") != "except_clause":
                 continue
 
             children = node.get("children", [])
 
             # Guard: must have at least the "except" keyword child.
-            # A node with zero children is a parser artifact — do not flag it.
-            keyword_children = [c for c in children if c.get("text", "") == "except"]
+            keyword_children = [c for c in children if (c.get("text") or "").strip() == "except"]
             if not keyword_children:
                 continue
+
+            self.record_syntax_match()
 
             # Collect non-trivial children (everything except keywords, ":", and blocks)
             non_trivial = [
                 c for c in children
-                if c["type"] not in ("except", ":", "block")
-                and c.get("text", "") not in ("except", ":")
+                if c.get("type") not in ("except", ":", "block")
+                and (c.get("text") or "").strip() not in ("except", ":")
             ]
 
             if not non_trivial:
                 # Bare `except:`
+                confidence = "low" if is_test else "high"
                 yield self._make_issue(
                     node=node,
                     file_path=file_path,
                     source_lines=source_lines,
                     message=(
-                        "Bare `except:` clause catches all exceptions including "
-                        "KeyboardInterrupt and SystemExit.  Specify the exception "
-                        "type(s) you expect, e.g. `except ValueError:`."
+                        "Bare `except:` clause catches all exceptions including KeyboardInterrupt and "
+                        "SystemExit. Specify the expected exception type(s) (e.g. `except ValueError:`)."
                     ),
-                    evidence={"clause_text": node.get("text", "except:"),
-                              "kind": "bare"},
+                    evidence={
+                        "clause_text": node.get("text", "except:").strip(),
+                        "kind": "bare",
+                        "confidence": confidence,
+                        "reason": "Bare `except:` catches KeyboardInterrupt/SystemExit without restriction.",
+                    },
+                    confidence=confidence,
                 )
                 continue
 
-            # Typed except — extract all exception names from possibly nested
-            # structures (tuples, as-patterns) and check for over-broad types.
+            # Typed except — extract all exception names from possibly nested structures
+            found_over_broad = False
             for type_node in non_trivial:
                 names = _extract_exception_names(type_node)
                 over_broad = [n for n in names if n in _OVER_BROAD_EXCEPTIONS]
                 if over_broad:
                     name = over_broad[0]
+                    found_over_broad = True
+                    confidence = "low" if is_test else "high"
                     yield self._make_issue(
                         node=node,
                         file_path=file_path,
                         source_lines=source_lines,
                         message=(
-                            f"`except` clause catches `{name}`, which covers every "
-                            "exception including KeyboardInterrupt and SystemExit — "
-                            "effectively the same as a bare `except:`.  "
-                            "Specify a narrower exception type."
+                            f"`except` clause catches `{name}`, which covers every exception including "
+                            f"KeyboardInterrupt and SystemExit. Specify a narrower exception type."
                         ),
                         evidence={
-                            "clause_text": node.get("text", "except ..."),
+                            "clause_text": node.get("text", "except ...").strip(),
                             "kind": "over_broad",
                             "exception_type": name,
+                            "confidence": confidence,
+                            "reason": f"`except {name}` catches root base exceptions.",
                         },
+                        confidence=confidence,
                     )
-                    break  # one issue per clause is enough
+                    break
+
+            if not found_over_broad:
+                self.record_suppression("specifically_typed_exception_clause")
+

@@ -1,12 +1,12 @@
 {
-  "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmp7g1quxgb.js",
+  "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpyin8tmpx.js",
   "language": "JavaScript",
   "issues": [
     {
       "rule_id": "JS_DIV_001",
       "issue_type": "division_by_zero",
-      "message": "Division by potentially zero value: the divisor `b` may be zero at runtime.  Add a zero-guard before dividing.",
-      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmp7g1quxgb.js",
+      "message": "Division by potentially zero value: divisor `b` is not guarded against 0. Ensure divisor is non-zero before dividing.",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpyin8tmpx.js",
       "line_number": 2,
       "column": 11,
       "code_snippet": "a / b",
@@ -14,9 +14,11 @@
         "operator": "/",
         "right_operand": "b",
         "right_node_type": "identifier",
-        "classification": "potentially_zero"
+        "confidence": "medium",
+        "reason": "Dynamic divisor `b` has no static zero guard."
       },
-      "severity": "high"
+      "severity": "high",
+      "confidence": "medium"
     }
   ],
   "issue_count": 1,

@@ -29,3 +29,5 @@ PyJWT==2.11.0
 pwdlib[argon2]==0.3.0
 email-validator==2.3.0
 aiosqlite==0.22.1
+scikit-learn
+joblib

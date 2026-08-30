@@ -24,13 +24,16 @@ def test_authentication_flow() -> None:
     from app.models.user import User  # noqa: F401 - registers the table
     from app.services.auth_service import login_user, signup_user
     from data.dbconnection.base import Base
-    from data.dbconnection.session import AsyncSessionLocal, engine
+    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+
+    test_engine = create_async_engine(f"sqlite+aiosqlite:///{database_path.as_posix()}")
+    test_session_maker = async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
 
     async def check() -> None:
-        async with engine.begin() as connection:
+        async with test_engine.begin() as connection:
             await connection.run_sync(Base.metadata.create_all)
 
-        async with AsyncSessionLocal() as db:
+        async with test_session_maker() as db:
             user = await signup_user(
                 db, "Test User", "Test@Example.com", "correct-password"
             )
@@ -49,7 +52,7 @@ def test_authentication_flow() -> None:
             else:
                 raise AssertionError("duplicate email was accepted")
 
-        await engine.dispose()
+        await test_engine.dispose()
 
     try:
         paths = app.openapi()["paths"]

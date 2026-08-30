@@ -114,30 +114,34 @@ class PythonMutableDefaultArg(BaseRule):
                         if param.get("type") != "default_parameter":
                             continue
 
+                        self.record_syntax_match()
+
                         param_children = param.get("children", [])
                         if len(param_children) < 3:
                             continue
 
-                        param_name = param_children[0].get("text") or "?"
+                        param_name = (param_children[0].get("text") or "?").strip()
                         default_node = param_children[-1]
                         dtype = default_node.get("type", "")
 
                         # --- Direct mutable literal: [], {}, set-display ---
                         if dtype in _MUTABLE_LITERAL_TYPES:
                             yield self._make_issue(
-                                node=default_node,
+                                node=param,  # Capture the full parameter e.g. globals={}
                                 file_path=file_path,
                                 source_lines=source_lines,
                                 message=(
                                     f"Mutable default argument `{default_node.get('text') or '?'}` "
-                                    f"for parameter `{param_name}`.  "
-                                    f"Use `None` as default and create a new object inside the function."
+                                    f"for parameter `{param_name}`. Use `None` as default and initialize inside function."
                                 ),
                                 evidence={
                                     "parameter": param_name,
                                     "default_value": default_node.get("text") or "?",
                                     "mutable_type": dtype,
+                                    "confidence": "high",
+                                    "reason": f"Parameter `{param_name}` has direct mutable literal default `{default_node.get('text')}`.",
                                 },
+                                confidence="high",
                             )
                             continue
 
@@ -149,20 +153,22 @@ class PythonMutableDefaultArg(BaseRule):
                                 if func_name in _MUTABLE_CALL_NAMES:
                                     display = f"{func_name}()"
                                     yield self._make_issue(
-                                        node=default_node,
+                                        node=param,
                                         file_path=file_path,
                                         source_lines=source_lines,
                                         message=(
                                             f"Mutable default argument `{display}` "
-                                            f"for parameter `{param_name}`.  "
-                                            f"Use `None` as default and create a new "
+                                            f"for parameter `{param_name}`. Use `None` as default and create new "
                                             f"{func_name} inside the function."
                                         ),
                                         evidence={
                                             "parameter": param_name,
                                             "default_value": display,
                                             "mutable_type": func_name,
+                                            "confidence": "high",
+                                            "reason": f"Parameter `{param_name}` default calls mutable constructor `{display}`.",
                                         },
+                                        confidence="high",
                                     )
                                     continue
 
@@ -172,19 +178,21 @@ class PythonMutableDefaultArg(BaseRule):
                             resolved_mut = mutability.get(ident_name)
                             if resolved_mut:
                                 yield self._make_issue(
-                                    node=default_node,
+                                    node=param,
                                     file_path=file_path,
                                     source_lines=source_lines,
                                     message=(
                                         f"Mutable default argument `{ident_name}` (resolved to mutable "
-                                        f"{resolved_mut}) for parameter `{param_name}`.  "
-                                        f"Use `None` as default and create a new object inside the function."
+                                        f"{resolved_mut}) for parameter `{param_name}`."
                                     ),
                                     evidence={
                                         "parameter": param_name,
                                         "default_value": ident_name,
                                         "mutable_type": resolved_mut,
+                                        "confidence": "medium",
+                                        "reason": f"Identifier `{ident_name}` was previously initialized to mutable `{resolved_mut}` in scope.",
                                     },
+                                    confidence="medium",
                                 )
                                 continue
 

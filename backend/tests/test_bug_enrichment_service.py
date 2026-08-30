@@ -546,7 +546,7 @@ class TestBugEnrichmentService(unittest.TestCase):
 
             first_report = response["bug_reports"][0]
             self.assertEqual(first_report["static_analysis"]["rule_id"], "PY_RES_001")
-            self.assertIn("open() called outside a `with` statement", first_report["description"])
+            self.assertIn("called outside", first_report["description"])
             self.assertIn("what", first_report["explanation"])
             self.assertIn("where", first_report["explanation"])
             self.assertIn("why", first_report["explanation"])

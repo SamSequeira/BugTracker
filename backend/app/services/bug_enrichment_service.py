@@ -27,7 +27,6 @@ from app.schemas.bug_report import (
     SuggestedFix,
 )
 from app.services.bug_similarity_service import BugSimilarityService
-from app.services.issue_classifier.config import ID_TO_PRIORITY, ID_TO_SEVERITY
 from app.services.language_detector import detect_language
 
 logger = logging.getLogger(__name__)
@@ -92,6 +91,7 @@ class BugEnrichmentService:
         repository_path: Optional[str] = None,
         classification: Optional[Dict[str, Any]] = None,
         similarity_info: Optional[Dict[str, Any]] = None,
+        similarity_service: Optional[Any] = None,
         index: int = 1,
     ) -> EnrichedBugReport:
         """
@@ -162,7 +162,7 @@ class BugEnrichmentService:
 
         # 8. Similarity & Deduplication
         similarity_data = self._resolve_similarity(
-            raw_issue, issue_id, repository_id, similarity_info
+            raw_issue, issue_id, repository_id, similarity_info, similarity_service=similarity_service
         )
 
         # 9. Code Snippet Context Window (for UI)
@@ -259,6 +259,7 @@ class BugEnrichmentService:
         repository_id: Optional[str] = None,
         repository_path: Optional[str] = None,
         classifications: Optional[List[Dict[str, Any]]] = None,
+        similarity_service: Optional[Any] = None,
     ) -> List[EnrichedBugReport]:
         """
         Enrich a batch of candidate issues, resolving AST context and intra-batch duplicates.
@@ -290,8 +291,9 @@ class BugEnrichmentService:
                 source_code=file_source,
                 repository_id=repository_id,
                 repository_path=repository_path,
-                classification=classif,
                 index=idx,
+                classification=classif,
+                similarity_service=similarity_service,
             )
 
             # Intra-batch similarity / duplicate detection
@@ -505,17 +507,29 @@ class BugEnrichmentService:
         raw_issue: Dict[str, Any],
         issue_id: str,
         repository_id: Optional[str],
-        similarity_info: Optional[Dict[str, Any]],
+        similarity_info: Optional[Dict[str, Any]] = None,
+        similarity_service: Optional[Any] = None,
     ) -> SimilarityInfo:
         """Resolve similarity results from service or attached metadata."""
         raw_sim = similarity_info or raw_issue.get("similarity")
+        if raw_sim is None and similarity_service is not None:
+            try:
+                raw_sim = similarity_service.add_and_find(raw_issue, repository_id or "")
+            except Exception as e:
+                logger.warning("Similarity service call failed: %s", e)
+                raw_sim = None
+
         if isinstance(raw_sim, dict):
             is_dup = bool(raw_sim.get("duplicate", False))
             score = float(raw_sim.get("similarity", 0.0))
             raw_matches = raw_sim.get("similar_bugs", [])
+            has_cyclic = False
             matches = []
             if isinstance(raw_matches, list):
                 for m in raw_matches:
+                    if m is raw_sim or (isinstance(m, dict) and m.get("similar_bugs") is raw_matches):
+                        has_cyclic = True
+                        break
                     if isinstance(m, dict):
                         matches.append(SimilarBugMatch(
                             issue_id=str(m.get("issue_id", "")),
@@ -526,6 +540,16 @@ class BugEnrichmentService:
                             file_path=m.get("file_path"),
                             line_number=int(m.get("line_number", 0)) if m.get("line_number") else None,
                         ))
+
+            if has_cyclic:
+                return SimilarityInfo(
+                    is_duplicate=False,
+                    duplicate_of=None,
+                    highest_similarity=0.0,
+                    relationship_type="independent",
+                    similar_issues=[],
+                )
+
             rel_type = "duplicate" if is_dup else ("similar" if score >= 0.70 else ("related" if score >= 0.40 else "independent"))
             return SimilarityInfo(
                 is_duplicate=is_dup,

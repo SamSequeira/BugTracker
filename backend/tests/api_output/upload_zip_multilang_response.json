@@ -1,6 +1,7 @@
 {
   "message": "Repository uploaded successfully.",
-  "repository_id": "ac797998-72e4-4123-b4ae-408333e1df1e",
+  "repository_id": "803fb567-e983-4c94-bef5-04c7d7828e5a",
   "repository_name": "multi_lang",
-  "repository_path": "repositories\\ac797998-72e4-4123-b4ae-408333e1df1e-multi_lang"
+  "s3_uri": "s3://bugtracker-repositories-577702170996-ap-south-1-an/repositories/803fb567-e983-4c94-bef5-04c7d7828e5a-multi_lang.zip",
+  "s3_key": "repositories/803fb567-e983-4c94-bef5-04c7d7828e5a-multi_lang.zip"
 }
