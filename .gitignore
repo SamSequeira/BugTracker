@@ -55,3 +55,6 @@ env/
 # Output (optional - remove if you want to commit AST files)
 # output/
 *.log
+
+# ML model weights
+*.safetensors
