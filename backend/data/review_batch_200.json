@@ -1,0 +1,3965 @@
+{
+  "metadata": {
+    "total_available_unverified_real": 1376,
+    "sampled_count": 200,
+    "seed": 42,
+    "strata_count": 19,
+    "repositories_distribution": {
+      "bottlepy": 4,
+      "google-gson": 41,
+      "axios-http": 33,
+      "square-retrofit": 67,
+      "pallets-click": 21,
+      "lodash-js": 34
+    },
+    "languages_distribution": {
+      "Python": 25,
+      "Java": 86,
+      "JavaScript": 89
+    },
+    "rules_distribution": {
+      "PY_MUT_001": 1,
+      "JAVA_EQ_001": 35,
+      "JS_DIV_001": 38,
+      "JS_EQ_001": 34,
+      "PY_ASS_001": 16,
+      "JAVA_EXC_001": 20,
+      "JAVA_RES_001": 23,
+      "JS_AWA_001": 17,
+      "PY_DIV_001": 2,
+      "JAVA_DIV_001": 8,
+      "PY_RES_001": 6
+    },
+    "issue_types_distribution": {
+      "mutable_default_argument": 1,
+      "string_reference_equality": 35,
+      "division_by_zero": 48,
+      "loose_equality": 34,
+      "assert_in_production_code": 16,
+      "empty_catch_block": 20,
+      "unclosed_resource": 29,
+      "await_in_loop": 17
+    }
+  },
+  "items": [
+    {
+      "id": "10e9b5a9-3d13-4dce-90cb-c11a11ad4111",
+      "repository_name": "bottlepy",
+      "repository_id": "82c76f23-3de2-46f6-a894-b8712cdaa9e7",
+      "analysis_run_id": "25f3dafa-f868-4c8c-9d1c-10229c1afe74",
+      "language": "Python",
+      "rule_id": "PY_MUT_001",
+      "issue_type": "mutable_default_argument",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_bottlepy_dn1tfh4h\\bottle.py",
+      "line_number": 4085,
+      "code_snippet": "{}",
+      "message": "Mutable default argument `{}` for parameter `globals`.  Use `None` as default and create a new object inside the function.",
+      "evidence": {
+        "parameter": "globals",
+        "default_value": "{}",
+        "mutable_type": "dictionary"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "afdf0501-c3de-45e0-a050-664591d60120",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\main\\java\\com\\google\\gson\\JsonParser.java",
+      "line_number": 111,
+      "code_snippet": "jsonReader.peek() != JsonToken.END_DOCUMENT",
+      "message": "Object compared with `!=` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "!=",
+        "left_operand": "jsonReader.peek()",
+        "right_operand": "JsonToken.END_DOCUMENT",
+        "suggested": "!object.equals(other)"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "246c017f-49b2-46a6-9fdc-a603fdbd8b1c",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\proto\\src\\main\\java\\com\\google\\gson\\protobuf\\LegacyProtoTypeAdapterFactory.java",
+      "line_number": 599,
+      "code_snippet": "messageFields.get(i).getRealContainingOneof() == containingOneof",
+      "message": "Object compared with `==` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "==",
+        "left_operand": "messageFields.get(i).getRealContainingOneof()",
+        "right_operand": "containingOneof",
+        "suggested": ".equals()"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "9e36d84a-6589-4a0f-9c2c-484052651686",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\main\\java\\com\\google\\gson\\internal\\bind\\ReflectiveTypeAdapterFactory.java",
+      "line_number": 339,
+      "code_snippet": "filterResult == FilterResult.BLOCK_ALL",
+      "message": "Object compared with `==` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "==",
+        "left_operand": "filterResult",
+        "right_operand": "FilterResult.BLOCK_ALL",
+        "suggested": ".equals()"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "f118803c-178b-4306-a284-5dc6972c8097",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\tests\\unit\\adapters\\http.test.js",
+      "line_number": 5212,
+      "code_snippet": "(i + skip) / secs / progressTicksRate",
+      "message": "Division by potentially zero value: the divisor `progressTicksRate` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "progressTicksRate",
+        "right_node_type": "identifier",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "07d6f9ea-f832-4a2c-b40f-576edbcf34db",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\tests\\unit\\adapters\\fetch.test.js",
+      "line_number": 513,
+      "code_snippet": "(chunkLength * i) / contentLength",
+      "message": "Division by potentially zero value: the divisor `contentLength` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "contentLength",
+        "right_node_type": "identifier",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "52e05170-35a3-4fcd-9c88-ce8390a033c8",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\lib\\helpers\\throttle.js",
+      "line_number": 9,
+      "code_snippet": "1000 / freq",
+      "message": "Division by potentially zero value: the divisor `freq` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "freq",
+        "right_node_type": "identifier",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "9b6ddd46-4acc-4ea9-ae41-e11edf1b057b",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\website\\public\\2.x\\converter-protobuf\\script.js",
+      "line_number": 21,
+      "code_snippet": "==",
+      "message": "Loose equality operator `==` performs type coercion and can produce unexpected results.  Use `===` for strict equality.",
+      "evidence": {
+        "operator": "==",
+        "strict_alternative": "===",
+        "expression": "value == type"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "0715d29f-d9f3-49b5-a6b5-2677866a43e1",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\website\\public\\1.x\\converter-wire\\script.js",
+      "line_number": 6,
+      "code_snippet": "!=",
+      "message": "Loose equality operator `!=` performs type coercion and can produce unexpected results.  Use `!==` for strict equality.",
+      "evidence": {
+        "operator": "!=",
+        "strict_alternative": "!==",
+        "expression": "(methods[key] &  type) != 0"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "f9837c75-def7-4f13-bbdc-94435d757e39",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\website\\public\\1.x\\retrofit-mock\\script.js",
+      "line_number": 21,
+      "code_snippet": "==",
+      "message": "Loose equality operator `==` performs type coercion and can produce unexpected results.  Use `===` for strict equality.",
+      "evidence": {
+        "operator": "==",
+        "strict_alternative": "===",
+        "expression": "value == type"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "4b235d82-a4c7-4987-ac20-8a04511b77e0",
+      "repository_name": "pallets-click",
+      "repository_id": "a1086f9e-8093-441f-b386-fdfc036bc17a",
+      "analysis_run_id": "bb2266e0-26e2-43d5-aadb-e408ff0486d6",
+      "language": "Python",
+      "rule_id": "PY_ASS_001",
+      "issue_type": "assert_in_production_code",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_pallets-click_flwgjg_n\\src\\click\\core.py",
+      "line_number": 1870,
+      "code_snippet": "assert len(args) == 1 and not kwargs, (",
+      "message": "assert statement found in production code.  assert is removed when Python runs with -O; use an explicit if/raise for validation.",
+      "evidence": {
+        "statement": "assert len(args) == 1 and not kwargs, ("
+      },
+      "detector_severity": "low",
+      "detector_urgency": "low"
+    },
+    {
+      "id": "045634b4-80b0-421e-82c5-edf6ca197276",
+      "repository_name": "pallets-click",
+      "repository_id": "a1086f9e-8093-441f-b386-fdfc036bc17a",
+      "analysis_run_id": "bb2266e0-26e2-43d5-aadb-e408ff0486d6",
+      "language": "Python",
+      "rule_id": "PY_ASS_001",
+      "issue_type": "assert_in_production_code",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_pallets-click_flwgjg_n\\src\\click\\core.py",
+      "line_number": 2049,
+      "code_snippet": "assert cmd is not None",
+      "message": "assert statement found in production code.  assert is removed when Python runs with -O; use an explicit if/raise for validation.",
+      "evidence": {
+        "statement": "assert cmd is not None"
+      },
+      "detector_severity": "low",
+      "detector_urgency": "low"
+    },
+    {
+      "id": "e43adbbb-7c85-48e0-b993-8fc57e1f9af6",
+      "repository_name": "pallets-click",
+      "repository_id": "a1086f9e-8093-441f-b386-fdfc036bc17a",
+      "analysis_run_id": "bb2266e0-26e2-43d5-aadb-e408ff0486d6",
+      "language": "Python",
+      "rule_id": "PY_ASS_001",
+      "issue_type": "assert_in_production_code",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_pallets-click_flwgjg_n\\src\\click\\core.py",
+      "line_number": 1821,
+      "code_snippet": "assert len(args) == 1 and not kwargs, (",
+      "message": "assert statement found in production code.  assert is removed when Python runs with -O; use an explicit if/raise for validation.",
+      "evidence": {
+        "statement": "assert len(args) == 1 and not kwargs, ("
+      },
+      "detector_severity": "low",
+      "detector_urgency": "low"
+    },
+    {
+      "id": "0ba3a589-7670-4f69-9063-c5be9aab282e",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_EXC_001",
+      "issue_type": "empty_catch_block",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\test\\java\\com\\google\\gson\\functional\\DefaultTypeAdaptersTest.java",
+      "line_number": 1042,
+      "code_snippet": "catch (InaccessibleObjectException e) {",
+      "message": "Empty catch block for `InaccessibleObjectException e` silently ignores the exception. At minimum log the error or rethrow it.",
+      "evidence": {
+        "catch_parameter": "InaccessibleObjectException e"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "f65296f9-a104-469a-a684-2baea644dc2e",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_EXC_001",
+      "issue_type": "empty_catch_block",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\main\\java\\com\\google\\gson\\internal\\bind\\DefaultDateTypeAdapter.java",
+      "line_number": 173,
+      "code_snippet": "catch (ParseException ignored) {",
+      "message": "Empty catch block for `ParseException ignored` silently ignores the exception. At minimum log the error or rethrow it.",
+      "evidence": {
+        "catch_parameter": "ParseException ignored"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "47db7153-297a-4c17-9af6-c14ee8bc6b90",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_EXC_001",
+      "issue_type": "empty_catch_block",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\main\\java\\com\\google\\gson\\stream\\JsonReader.java",
+      "line_number": 1173,
+      "code_snippet": "catch (NumberFormatException ignored) {",
+      "message": "Empty catch block for `NumberFormatException ignored` silently ignores the exception. At minimum log the error or rethrow it.",
+      "evidence": {
+        "catch_parameter": "NumberFormatException ignored"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "219c2c91-2dbf-48f4-9d94-5094d247c390",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_RES_001",
+      "issue_type": "unclosed_resource",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit-adapters\\rxjava3\\src\\test\\java\\retrofit2\\adapter\\rxjava3\\RecordingObserver.java",
+      "line_number": 130,
+      "code_snippet": "new Statement() {",
+      "message": "`Statement` created outside a try-with-resources statement. Use `try (Statement r = new Statement(...))` to ensure the resource is closed even when an exception occurs.",
+      "evidence": {
+        "resource_type": "Statement"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "7759d9a1-af4e-4d3c-a879-dceb8d6cab81",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_RES_001",
+      "issue_type": "unclosed_resource",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit-adapters\\rxjava2\\src\\test\\java\\retrofit2\\adapter\\rxjava2\\RecordingCompletableObserver.java",
+      "line_number": 107,
+      "code_snippet": "new Statement() {",
+      "message": "`Statement` created outside a try-with-resources statement. Use `try (Statement r = new Statement(...))` to ensure the resource is closed even when an exception occurs.",
+      "evidence": {
+        "resource_type": "Statement"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "538196f8-c256-4007-9056-b6db9caf8320",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_RES_001",
+      "issue_type": "unclosed_resource",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit-adapters\\rxjava\\src\\test\\java\\retrofit2\\adapter\\rxjava\\RxJavaPluginsResetRule.java",
+      "line_number": 27,
+      "code_snippet": "new Statement() {",
+      "message": "`Statement` created outside a try-with-resources statement. Use `try (Statement r = new Statement(...))` to ensure the resource is closed even when an exception occurs.",
+      "evidence": {
+        "resource_type": "Statement"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "e38dea88-7b35-42c8-bb8a-dcd16f703c21",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\dist\\lodash.js",
+      "line_number": 3345,
+      "code_snippet": "==",
+      "message": "Loose equality operator `==` performs type coercion and can produce unexpected results.  Use `===` for strict equality.",
+      "evidence": {
+        "operator": "==",
+        "strict_alternative": "===",
+        "expression": "othTag == argsTag"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "545f83dd-3909-4de7-828e-15c2a1aca7e1",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\dist\\lodash.js",
+      "line_number": 2255,
+      "code_snippet": "==",
+      "message": "Loose equality operator `==` performs type coercion and can produce unexpected results.  Use `===` for strict equality.",
+      "evidence": {
+        "operator": "==",
+        "strict_alternative": "===",
+        "expression": "data.size == size"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "ab1db38c-22d9-4ca3-a28c-9bf4ef159b83",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\dist\\lodash.min.js",
+      "line_number": 74,
+      "code_snippet": "==",
+      "message": "Loose equality operator `==` performs type coercion and can produce unexpected results.  Use `===` for strict equality.",
+      "evidence": {
+        "operator": "==",
+        "strict_alternative": "===",
+        "expression": "\"0\"==t"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "08ebf34e-8d87-46e3-b008-583955e20cfc",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\lodash.js",
+      "line_number": 4304,
+      "code_snippet": "1 / value",
+      "message": "Division by potentially zero value: the divisor `value` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "value",
+        "right_node_type": "identifier",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "90eca4b9-8771-4935-9296-88d45c1c7db5",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\vendor\\firebug-lite\\src\\firebug-lite-debug.js",
+      "line_number": 25118,
+      "code_snippet": "h / w",
+      "message": "Division by potentially zero value: the divisor `w` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "w",
+        "right_node_type": "identifier",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "c8d890db-60bd-4d50-8448-0defd52aebc6",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\vendor\\firebug-lite\\src\\firebug-lite-debug.js",
+      "line_number": 27634,
+      "code_snippet": "offsetX/charWidth",
+      "message": "Division by potentially zero value: the divisor `charWidth` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "charWidth",
+        "right_node_type": "identifier",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "bcf88123-b3e5-4b95-bae4-8d26e5048c44",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_AWA_001",
+      "issue_type": "await_in_loop",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\tests\\setup\\server.js",
+      "line_number": 180,
+      "code_snippet": "await setTimeoutAsync(sleep)",
+      "message": "`await` found inside a loop body.  This processes items sequentially.  Consider collecting promises and using Promise.all() instead.",
+      "evidence": {
+        "await_expression": "await setTimeoutAsync(sleep)"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "3b244b70-92dc-4afa-8954-6506e52fec8a",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_AWA_001",
+      "issue_type": "await_in_loop",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\tests\\browser\\instance.browser.test.js",
+      "line_number": 85,
+      "code_snippet": "await Promise.resolve()",
+      "message": "`await` found inside a loop body.  This processes items sequentially.  Consider collecting promises and using Promise.all() instead.",
+      "evidence": {
+        "await_expression": "await Promise.resolve()"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "78f6e74f-4ed4-4234-b085-0a4a07ebee07",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_AWA_001",
+      "issue_type": "await_in_loop",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\tests\\unit\\axios.test.js",
+      "line_number": 90,
+      "code_snippet": "await client.request({",
+      "message": "`await` found inside a loop body.  This processes items sequentially.  Consider collecting promises and using Promise.all() instead.",
+      "evidence": {
+        "await_expression": "await client.request({\r\n        method: requestMethod,\r\n        url: '/method-headers',\r\n        adapter: async (config) => {\r\n          assert.strictEqual(config.headers.get(`X-Method-${requestMethod}`), requestMethod);\r\n\r\n          expectedMethodList.forEach((method) => {\r\n            assert.strictEqual(config.headers.has(method), false);\r\n\r\n            if (method !== requestMethod) {\r\n              assert.strictEqual(config.headers.has(`X-Method-${method}`), false);\r\n            }\r\n          });\r\n\r\n          return {\r\n            data: null,\r\n            status: 200,\r\n            statusText: 'OK',\r\n            headers: {},\r\n            config,\r\n            request: {},\r\n          };\r\n        },\r\n      })"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "3eb75a92-7406-4419-a98f-d76716d84b27",
+      "repository_name": "pallets-click",
+      "repository_id": "a1086f9e-8093-441f-b386-fdfc036bc17a",
+      "analysis_run_id": "bb2266e0-26e2-43d5-aadb-e408ff0486d6",
+      "language": "Python",
+      "rule_id": "PY_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_pallets-click_flwgjg_n\\src\\click\\_termui_impl.py",
+      "line_number": 310,
+      "code_snippet": "(time.time() - self.start) / self.pos",
+      "message": "Division by potentially zero value: the divisor `self.pos` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "self.pos",
+        "right_node_type": "attribute",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "ef41bb97-d00b-42d3-aa6c-c12b580b90b5",
+      "repository_name": "pallets-click",
+      "repository_id": "a1086f9e-8093-441f-b386-fdfc036bc17a",
+      "analysis_run_id": "bb2266e0-26e2-43d5-aadb-e408ff0486d6",
+      "language": "Python",
+      "rule_id": "PY_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_pallets-click_flwgjg_n\\src\\click\\_termui_impl.py",
+      "line_number": 166,
+      "code_snippet": "sum(self.avg) / float(len(self.avg))",
+      "message": "Division by potentially zero value: the divisor `float(len(self.avg))` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "float(len(self.avg))",
+        "right_node_type": "call",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "9d1a4aba-fa0a-4189-aa2b-f21e90df8f18",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_EXC_001",
+      "issue_type": "empty_catch_block",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit-converters\\wire\\src\\test\\java\\retrofit2\\converter\\wire\\WireConverterFactoryTest.java",
+      "line_number": 199,
+      "code_snippet": "catch (EOFException ignored) {",
+      "message": "Empty catch block for `EOFException ignored` silently ignores the exception. At minimum log the error or rethrow it.",
+      "evidence": {
+        "catch_parameter": "EOFException ignored"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "ab059f95-a4d9-4c23-9c0e-269a6994a4d4",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_EXC_001",
+      "issue_type": "empty_catch_block",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit-mock\\src\\main\\java\\retrofit2\\mock\\BehaviorDelegate.java",
+      "line_number": 121,
+      "code_snippet": "catch (NoClassDefFoundError ignored) {",
+      "message": "Empty catch block for `NoClassDefFoundError ignored` silently ignores the exception. At minimum log the error or rethrow it.",
+      "evidence": {
+        "catch_parameter": "NoClassDefFoundError ignored"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "88275842-23a8-4e5a-a4ae-97bb9954b6f3",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_EXC_001",
+      "issue_type": "empty_catch_block",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit-converters\\moshi\\src\\test\\java\\retrofit2\\converter\\moshi\\MoshiConverterFactoryTest.java",
+      "line_number": 324,
+      "code_snippet": "catch (IOException expected) {",
+      "message": "Empty catch block for `IOException expected` silently ignores the exception. At minimum log the error or rethrow it.",
+      "evidence": {
+        "catch_parameter": "IOException expected"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "71821fc5-6dfa-4db2-9c7f-e6c4856d1494",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\website\\public\\2.x\\converter-kotlinx-serialization\\scripts\\main.js",
+      "line_number": 47,
+      "code_snippet": "1e3/e",
+      "message": "Division by potentially zero value: the divisor `e` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "e",
+        "right_node_type": "identifier",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "a936e1b5-90d2-48d9-904a-ccb1dd8e8f37",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\website\\public\\2.x\\converter-kotlinx-serialization\\scripts\\main.js",
+      "line_number": 52,
+      "code_snippet": "1/l([1],1,-0)",
+      "message": "Division by potentially zero value: the divisor `l([1],1,-0)` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "l([1],1,-0)",
+        "right_node_type": "call_expression",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "614113e8-25fb-47cd-886d-f291b8f2d933",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\website\\public\\2.x\\converter-kotlinx-serialization\\scripts\\main.js",
+      "line_number": 9,
+      "code_snippet": "1/0",
+      "message": "Division by zero: the divisor `0` is always zero.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "0",
+        "right_node_type": "number",
+        "classification": "definitely_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "eaf8a8ae-6e18-407c-8406-f3e6b27cb1be",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\extras\\src\\main\\java\\com\\google\\gson\\typeadapters\\UtcDateTypeAdapter.java",
+      "line_number": 104,
+      "code_snippet": "offset / (60 * 1000)",
+      "message": "Division by potentially zero value: the divisor `(60 * 1000)` may be zero at runtime. Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "(60 * 1000)",
+        "right_node_type": "parenthesized_expression",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "ab5b954c-8e60-4c06-a0cc-2b3a3534f095",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\main\\java\\com\\google\\gson\\internal\\bind\\util\\ISO8601Utils.java",
+      "line_number": 120,
+      "code_snippet": "offset / (60 * 1000)",
+      "message": "Division by potentially zero value: the divisor `(60 * 1000)` may be zero at runtime. Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "(60 * 1000)",
+        "right_node_type": "parenthesized_expression",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "013e9d58-3857-4319-9b10-cbd1a850d978",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\test\\java\\com\\google\\gson\\metrics\\PerformanceTest.java",
+      "line_number": 227,
+      "code_snippet": "(t2 - t1) / NUM_ITERATIONS",
+      "message": "Division by potentially zero value: the divisor `NUM_ITERATIONS` may be zero at runtime. Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "NUM_ITERATIONS",
+        "right_node_type": "identifier",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "310ac32b-aca7-4953-912f-92887f5f2560",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit-converters\\jackson\\src\\test\\java\\retrofit2\\converter\\jackson\\JacksonConverterFactoryTest.java",
+      "line_number": 101,
+      "code_snippet": "jp.nextToken() != JsonToken.END_OBJECT",
+      "message": "Object compared with `!=` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "!=",
+        "left_operand": "jp.nextToken()",
+        "right_operand": "JsonToken.END_OBJECT",
+        "suggested": "!object.equals(other)"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "74a373d5-2355-4441-a44a-2f166dd2d6c5",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit\\src\\main\\java\\retrofit2\\RequestBuilder.java",
+      "line_number": 166,
+      "code_snippet": "PATH_SEGMENT_ALWAYS_ENCODE_SET.indexOf(codePoint) != -1",
+      "message": "Object compared with `!=` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "!=",
+        "left_operand": "PATH_SEGMENT_ALWAYS_ENCODE_SET.indexOf(codePoint)",
+        "right_operand": "-1",
+        "suggested": "!object.equals(other)"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "09d4ebb2-aab3-4ebc-8f0d-ccb750a89a30",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit\\src\\main\\java\\retrofit2\\Utils.java",
+      "line_number": 146,
+      "code_snippet": "va.getGenericDeclaration() == vb.getGenericDeclaration()",
+      "message": "Object compared with `==` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "==",
+        "left_operand": "va.getGenericDeclaration()",
+        "right_operand": "vb.getGenericDeclaration()",
+        "suggested": ".equals()"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "494c1d77-d55d-4295-81cc-6b23a2fee678",
+      "repository_name": "pallets-click",
+      "repository_id": "a1086f9e-8093-441f-b386-fdfc036bc17a",
+      "analysis_run_id": "bb2266e0-26e2-43d5-aadb-e408ff0486d6",
+      "language": "Python",
+      "rule_id": "PY_RES_001",
+      "issue_type": "unclosed_resource",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_pallets-click_flwgjg_n\\src\\click\\_compat.py",
+      "line_number": 371,
+      "code_snippet": "open(file, mode, encoding=encoding, errors=errors)",
+      "message": "open() called outside a `with` statement.  Use `with open(...) as f:` to guarantee the file is closed even when an exception occurs.",
+      "evidence": {
+        "call_text": "open(file, mode, encoding=encoding, errors=errors)"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "abe07da5-b95b-4563-a4a3-78eccd0398a2",
+      "repository_name": "pallets-click",
+      "repository_id": "a1086f9e-8093-441f-b386-fdfc036bc17a",
+      "analysis_run_id": "bb2266e0-26e2-43d5-aadb-e408ff0486d6",
+      "language": "Python",
+      "rule_id": "PY_RES_001",
+      "issue_type": "unclosed_resource",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_pallets-click_flwgjg_n\\src\\click\\_termui_impl.py",
+      "line_number": 943,
+      "code_snippet": "open(\"/dev/tty\")",
+      "message": "open() called outside a `with` statement.  Use `with open(...) as f:` to guarantee the file is closed even when an exception occurs.",
+      "evidence": {
+        "call_text": "open(\"/dev/tty\")"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "d64a98b6-3d54-411b-8ea4-18873bd42399",
+      "repository_name": "pallets-click",
+      "repository_id": "a1086f9e-8093-441f-b386-fdfc036bc17a",
+      "analysis_run_id": "bb2266e0-26e2-43d5-aadb-e408ff0486d6",
+      "language": "Python",
+      "rule_id": "PY_RES_001",
+      "issue_type": "unclosed_resource",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_pallets-click_flwgjg_n\\src\\click\\utils.py",
+      "line_number": 153,
+      "code_snippet": "open(filename, mode)",
+      "message": "open() called outside a `with` statement.  Use `with open(...) as f:` to guarantee the file is closed even when an exception occurs.",
+      "evidence": {
+        "call_text": "open(filename, mode)"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "ba9187f1-d783-47ce-be22-fc041c1ed4cd",
+      "repository_name": "bottlepy",
+      "repository_id": "82c76f23-3de2-46f6-a894-b8712cdaa9e7",
+      "analysis_run_id": "25f3dafa-f868-4c8c-9d1c-10229c1afe74",
+      "language": "Python",
+      "rule_id": "PY_RES_001",
+      "issue_type": "unclosed_resource",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_bottlepy_dn1tfh4h\\bottle.py",
+      "line_number": 2836,
+      "code_snippet": "open(filename, 'rb')",
+      "message": "open() called outside a `with` statement.  Use `with open(...) as f:` to guarantee the file is closed even when an exception occurs.",
+      "evidence": {
+        "call_text": "open(filename, 'rb')"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "03da250d-f97d-4e8c-af93-e23691285ae5",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_RES_001",
+      "issue_type": "unclosed_resource",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\test\\java\\com\\google\\gson\\internal\\LazilyParsedNumberTest.java",
+      "line_number": 58,
+      "code_snippet": "new ObjectOutputStream(out)",
+      "message": "`ObjectOutputStream` created outside a try-with-resources statement. Use `try (ObjectOutputStream r = new ObjectOutputStream(...))` to ensure the resource is closed even when an exception occurs.",
+      "evidence": {
+        "resource_type": "ObjectOutputStream"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "baff9e1c-9d49-4740-aa61-e8bb734cb632",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_RES_001",
+      "issue_type": "unclosed_resource",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\test\\java\\com\\google\\gson\\internal\\LinkedTreeMapTest.java",
+      "line_number": 213,
+      "code_snippet": "new ObjectOutputStream(out)",
+      "message": "`ObjectOutputStream` created outside a try-with-resources statement. Use `try (ObjectOutputStream r = new ObjectOutputStream(...))` to ensure the resource is closed even when an exception occurs.",
+      "evidence": {
+        "resource_type": "ObjectOutputStream"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "3185a622-c889-4588-a30d-8a1e62145997",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_RES_001",
+      "issue_type": "unclosed_resource",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\test\\java\\com\\google\\gson\\functional\\NumberLimitsTest.java",
+      "line_number": 161,
+      "code_snippet": "new ObjectOutputStream(OutputStream.nullOutputStream())",
+      "message": "`ObjectOutputStream` created outside a try-with-resources statement. Use `try (ObjectOutputStream r = new ObjectOutputStream(...))` to ensure the resource is closed even when an exception occurs.",
+      "evidence": {
+        "resource_type": "ObjectOutputStream"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "7ffc87a7-472c-4cd5-93d0-deccae5c3bf4",
+      "repository_name": "bottlepy",
+      "repository_id": "82c76f23-3de2-46f6-a894-b8712cdaa9e7",
+      "analysis_run_id": "25f3dafa-f868-4c8c-9d1c-10229c1afe74",
+      "language": "Python",
+      "rule_id": "PY_ASS_001",
+      "issue_type": "assert_in_production_code",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_bottlepy_dn1tfh4h\\test\\tools.py",
+      "line_number": 63,
+      "code_snippet": "assert introduced < deprecated < removed",
+      "message": "assert statement found in production code.  assert is removed when Python runs with -O; use an explicit if/raise for validation.",
+      "evidence": {
+        "statement": "assert introduced < deprecated < removed"
+      },
+      "detector_severity": "low",
+      "detector_urgency": "low"
+    },
+    {
+      "id": "dd8a7f6c-89ba-4bd7-950e-566962ef3903",
+      "repository_name": "bottlepy",
+      "repository_id": "82c76f23-3de2-46f6-a894-b8712cdaa9e7",
+      "analysis_run_id": "25f3dafa-f868-4c8c-9d1c-10229c1afe74",
+      "language": "Python",
+      "rule_id": "PY_ASS_001",
+      "issue_type": "assert_in_production_code",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_bottlepy_dn1tfh4h\\bottle.py",
+      "line_number": 1642,
+      "code_snippet": "assert issubclass(cls, BaseResponse)",
+      "message": "assert statement found in production code.  assert is removed when Python runs with -O; use an explicit if/raise for validation.",
+      "evidence": {
+        "statement": "assert issubclass(cls, BaseResponse)"
+      },
+      "detector_severity": "low",
+      "detector_urgency": "low"
+    },
+    {
+      "id": "0ebcc042-c966-48cd-8768-adfb78c14b64",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\main\\java\\com\\google\\gson\\internal\\bind\\JsonTreeReader.java",
+      "line_number": 271,
+      "code_snippet": "token == JsonToken.STRING",
+      "message": "Object compared with `==` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "==",
+        "left_operand": "token",
+        "right_operand": "JsonToken.STRING",
+        "suggested": ".equals()"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "0e3a575a-15d6-4885-aed8-2f2c1c5aadc7",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\lib\\helpers\\progressEventReducer.js",
+      "line_number": 24,
+      "code_snippet": "loaded / total",
+      "message": "Division by potentially zero value: the divisor `total` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "total",
+        "right_node_type": "identifier",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "24bcfefc-45da-4231-8c76-55ffa99b73e4",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\website\\public\\2.x\\converter-kotlinx-serialization\\scripts\\main.js",
+      "line_number": 9,
+      "code_snippet": "==",
+      "message": "Loose equality operator `==` performs type coercion and can produce unexpected results.  Use `===` for strict equality.",
+      "evidence": {
+        "operator": "==",
+        "strict_alternative": "===",
+        "expression": "n==n"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "47966157-a541-4ab6-a139-58d9db37dc93",
+      "repository_name": "pallets-click",
+      "repository_id": "a1086f9e-8093-441f-b386-fdfc036bc17a",
+      "analysis_run_id": "bb2266e0-26e2-43d5-aadb-e408ff0486d6",
+      "language": "Python",
+      "rule_id": "PY_ASS_001",
+      "issue_type": "assert_in_production_code",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_pallets-click_flwgjg_n\\src\\click\\core.py",
+      "line_number": 2027,
+      "code_snippet": "assert cmd is not None",
+      "message": "assert statement found in production code.  assert is removed when Python runs with -O; use an explicit if/raise for validation.",
+      "evidence": {
+        "statement": "assert cmd is not None"
+      },
+      "detector_severity": "low",
+      "detector_urgency": "low"
+    },
+    {
+      "id": "8d2bb0e6-898e-4189-ac93-0da899e04dc8",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_EXC_001",
+      "issue_type": "empty_catch_block",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\main\\java\\com\\google\\gson\\internal\\ReflectionAccessFilterHelper.java",
+      "line_number": 102,
+      "code_snippet": "catch (NoSuchMethodException ignored) {",
+      "message": "Empty catch block for `NoSuchMethodException ignored` silently ignores the exception. At minimum log the error or rethrow it.",
+      "evidence": {
+        "catch_parameter": "NoSuchMethodException ignored"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "ba6963aa-2839-4563-b2e8-f17e1e93e233",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_RES_001",
+      "issue_type": "unclosed_resource",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit-adapters\\rxjava2\\src\\test\\java\\retrofit2\\adapter\\rxjava2\\RecordingSubscriber.java",
+      "line_number": 150,
+      "code_snippet": "new Statement() {",
+      "message": "`Statement` created outside a try-with-resources statement. Use `try (Statement r = new Statement(...))` to ensure the resource is closed even when an exception occurs.",
+      "evidence": {
+        "resource_type": "Statement"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "6625d59d-764d-4c09-bfb3-9f37eeb0b1d0",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\test\\test.js",
+      "line_number": 23636,
+      "code_snippet": "==",
+      "message": "Loose equality operator `==` performs type coercion and can produce unexpected results.  Use `===` for strict equality.",
+      "evidence": {
+        "operator": "==",
+        "strict_alternative": "===",
+        "expression": "methodName == 'toNumber'"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "b3523f4a-626c-4b2e-b41c-a1f6be0de5f2",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\vendor\\firebug-lite\\src\\firebug-lite-debug.js",
+      "line_number": 27633,
+      "code_snippet": "propValue.offsetWidth/text.length",
+      "message": "Division by potentially zero value: the divisor `text.length` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "text.length",
+        "right_node_type": "member_expression",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "b09c149b-659c-470f-9a1a-930f710350b8",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_AWA_001",
+      "issue_type": "await_in_loop",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\tests\\browser\\interceptors.browser.test.js",
+      "line_number": 117,
+      "code_snippet": "await sleep(0)",
+      "message": "`await` found inside a loop body.  This processes items sequentially.  Consider collecting promises and using Promise.all() instead.",
+      "evidence": {
+        "await_expression": "await sleep(0)"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "c3e148d0-2487-4ee8-8cbc-1c1b4d2d1e77",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_EXC_001",
+      "issue_type": "empty_catch_block",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit-mock\\src\\test\\java\\retrofit2\\mock\\BehaviorDelegateTest.java",
+      "line_number": 235,
+      "code_snippet": "catch (InterruptedException ignored) {",
+      "message": "Empty catch block for `InterruptedException ignored` silently ignores the exception. At minimum log the error or rethrow it.",
+      "evidence": {
+        "catch_parameter": "InterruptedException ignored"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "da062bbf-a37b-4e56-8977-e62f22404973",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\website\\public\\2.x\\converter-kotlinx-serialization\\scripts\\main.js",
+      "line_number": 14,
+      "code_snippet": "1/0",
+      "message": "Division by zero: the divisor `0` is always zero.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "0",
+        "right_node_type": "number",
+        "classification": "definitely_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "b81fee8e-31c4-4964-a292-679dd805a960",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\test\\java\\com\\google\\gson\\metrics\\PerformanceTest.java",
+      "line_number": 213,
+      "code_snippet": "(t2 - t1) / NUM_ITERATIONS",
+      "message": "Division by potentially zero value: the divisor `NUM_ITERATIONS` may be zero at runtime. Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "NUM_ITERATIONS",
+        "right_node_type": "identifier",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "7bf18e24-b2f9-4f1c-b40e-5d6bfe79c73e",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit\\java-test\\src\\test\\java\\retrofit2\\RetrofitTest.java",
+      "line_number": 422,
+      "code_snippet": "getRawType(returnType) != String.class",
+      "message": "Object compared with `!=` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "!=",
+        "left_operand": "getRawType(returnType)",
+        "right_operand": "String.class",
+        "suggested": "!object.equals(other)"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "0094eb33-f4d9-4db4-a3e6-675da8d96dfc",
+      "repository_name": "pallets-click",
+      "repository_id": "a1086f9e-8093-441f-b386-fdfc036bc17a",
+      "analysis_run_id": "bb2266e0-26e2-43d5-aadb-e408ff0486d6",
+      "language": "Python",
+      "rule_id": "PY_RES_001",
+      "issue_type": "unclosed_resource",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_pallets-click_flwgjg_n\\src\\click\\_termui_impl.py",
+      "line_number": 817,
+      "code_snippet": "open(\"/dev/null\", \"w\")",
+      "message": "open() called outside a `with` statement.  Use `with open(...) as f:` to guarantee the file is closed even when an exception occurs.",
+      "evidence": {
+        "call_text": "open(\"/dev/null\", \"w\")"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "a8284ee7-d1be-4550-a5a9-ff2c03f3d204",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_RES_001",
+      "issue_type": "unclosed_resource",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\test\\java\\com\\google\\gson\\JavaSerializationTest.java",
+      "line_number": 71,
+      "code_snippet": "new ObjectOutputStream(bytesOut)",
+      "message": "`ObjectOutputStream` created outside a try-with-resources statement. Use `try (ObjectOutputStream r = new ObjectOutputStream(...))` to ensure the resource is closed even when an exception occurs.",
+      "evidence": {
+        "resource_type": "ObjectOutputStream"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "e1408f05-ef97-42fc-928c-19fe5cc76d3d",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\main\\java\\com\\google\\gson\\internal\\bind\\TypeAdapters.java",
+      "line_number": 231,
+      "code_snippet": "in.peek() == JsonToken.NULL",
+      "message": "Object compared with `==` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "==",
+        "left_operand": "in.peek()",
+        "right_operand": "JsonToken.NULL",
+        "suggested": ".equals()"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "1afec088-a79f-48c1-94ed-1a1408383bc7",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\lib\\helpers\\speedometer.js",
+      "line_number": 51,
+      "code_snippet": "(bytesCount * 1000) / passed",
+      "message": "Division by potentially zero value: the divisor `passed` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "passed",
+        "right_node_type": "identifier",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "597a2c1a-81e6-491b-91a9-2112567d1f57",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\website\\public\\2.x\\retrofit\\script.js",
+      "line_number": 21,
+      "code_snippet": "==",
+      "message": "Loose equality operator `==` performs type coercion and can produce unexpected results.  Use `===` for strict equality.",
+      "evidence": {
+        "operator": "==",
+        "strict_alternative": "===",
+        "expression": "value == type"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "8b1e22c0-9954-47f8-9c70-a1351477b1c9",
+      "repository_name": "pallets-click",
+      "repository_id": "a1086f9e-8093-441f-b386-fdfc036bc17a",
+      "analysis_run_id": "bb2266e0-26e2-43d5-aadb-e408ff0486d6",
+      "language": "Python",
+      "rule_id": "PY_ASS_001",
+      "issue_type": "assert_in_production_code",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_pallets-click_flwgjg_n\\src\\click\\decorators.py",
+      "line_number": 236,
+      "code_snippet": "assert cls is not None",
+      "message": "assert statement found in production code.  assert is removed when Python runs with -O; use an explicit if/raise for validation.",
+      "evidence": {
+        "statement": "assert cls is not None"
+      },
+      "detector_severity": "low",
+      "detector_urgency": "low"
+    },
+    {
+      "id": "a0ac9466-ab29-4a6c-9c1b-0e97d6211257",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_EXC_001",
+      "issue_type": "empty_catch_block",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\main\\java\\com\\google\\gson\\stream\\JsonReader.java",
+      "line_number": 1429,
+      "code_snippet": "catch (NumberFormatException ignored) {",
+      "message": "Empty catch block for `NumberFormatException ignored` silently ignores the exception. At minimum log the error or rethrow it.",
+      "evidence": {
+        "catch_parameter": "NumberFormatException ignored"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "415f8a00-e6b1-46d3-9be3-61de20632dc3",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_RES_001",
+      "issue_type": "unclosed_resource",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit-adapters\\rxjava2\\src\\test\\java\\retrofit2\\adapter\\rxjava2\\RxJavaPluginsResetRule.java",
+      "line_number": 26,
+      "code_snippet": "new Statement() {",
+      "message": "`Statement` created outside a try-with-resources statement. Use `try (Statement r = new Statement(...))` to ensure the resource is closed even when an exception occurs.",
+      "evidence": {
+        "resource_type": "Statement"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "ec07c71d-6f1b-4d25-baa1-d351a66fd0bc",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\vendor\\firebug-lite\\src\\firebug-lite-debug.js",
+      "line_number": 144,
+      "code_snippet": "==",
+      "message": "Loose equality operator `==` performs type coercion and can produce unexpected results.  Use `===` for strict equality.",
+      "evidence": {
+        "operator": "==",
+        "strict_alternative": "===",
+        "expression": "FBL.Env.browser.document.compatMode == \"BackCompat\""
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "af288e8e-2ffb-4425-af3d-769bf81084b0",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\dist\\lodash.min.js",
+      "line_number": 12,
+      "code_snippet": "k(n,t)/r",
+      "message": "Division by potentially zero value: the divisor `r` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "r",
+        "right_node_type": "identifier",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "2088548a-8633-46f3-bd82-bbe9ca573918",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_AWA_001",
+      "issue_type": "await_in_loop",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\tests\\unit\\adapters\\http.test.js",
+      "line_number": 6392,
+      "code_snippet": "await axios.get('/', { baseURL, httpAgent: agent })",
+      "message": "`await` found inside a loop body.  This processes items sequentially.  Consider collecting promises and using Promise.all() instead.",
+      "evidence": {
+        "await_expression": "await axios.get('/', { baseURL, httpAgent: agent })"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "8ea78100-5c46-433e-bc1f-d16774eac3ec",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_EXC_001",
+      "issue_type": "empty_catch_block",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit\\java-test\\src\\test\\java\\retrofit2\\RequestFactoryTest.java",
+      "line_number": 3417,
+      "code_snippet": "catch (IllegalArgumentException expected) {",
+      "message": "Empty catch block for `IllegalArgumentException expected` silently ignores the exception. At minimum log the error or rethrow it.",
+      "evidence": {
+        "catch_parameter": "IllegalArgumentException expected"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "d218bd57-7060-4ea3-92fb-c7b82cd5574d",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\website\\public\\2.x\\converter-kotlinx-serialization\\scripts\\main.js",
+      "line_number": 22,
+      "code_snippet": "Yn(e)/qn",
+      "message": "Division by potentially zero value: the divisor `qn` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "qn",
+        "right_node_type": "identifier",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "2bf26a6a-406f-4087-8f63-e160ebb4623f",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\main\\java\\com\\google\\gson\\internal\\bind\\util\\ISO8601Utils.java",
+      "line_number": 119,
+      "code_snippet": "offset / (60 * 1000)",
+      "message": "Division by potentially zero value: the divisor `(60 * 1000)` may be zero at runtime. Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "(60 * 1000)",
+        "right_node_type": "parenthesized_expression",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "62cb04f8-e83e-4038-8aa3-109bd0a4a6ca",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit-mock\\src\\main\\java\\retrofit2\\mock\\BehaviorDelegate.java",
+      "line_number": 105,
+      "code_snippet": "parameterizedLastParameterType.getRawType() == Continuation.class",
+      "message": "Object compared with `==` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "==",
+        "left_operand": "parameterizedLastParameterType.getRawType()",
+        "right_operand": "Continuation.class",
+        "suggested": ".equals()"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "39a8121b-2adc-4ef8-ad84-44b5cb8f3c15",
+      "repository_name": "pallets-click",
+      "repository_id": "a1086f9e-8093-441f-b386-fdfc036bc17a",
+      "analysis_run_id": "bb2266e0-26e2-43d5-aadb-e408ff0486d6",
+      "language": "Python",
+      "rule_id": "PY_RES_001",
+      "issue_type": "unclosed_resource",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_pallets-click_flwgjg_n\\src\\click\\_compat.py",
+      "line_number": 369,
+      "code_snippet": "open(file, mode)",
+      "message": "open() called outside a `with` statement.  Use `with open(...) as f:` to guarantee the file is closed even when an exception occurs.",
+      "evidence": {
+        "call_text": "open(file, mode)"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "b6103c5e-b0e1-4153-a426-a4a45cf5a983",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_RES_001",
+      "issue_type": "unclosed_resource",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\test\\java\\com\\google\\gson\\internal\\LinkedTreeMapTest.java",
+      "line_number": 219,
+      "code_snippet": "new ObjectInputStream(new ByteArrayInputStream(out.toByteArray()))",
+      "message": "`ObjectInputStream` created outside a try-with-resources statement. Use `try (ObjectInputStream r = new ObjectInputStream(...))` to ensure the resource is closed even when an exception occurs.",
+      "evidence": {
+        "resource_type": "ObjectInputStream"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "27b61fa6-1534-4c19-b930-1f04dfc307ea",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\main\\java\\com\\google\\gson\\internal\\bind\\MapTypeAdapterFactory.java",
+      "line_number": 185,
+      "code_snippet": "peek == JsonToken.BEGIN_ARRAY",
+      "message": "Object compared with `==` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "==",
+        "left_operand": "peek",
+        "right_operand": "JsonToken.BEGIN_ARRAY",
+        "suggested": ".equals()"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "1731d3aa-29fe-4828-aff3-47e85db54ad1",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\lib\\helpers\\speedometer.js",
+      "line_number": 36,
+      "code_snippet": "i % samplesCount",
+      "message": "Division by potentially zero value: the divisor `samplesCount` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "%",
+        "right_operand": "samplesCount",
+        "right_node_type": "identifier",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "a8af0abf-e8a6-42ff-a9c7-5e4579da0889",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\website\\public\\2.x\\converter-kotlinx-serialization\\scripts\\main.js",
+      "line_number": 22,
+      "code_snippet": "!=",
+      "message": "Loose equality operator `!=` performs type coercion and can produce unexpected results.  Use `!==` for strict equality.",
+      "evidence": {
+        "operator": "!=",
+        "strict_alternative": "!==",
+        "expression": "e.value!=t"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "1908055a-65ff-4a17-b6c4-88291084e406",
+      "repository_name": "pallets-click",
+      "repository_id": "a1086f9e-8093-441f-b386-fdfc036bc17a",
+      "analysis_run_id": "bb2266e0-26e2-43d5-aadb-e408ff0486d6",
+      "language": "Python",
+      "rule_id": "PY_ASS_001",
+      "issue_type": "assert_in_production_code",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_pallets-click_flwgjg_n\\tests\\typing\\typing_aliased_group.py",
+      "line_number": 27,
+      "code_snippet": "assert cmd is not None",
+      "message": "assert statement found in production code.  assert is removed when Python runs with -O; use an explicit if/raise for validation.",
+      "evidence": {
+        "statement": "assert cmd is not None"
+      },
+      "detector_severity": "low",
+      "detector_urgency": "low"
+    },
+    {
+      "id": "f2faeb1d-d4fc-4e44-af30-fe68863d9bfb",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_EXC_001",
+      "issue_type": "empty_catch_block",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\main\\java\\com\\google\\gson\\internal\\UnsafeAllocator.java",
+      "line_number": 92,
+      "code_snippet": "catch (Exception ignored) {",
+      "message": "Empty catch block for `Exception ignored` silently ignores the exception. At minimum log the error or rethrow it.",
+      "evidence": {
+        "catch_parameter": "Exception ignored"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "7c949b1f-1a91-46b2-80d7-6bd5570d908c",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_RES_001",
+      "issue_type": "unclosed_resource",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit-adapters\\rxjava3\\src\\test\\java\\retrofit2\\adapter\\rxjava3\\RecordingSubscriber.java",
+      "line_number": 151,
+      "code_snippet": "new Statement() {",
+      "message": "`Statement` created outside a try-with-resources statement. Use `try (Statement r = new Statement(...))` to ensure the resource is closed even when an exception occurs.",
+      "evidence": {
+        "resource_type": "Statement"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "de1826b8-3c8a-438e-86a4-0878c3c285c0",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\dist\\lodash.fp.min.js",
+      "line_number": 9,
+      "code_snippet": "==",
+      "message": "Loose equality operator `==` performs type coercion and can produce unexpected results.  Use `===` for strict equality.",
+      "evidence": {
+        "operator": "==",
+        "strict_alternative": "===",
+        "expression": "Q[r][0]==t"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "e228f653-d22e-4eae-a0a2-520a6df13056",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\vendor\\underscore\\underscore.js",
+      "line_number": 1161,
+      "code_snippet": "1 / a",
+      "message": "Division by potentially zero value: the divisor `a` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "a",
+        "right_node_type": "identifier",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "9201003f-569b-404a-92d0-291522accabe",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_AWA_001",
+      "issue_type": "await_in_loop",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\tests\\unit\\adapters\\http.test.js",
+      "line_number": 5074,
+      "code_snippet": "await setTimeoutAsync(10)",
+      "message": "`await` found inside a loop body.  This processes items sequentially.  Consider collecting promises and using Promise.all() instead.",
+      "evidence": {
+        "await_expression": "await setTimeoutAsync(10)"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "a48e8c8b-1e1c-4264-b664-4615662fd34a",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_EXC_001",
+      "issue_type": "empty_catch_block",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit\\java-test\\src\\test\\java\\retrofit2\\ResponseTest.java",
+      "line_number": 143,
+      "code_snippet": "catch (IllegalStateException expected) {",
+      "message": "Empty catch block for `IllegalStateException expected` silently ignores the exception. At minimum log the error or rethrow it.",
+      "evidence": {
+        "catch_parameter": "IllegalStateException expected"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "8b40c357-3004-4bce-8532-786e61b9b51e",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\test\\java\\com\\google\\gson\\metrics\\PerformanceTest.java",
+      "line_number": 264,
+      "code_snippet": "(t2 - t1) / NUM_ITERATIONS",
+      "message": "Division by potentially zero value: the divisor `NUM_ITERATIONS` may be zero at runtime. Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "NUM_ITERATIONS",
+        "right_node_type": "identifier",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "f1240cbc-54db-4731-a5f2-a3ac7ee6ae48",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit\\src\\main\\java\\retrofit2\\HttpServiceMethod.java",
+      "line_number": 56,
+      "code_snippet": "getRawType(responseType) == Call.class",
+      "message": "Object compared with `==` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "==",
+        "left_operand": "getRawType(responseType)",
+        "right_operand": "Call.class",
+        "suggested": ".equals()"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "480e022e-65a3-4be9-bd85-85e84751499f",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_RES_001",
+      "issue_type": "unclosed_resource",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\test\\java\\com\\google\\gson\\JavaSerializationTest.java",
+      "line_number": 75,
+      "code_snippet": "new ObjectInputStream(bytesIn)",
+      "message": "`ObjectInputStream` created outside a try-with-resources statement. Use `try (ObjectInputStream r = new ObjectInputStream(...))` to ensure the resource is closed even when an exception occurs.",
+      "evidence": {
+        "resource_type": "ObjectInputStream"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "d4864cbe-e817-41f1-942b-2c0c9950351d",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\metrics\\src\\main\\java\\com\\google\\gson\\metrics\\BagOfPrimitives.java",
+      "line_number": 84,
+      "code_snippet": "longValue == that.longValue",
+      "message": "Object compared with `==` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "==",
+        "left_operand": "longValue",
+        "right_operand": "that.longValue",
+        "suggested": ".equals()"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "f1a0a1ac-6f72-442d-bef8-9750f4d73948",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\lib\\helpers\\speedometer.js",
+      "line_number": 39,
+      "code_snippet": "(head + 1) % samplesCount",
+      "message": "Division by potentially zero value: the divisor `samplesCount` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "%",
+        "right_operand": "samplesCount",
+        "right_node_type": "identifier",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "469b6acc-538b-437e-8dab-67c981bd10c5",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\website\\public\\2.x\\converter-simplexml\\script.js",
+      "line_number": 21,
+      "code_snippet": "==",
+      "message": "Loose equality operator `==` performs type coercion and can produce unexpected results.  Use `===` for strict equality.",
+      "evidence": {
+        "operator": "==",
+        "strict_alternative": "===",
+        "expression": "value == type"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "d48dbdf1-8d93-40d4-af8c-c8113cc380c6",
+      "repository_name": "pallets-click",
+      "repository_id": "a1086f9e-8093-441f-b386-fdfc036bc17a",
+      "analysis_run_id": "bb2266e0-26e2-43d5-aadb-e408ff0486d6",
+      "language": "Python",
+      "rule_id": "PY_ASS_001",
+      "issue_type": "assert_in_production_code",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_pallets-click_flwgjg_n\\src\\click\\decorators.py",
+      "line_number": 211,
+      "code_snippet": "assert cls is None, \"Use 'command(cls=cls)(callable)' to specify a class.\"",
+      "message": "assert statement found in production code.  assert is removed when Python runs with -O; use an explicit if/raise for validation.",
+      "evidence": {
+        "statement": "assert cls is None, \"Use 'command(cls=cls)(callable)' to specify a class.\""
+      },
+      "detector_severity": "low",
+      "detector_urgency": "low"
+    },
+    {
+      "id": "27a5ab42-7b67-44f5-94e9-8ca97cd4c6a4",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_EXC_001",
+      "issue_type": "empty_catch_block",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\main\\java\\com\\google\\gson\\internal\\UnsafeAllocator.java",
+      "line_number": 67,
+      "code_snippet": "catch (Exception ignored) {",
+      "message": "Empty catch block for `Exception ignored` silently ignores the exception. At minimum log the error or rethrow it.",
+      "evidence": {
+        "catch_parameter": "Exception ignored"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "1b2387f4-c7a1-4b49-97ba-41e2b942cb3c",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_RES_001",
+      "issue_type": "unclosed_resource",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit-adapters\\rxjava2\\src\\test\\java\\retrofit2\\adapter\\rxjava2\\RecordingObserver.java",
+      "line_number": 130,
+      "code_snippet": "new Statement() {",
+      "message": "`Statement` created outside a try-with-resources statement. Use `try (Statement r = new Statement(...))` to ensure the resource is closed even when an exception occurs.",
+      "evidence": {
+        "resource_type": "Statement"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "65efa185-6801-4ce3-a661-b7462f7672c7",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\vendor\\firebug-lite\\src\\firebug-lite-debug.js",
+      "line_number": 11388,
+      "code_snippet": "==",
+      "message": "Loose equality operator `==` performs type coercion and can produce unexpected results.  Use `===` for strict equality.",
+      "evidence": {
+        "operator": "==",
+        "strict_alternative": "===",
+        "expression": "keyCode == 67"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "5f3a9172-ba50-4dda-bcde-57ccb31549a4",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\test\\test.js",
+      "line_number": 10047,
+      "code_snippet": "++index % errorTypes.length",
+      "message": "Division by potentially zero value: the divisor `errorTypes.length` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "%",
+        "right_operand": "errorTypes.length",
+        "right_node_type": "member_expression",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "f5ee4d6d-e15b-49ab-a885-710233d546a8",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_AWA_001",
+      "issue_type": "await_in_loop",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\tests\\unit\\adapters\\fetch.test.js",
+      "line_number": 57,
+      "code_snippet": "await assert.rejects(",
+      "message": "`await` found inside a loop body.  This processes items sequentially.  Consider collecting promises and using Promise.all() instead.",
+      "evidence": {
+        "await_expression": "await assert.rejects(\r\n        () =>\r\n          axios.get(url, {\r\n            adapter: 'fetch',\r\n            headers: {\r\n              'X-Test': 'yes',\r\n            },\r\n          }),\r\n        (error) => {\r\n          assert.ok(error instanceof AxiosError);\r\n          assert.strictEqual(error.code, AxiosError.ERR_INVALID_URL);\r\n          assert.match(error.message, /^Invalid URL \".*\": missing \"\\/\\/\" after protocol$/);\r\n          assert.strictEqual(error.config.url, url);\r\n          assert.strictEqual(error.config.headers.get('X-Test'), 'yes');\r\n          return true;\r\n        }\r\n      )"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "8519e6da-d6b6-465c-8e63-65058a502260",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_EXC_001",
+      "issue_type": "empty_catch_block",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit\\java-test\\src\\test\\java\\retrofit2\\CallTest.java",
+      "line_number": 1481,
+      "code_snippet": "catch (InterruptedIOException expected) {",
+      "message": "Empty catch block for `InterruptedIOException expected` silently ignores the exception. At minimum log the error or rethrow it.",
+      "evidence": {
+        "catch_parameter": "InterruptedIOException expected"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "5dac42a6-59f0-4915-a899-0356049c6d32",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\extras\\src\\main\\java\\com\\google\\gson\\typeadapters\\UtcDateTypeAdapter.java",
+      "line_number": 103,
+      "code_snippet": "offset / (60 * 1000)",
+      "message": "Division by potentially zero value: the divisor `(60 * 1000)` may be zero at runtime. Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "(60 * 1000)",
+        "right_node_type": "parenthesized_expression",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "a03e7035-c079-408a-a28e-7a7445da0d82",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit-converters\\jackson\\src\\test\\java\\retrofit2\\converter\\jackson\\JacksonConverterFactoryTest.java",
+      "line_number": 95,
+      "code_snippet": "jp.getCurrentToken() != JsonToken.START_OBJECT",
+      "message": "Object compared with `!=` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "!=",
+        "left_operand": "jp.getCurrentToken()",
+        "right_operand": "JsonToken.START_OBJECT",
+        "suggested": "!object.equals(other)"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "7a641a0e-e4cd-43ac-9859-3a1bcd86aee4",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_RES_001",
+      "issue_type": "unclosed_resource",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\test\\java\\com\\google\\gson\\internal\\LazilyParsedNumberTest.java",
+      "line_number": 62,
+      "code_snippet": "new ObjectInputStream(new ByteArrayInputStream(out.toByteArray()))",
+      "message": "`ObjectInputStream` created outside a try-with-resources statement. Use `try (ObjectInputStream r = new ObjectInputStream(...))` to ensure the resource is closed even when an exception occurs.",
+      "evidence": {
+        "resource_type": "ObjectInputStream"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "51801a6b-d787-4b1d-84d8-9195f2be884e",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\main\\java\\com\\google\\gson\\internal\\bind\\ArrayTypeAdapter.java",
+      "line_number": 67,
+      "code_snippet": "in.peek() == JsonToken.NULL",
+      "message": "Object compared with `==` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "==",
+        "left_operand": "in.peek()",
+        "right_operand": "JsonToken.NULL",
+        "suggested": ".equals()"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "1cd91ada-681c-40b8-9ec1-3fe9369e4e36",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\lib\\helpers\\speedometer.js",
+      "line_number": 42,
+      "code_snippet": "(tail + 1) % samplesCount",
+      "message": "Division by potentially zero value: the divisor `samplesCount` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "%",
+        "right_operand": "samplesCount",
+        "right_node_type": "identifier",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "8e04562b-c4e1-409f-b37b-f0380c1d20fa",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\website\\public\\2.x\\retrofit\\script.js",
+      "line_number": 6,
+      "code_snippet": "!=",
+      "message": "Loose equality operator `!=` performs type coercion and can produce unexpected results.  Use `!==` for strict equality.",
+      "evidence": {
+        "operator": "!=",
+        "strict_alternative": "!==",
+        "expression": "(methods[key] &  type) != 0"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "10716978-61dd-40a1-9f79-3bb6f9e775f9",
+      "repository_name": "pallets-click",
+      "repository_id": "a1086f9e-8093-441f-b386-fdfc036bc17a",
+      "analysis_run_id": "bb2266e0-26e2-43d5-aadb-e408ff0486d6",
+      "language": "Python",
+      "rule_id": "PY_ASS_001",
+      "issue_type": "assert_in_production_code",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_pallets-click_flwgjg_n\\src\\click\\_winconsole.py",
+      "line_number": 35,
+      "code_snippet": "assert sys.platform == \"win32\"",
+      "message": "assert statement found in production code.  assert is removed when Python runs with -O; use an explicit if/raise for validation.",
+      "evidence": {
+        "statement": "assert sys.platform == \"win32\""
+      },
+      "detector_severity": "low",
+      "detector_urgency": "low"
+    },
+    {
+      "id": "6fd28eec-5f71-4b16-b821-4b9be64010f4",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_EXC_001",
+      "issue_type": "empty_catch_block",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\main\\java\\com\\google\\gson\\internal\\UnsafeAllocator.java",
+      "line_number": 113,
+      "code_snippet": "catch (Exception ignored) {",
+      "message": "Empty catch block for `Exception ignored` silently ignores the exception. At minimum log the error or rethrow it.",
+      "evidence": {
+        "catch_parameter": "Exception ignored"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "57e5b87f-5183-4706-a726-1e9ff64e5877",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_RES_001",
+      "issue_type": "unclosed_resource",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit-adapters\\rxjava3\\src\\test\\java\\retrofit2\\adapter\\rxjava3\\RxJavaPluginsResetRule.java",
+      "line_number": 26,
+      "code_snippet": "new Statement() {",
+      "message": "`Statement` created outside a try-with-resources statement. Use `try (Statement r = new Statement(...))` to ensure the resource is closed even when an exception occurs.",
+      "evidence": {
+        "resource_type": "Statement"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "435c4c35-b929-4b63-9318-60a5e442969b",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\vendor\\firebug-lite\\src\\firebug-lite-debug.js",
+      "line_number": 1227,
+      "code_snippet": "==",
+      "message": "Loose equality operator `==` performs type coercion and can produce unexpected results.  Use `===` for strict equality.",
+      "evidence": {
+        "operator": "==",
+        "strict_alternative": "===",
+        "expression": "elt.namespaceURI == \"http://www.w3.org/1998/Math/MathML\""
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "636bda29-9874-457b-93c8-e12c4ae24f03",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\lodash.js",
+      "line_number": 70,
+      "code_snippet": "1 / 0",
+      "message": "Division by zero: the divisor `0` is always zero.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "0",
+        "right_node_type": "number",
+        "classification": "definitely_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "f3f02f9b-3d76-4050-a7ad-cb7a34b1808b",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_AWA_001",
+      "issue_type": "await_in_loop",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\tests\\unit\\adapters\\http.test.js",
+      "line_number": 6497,
+      "code_snippet": "await axios.get(`http://example.com/next-${i}`, {",
+      "message": "`await` found inside a loop body.  This processes items sequentially.  Consider collecting promises and using Promise.all() instead.",
+      "evidence": {
+        "await_expression": "await axios.get(`http://example.com/next-${i}`, {\r\n          transport,\r\n          maxRedirects: 0,\r\n        })"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "a00a3409-9a6f-42bf-9d7c-cdbf4e7974de",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_EXC_001",
+      "issue_type": "empty_catch_block",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit\\src\\main\\java\\retrofit2\\RequestFactory.java",
+      "line_number": 357,
+      "code_snippet": "catch (NoClassDefFoundError ignored) {",
+      "message": "Empty catch block for `NoClassDefFoundError ignored` silently ignores the exception. At minimum log the error or rethrow it.",
+      "evidence": {
+        "catch_parameter": "NoClassDefFoundError ignored"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "9b78d215-3e4b-49f0-9750-aee85a17454b",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\test\\java\\com\\google\\gson\\metrics\\PerformanceTest.java",
+      "line_number": 278,
+      "code_snippet": "(t2 - t1) / NUM_ITERATIONS",
+      "message": "Division by potentially zero value: the divisor `NUM_ITERATIONS` may be zero at runtime. Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "NUM_ITERATIONS",
+        "right_node_type": "identifier",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "e26f1edb-8b7a-4496-a80a-c49217bfb6bf",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit\\src\\main\\java\\retrofit2\\RequestBuilder.java",
+      "line_number": 141,
+      "code_snippet": "PATH_SEGMENT_ALWAYS_ENCODE_SET.indexOf(codePoint) != -1",
+      "message": "Object compared with `!=` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "!=",
+        "left_operand": "PATH_SEGMENT_ALWAYS_ENCODE_SET.indexOf(codePoint)",
+        "right_operand": "-1",
+        "suggested": "!object.equals(other)"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "7184e6cb-eb4f-43c9-8f1b-c45a91cd5205",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\main\\java\\com\\google\\gson\\stream\\JsonReader.java",
+      "line_number": 1573,
+      "code_snippet": "stackSize == stack.length",
+      "message": "Object compared with `==` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "==",
+        "left_operand": "stackSize",
+        "right_operand": "stack.length",
+        "suggested": ".equals()"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "300e5aac-e032-4d53-bbe4-6584c8f68151",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\tests\\unit\\adapters\\http.test.js",
+      "line_number": 5160,
+      "code_snippet": "(i + skip) / secs / progressTicksRate",
+      "message": "Division by potentially zero value: the divisor `progressTicksRate` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "progressTicksRate",
+        "right_node_type": "identifier",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "6a0e15b9-6184-4d44-8d90-9e9c35d22381",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\website\\public\\2.x\\retrofit-mock\\script.js",
+      "line_number": 6,
+      "code_snippet": "!=",
+      "message": "Loose equality operator `!=` performs type coercion and can produce unexpected results.  Use `!==` for strict equality.",
+      "evidence": {
+        "operator": "!=",
+        "strict_alternative": "!==",
+        "expression": "(methods[key] &  type) != 0"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "3171e6f4-e5ce-4980-a79b-59879faeea1e",
+      "repository_name": "pallets-click",
+      "repository_id": "a1086f9e-8093-441f-b386-fdfc036bc17a",
+      "analysis_run_id": "bb2266e0-26e2-43d5-aadb-e408ff0486d6",
+      "language": "Python",
+      "rule_id": "PY_ASS_001",
+      "issue_type": "assert_in_production_code",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_pallets-click_flwgjg_n\\src\\click\\core.py",
+      "line_number": 3473,
+      "code_snippet": "assert self.prompt is not None",
+      "message": "assert statement found in production code.  assert is removed when Python runs with -O; use an explicit if/raise for validation.",
+      "evidence": {
+        "statement": "assert self.prompt is not None"
+      },
+      "detector_severity": "low",
+      "detector_urgency": "low"
+    },
+    {
+      "id": "f2afa4ab-470f-4214-bbc8-f73b81da6908",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_RES_001",
+      "issue_type": "unclosed_resource",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit-adapters\\rxjava3\\src\\test\\java\\retrofit2\\adapter\\rxjava3\\RecordingSingleObserver.java",
+      "line_number": 118,
+      "code_snippet": "new Statement() {",
+      "message": "`Statement` created outside a try-with-resources statement. Use `try (Statement r = new Statement(...))` to ensure the resource is closed even when an exception occurs.",
+      "evidence": {
+        "resource_type": "Statement"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "1fabf8c4-bda0-4864-b10c-447794f76f17",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\vendor\\firebug-lite\\src\\firebug-lite-debug.js",
+      "line_number": 15434,
+      "code_snippet": "==",
+      "message": "Loose equality operator `==` performs type coercion and can produce unexpected results.  Use `===` for strict equality.",
+      "evidence": {
+        "operator": "==",
+        "strict_alternative": "===",
+        "expression": "type == \"string\""
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "f896b16e-721b-4355-99f9-81a62128ba65",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\dist\\lodash.js",
+      "line_number": 5532,
+      "code_snippet": "1 / setToArray(new Set([,-0]))[1]",
+      "message": "Division by potentially zero value: the divisor `setToArray(new Set([,-0]))[1]` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "setToArray(new Set([,-0]))[1]",
+        "right_node_type": "subscript_expression",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "0c168d83-7c78-433e-803c-8dea4128795d",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_AWA_001",
+      "issue_type": "await_in_loop",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\tests\\unit\\adapters\\http.test.js",
+      "line_number": 4948,
+      "code_snippet": "await setTimeoutAsync(1100)",
+      "message": "`await` found inside a loop body.  This processes items sequentially.  Consider collecting promises and using Promise.all() instead.",
+      "evidence": {
+        "await_expression": "await setTimeoutAsync(1100)"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "a700603d-6072-4fa7-bdb4-b116c722f4a3",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_EXC_001",
+      "issue_type": "empty_catch_block",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit\\java-test\\src\\test\\java\\retrofit2\\RetrofitTest.java",
+      "line_number": 880,
+      "code_snippet": "catch (IllegalArgumentException ignored) {",
+      "message": "Empty catch block for `IllegalArgumentException ignored` silently ignores the exception. At minimum log the error or rethrow it.",
+      "evidence": {
+        "catch_parameter": "IllegalArgumentException ignored"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "86912a88-db17-4b3c-8a82-6d011bc3c6b9",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit-converters\\guava\\src\\test\\java\\retrofit\\converter\\guava\\GuavaOptionalConverterFactoryTest.java",
+      "line_number": 89,
+      "code_snippet": "getRawType(type) != Object.class",
+      "message": "Object compared with `!=` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "!=",
+        "left_operand": "getRawType(type)",
+        "right_operand": "Object.class",
+        "suggested": "!object.equals(other)"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "723b5176-9f0a-4468-a434-0bf2bdde9cec",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\main\\java\\com\\google\\gson\\internal\\bind\\TypeAdapters.java",
+      "line_number": 415,
+      "code_snippet": "in.peek() == JsonToken.NULL",
+      "message": "Object compared with `==` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "==",
+        "left_operand": "in.peek()",
+        "right_operand": "JsonToken.NULL",
+        "suggested": ".equals()"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "3436aea7-a5ac-443a-9739-b2d49c389dfb",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\lib\\helpers\\AxiosTransformStream.js",
+      "line_number": 70,
+      "code_snippet": "1000 / timeWindow",
+      "message": "Division by potentially zero value: the divisor `timeWindow` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "timeWindow",
+        "right_node_type": "identifier",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "2bafaaf6-109b-4d03-b888-ff908b7ee6ec",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\website\\public\\2.x\\converter-protobuf\\script.js",
+      "line_number": 6,
+      "code_snippet": "!=",
+      "message": "Loose equality operator `!=` performs type coercion and can produce unexpected results.  Use `!==` for strict equality.",
+      "evidence": {
+        "operator": "!=",
+        "strict_alternative": "!==",
+        "expression": "(methods[key] &  type) != 0"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "68904b39-688d-4552-b0e6-001407fe11cd",
+      "repository_name": "pallets-click",
+      "repository_id": "a1086f9e-8093-441f-b386-fdfc036bc17a",
+      "analysis_run_id": "bb2266e0-26e2-43d5-aadb-e408ff0486d6",
+      "language": "Python",
+      "rule_id": "PY_ASS_001",
+      "issue_type": "assert_in_production_code",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_pallets-click_flwgjg_n\\src\\click\\testing.py",
+      "line_number": 106,
+      "code_snippet": "assert self._tmpfile is not None, \"_FDCapture.start() was not called\"",
+      "message": "assert statement found in production code.  assert is removed when Python runs with -O; use an explicit if/raise for validation.",
+      "evidence": {
+        "statement": "assert self._tmpfile is not None, \"_FDCapture.start() was not called\""
+      },
+      "detector_severity": "low",
+      "detector_urgency": "low"
+    },
+    {
+      "id": "89786893-e832-4ecc-a0a1-022b804151e6",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_RES_001",
+      "issue_type": "unclosed_resource",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit-adapters\\rxjava2\\src\\test\\java\\retrofit2\\adapter\\rxjava2\\RecordingMaybeObserver.java",
+      "line_number": 123,
+      "code_snippet": "new Statement() {",
+      "message": "`Statement` created outside a try-with-resources statement. Use `try (Statement r = new Statement(...))` to ensure the resource is closed even when an exception occurs.",
+      "evidence": {
+        "resource_type": "Statement"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "4ee50a50-a947-4656-b435-c4a2fa37f1fe",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\vendor\\firebug-lite\\src\\firebug-lite-debug.js",
+      "line_number": 5872,
+      "code_snippet": "==",
+      "message": "Loose equality operator `==` performs type coercion and can produce unexpected results.  Use `===` for strict equality.",
+      "evidence": {
+        "operator": "==",
+        "strict_alternative": "===",
+        "expression": "s == \"Uninitialized\""
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "3bee5148-036e-4158-a18a-596581a0a8a8",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\lodash.js",
+      "line_number": 5374,
+      "code_snippet": "length / stringSize(chars)",
+      "message": "Division by potentially zero value: the divisor `stringSize(chars)` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "stringSize(chars)",
+        "right_node_type": "call_expression",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "d2fc5e72-58a7-4349-bb6d-3ab8f6aa79a2",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_AWA_001",
+      "issue_type": "await_in_loop",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\lib\\helpers\\trackStream.js",
+      "line_number": 34,
+      "code_snippet": "await reader.read()",
+      "message": "`await` found inside a loop body.  This processes items sequentially.  Consider collecting promises and using Promise.all() instead.",
+      "evidence": {
+        "await_expression": "await reader.read()"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "6d54e148-4da6-489c-a160-07e106663ef2",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_EXC_001",
+      "issue_type": "empty_catch_block",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit\\java-test\\src\\test\\java\\retrofit2\\InvocationTest.java",
+      "line_number": 197,
+      "code_snippet": "catch (UnsupportedOperationException expected) {",
+      "message": "Empty catch block for `UnsupportedOperationException expected` silently ignores the exception. At minimum log the error or rethrow it.",
+      "evidence": {
+        "catch_parameter": "UnsupportedOperationException expected"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "4678c932-73da-4bc1-a01d-dc826f0a309e",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit\\src\\main\\java\\retrofit2\\DefaultCallAdapterFactory.java",
+      "line_number": 38,
+      "code_snippet": "getRawType(returnType) != Call.class",
+      "message": "Object compared with `!=` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "!=",
+        "left_operand": "getRawType(returnType)",
+        "right_operand": "Call.class",
+        "suggested": "!object.equals(other)"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "77cf5671-902e-4d33-9a95-655f2347f60f",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\main\\java\\com\\google\\gson\\internal\\bind\\TypeAdapters.java",
+      "line_number": 100,
+      "code_snippet": "tokenType != JsonToken.END_ARRAY",
+      "message": "Object compared with `!=` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "!=",
+        "left_operand": "tokenType",
+        "right_operand": "JsonToken.END_ARRAY",
+        "suggested": "!object.equals(other)"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "d86acedf-bdab-4c3d-a619-72f55f92926d",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\tests\\unit\\adapters\\fetch.test.js",
+      "line_number": 610,
+      "code_snippet": "(chunkLength * i) / contentLength",
+      "message": "Division by potentially zero value: the divisor `contentLength` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "contentLength",
+        "right_node_type": "identifier",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "666ac7de-647c-48b3-af84-7d4c3f2722e7",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\website\\public\\1.x\\converter-jackson\\script.js",
+      "line_number": 21,
+      "code_snippet": "==",
+      "message": "Loose equality operator `==` performs type coercion and can produce unexpected results.  Use `===` for strict equality.",
+      "evidence": {
+        "operator": "==",
+        "strict_alternative": "===",
+        "expression": "value == type"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "e8075695-91d9-43a0-9206-196f44dde5e1",
+      "repository_name": "pallets-click",
+      "repository_id": "a1086f9e-8093-441f-b386-fdfc036bc17a",
+      "analysis_run_id": "bb2266e0-26e2-43d5-aadb-e408ff0486d6",
+      "language": "Python",
+      "rule_id": "PY_ASS_001",
+      "issue_type": "assert_in_production_code",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_pallets-click_flwgjg_n\\src\\click\\decorators.py",
+      "line_number": 212,
+      "code_snippet": "assert not attrs, \"Use 'command(**kwargs)(callable)' to provide arguments.\"",
+      "message": "assert statement found in production code.  assert is removed when Python runs with -O; use an explicit if/raise for validation.",
+      "evidence": {
+        "statement": "assert not attrs, \"Use 'command(**kwargs)(callable)' to provide arguments.\""
+      },
+      "detector_severity": "low",
+      "detector_urgency": "low"
+    },
+    {
+      "id": "81f78942-e094-4d6b-a575-fe24fa2b1453",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_RES_001",
+      "issue_type": "unclosed_resource",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit-converters\\gson\\src\\main\\java\\retrofit2\\converter\\gson\\GsonRequestBodyConverter.java",
+      "line_number": 58,
+      "code_snippet": "new OutputStreamWriter(sink.outputStream(), UTF_8)",
+      "message": "`OutputStreamWriter` created outside a try-with-resources statement. Use `try (OutputStreamWriter r = new OutputStreamWriter(...))` to ensure the resource is closed even when an exception occurs.",
+      "evidence": {
+        "resource_type": "OutputStreamWriter"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "f6d5cbd9-e6ac-42c8-9b09-0ce402c55db8",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\vendor\\firebug-lite\\src\\firebug-lite-debug.js",
+      "line_number": 25998,
+      "code_snippet": "==",
+      "message": "Loose equality operator `==` performs type coercion and can produce unexpected results.  Use `===` for strict equality.",
+      "evidence": {
+        "operator": "==",
+        "strict_alternative": "===",
+        "expression": "CssParser.normalizeSelector(selector) == parsedRule.selector"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "addb26fd-29d0-45f9-ab0d-1eebc672f134",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\dist\\lodash.js",
+      "line_number": 16382,
+      "code_snippet": "dividend / divisor",
+      "message": "Division by potentially zero value: the divisor `divisor` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "divisor",
+        "right_node_type": "identifier",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "fc3d867a-3a60-4a36-a5b6-79d4869f3d1d",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_AWA_001",
+      "issue_type": "await_in_loop",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\tests\\browser\\cancel.browser.test.js",
+      "line_number": 80,
+      "code_snippet": "await Promise.resolve()",
+      "message": "`await` found inside a loop body.  This processes items sequentially.  Consider collecting promises and using Promise.all() instead.",
+      "evidence": {
+        "await_expression": "await Promise.resolve()"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "7ff5d8be-b2ad-4c9e-8c81-dc44a2d3a70f",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_EXC_001",
+      "issue_type": "empty_catch_block",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit\\java-test\\src\\test\\java\\retrofit2\\CallTest.java",
+      "line_number": 193,
+      "code_snippet": "catch (IOException ignored) {",
+      "message": "Empty catch block for `IOException ignored` silently ignores the exception. At minimum log the error or rethrow it.",
+      "evidence": {
+        "catch_parameter": "IOException ignored"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "81522d0e-07a1-43bc-afb9-87fbdee3f5a9",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit\\src\\main\\java\\retrofit2\\RequestFactory.java",
+      "line_number": 567,
+      "code_snippet": "String.class != keyType",
+      "message": "Object compared with `!=` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "!=",
+        "left_operand": "String.class",
+        "right_operand": "keyType",
+        "suggested": "!object.equals(other)"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "21980132-d2f5-4172-bb2e-4a6a44a8d833",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\main\\java\\com\\google\\gson\\internal\\GsonTypes.java",
+      "line_number": 361,
+      "code_snippet": "previouslyResolved == Void.TYPE",
+      "message": "Object compared with `==` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "==",
+        "left_operand": "previouslyResolved",
+        "right_operand": "Void.TYPE",
+        "suggested": ".equals()"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "7f80f1cb-e29f-4c64-a27d-6918bd3b41ca",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\tests\\unit\\adapters\\http.test.js",
+      "line_number": 5052,
+      "code_snippet": "(chunkLength * i) / contentLength",
+      "message": "Division by potentially zero value: the divisor `contentLength` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "contentLength",
+        "right_node_type": "identifier",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "5cc4c154-e990-4214-82fc-48e7c35a8687",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\website\\public\\2.x\\converter-guava\\script.js",
+      "line_number": 6,
+      "code_snippet": "!=",
+      "message": "Loose equality operator `!=` performs type coercion and can produce unexpected results.  Use `!==` for strict equality.",
+      "evidence": {
+        "operator": "!=",
+        "strict_alternative": "!==",
+        "expression": "(methods[key] &  type) != 0"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "ae230ede-d772-4e45-ad1a-4d37f7347562",
+      "repository_name": "pallets-click",
+      "repository_id": "a1086f9e-8093-441f-b386-fdfc036bc17a",
+      "analysis_run_id": "bb2266e0-26e2-43d5-aadb-e408ff0486d6",
+      "language": "Python",
+      "rule_id": "PY_ASS_001",
+      "issue_type": "assert_in_production_code",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_pallets-click_flwgjg_n\\src\\click\\decorators.py",
+      "line_number": 237,
+      "code_snippet": "assert not callable(name)",
+      "message": "assert statement found in production code.  assert is removed when Python runs with -O; use an explicit if/raise for validation.",
+      "evidence": {
+        "statement": "assert not callable(name)"
+      },
+      "detector_severity": "low",
+      "detector_urgency": "low"
+    },
+    {
+      "id": "7b6bd330-c799-4be7-9e28-d15f304bec6c",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_RES_001",
+      "issue_type": "unclosed_resource",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit-adapters\\rxjava3\\src\\test\\java\\retrofit2\\adapter\\rxjava3\\RecordingCompletableObserver.java",
+      "line_number": 107,
+      "code_snippet": "new Statement() {",
+      "message": "`Statement` created outside a try-with-resources statement. Use `try (Statement r = new Statement(...))` to ensure the resource is closed even when an exception occurs.",
+      "evidence": {
+        "resource_type": "Statement"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "1642ca49-a8f8-4ac7-be85-e65b8c428e15",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\dist\\lodash.core.js",
+      "line_number": 688,
+      "code_snippet": "==",
+      "message": "Loose equality operator `==` performs type coercion and can produce unexpected results.  Use `===` for strict equality.",
+      "evidence": {
+        "operator": "==",
+        "strict_alternative": "===",
+        "expression": "othTag == argsTag"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "e9076389-689f-4a8e-9c1b-ff3af9c8e74c",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\lodash.js",
+      "line_number": 6946,
+      "code_snippet": "length / size",
+      "message": "Division by potentially zero value: the divisor `size` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "size",
+        "right_node_type": "identifier",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "a55659c1-5c17-4413-96e8-d2080fada21b",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_AWA_001",
+      "issue_type": "await_in_loop",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\tests\\unit\\adapters\\http.test.js",
+      "line_number": 5017,
+      "code_snippet": "await setTimeoutAsync(1100)",
+      "message": "`await` found inside a loop body.  This processes items sequentially.  Consider collecting promises and using Promise.all() instead.",
+      "evidence": {
+        "await_expression": "await setTimeoutAsync(1100)"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "8b089f93-2f07-4e94-8120-06bf655a8c66",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_EXC_001",
+      "issue_type": "empty_catch_block",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit\\java-test\\src\\test\\java\\retrofit2\\CallTest.java",
+      "line_number": 1501,
+      "code_snippet": "catch (InterruptedIOException expected) {",
+      "message": "Empty catch block for `InterruptedIOException expected` silently ignores the exception. At minimum log the error or rethrow it.",
+      "evidence": {
+        "catch_parameter": "InterruptedIOException expected"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "3dd3e375-776e-4324-b5b2-3ce9b7e37f3f",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit\\src\\main\\java\\retrofit2\\RequestFactory.java",
+      "line_number": 761,
+      "code_snippet": "String.class != keyType",
+      "message": "Object compared with `!=` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "!=",
+        "left_operand": "String.class",
+        "right_operand": "keyType",
+        "suggested": "!object.equals(other)"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "d87b96a5-d826-44ae-8fae-7f5cc6d36903",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\proto\\src\\main\\java\\com\\google\\gson\\protobuf\\LegacyProtoTypeAdapterFactory.java",
+      "line_number": 465,
+      "code_snippet": "fieldDescriptor.getType() == FieldDescriptor.Type.MESSAGE",
+      "message": "Object compared with `==` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "==",
+        "left_operand": "fieldDescriptor.getType()",
+        "right_operand": "FieldDescriptor.Type.MESSAGE",
+        "suggested": ".equals()"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "f0cec389-cf8a-4cd1-b608-e8fdffdecf1c",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\lib\\helpers\\progressEventReducer.js",
+      "line_number": 27,
+      "code_snippet": "(total - loaded) / rate",
+      "message": "Division by potentially zero value: the divisor `rate` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "rate",
+        "right_node_type": "identifier",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "4901b0cd-0b7a-429d-b837-d3d473306ad2",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\website\\public\\2.x\\converter-jackson\\script.js",
+      "line_number": 21,
+      "code_snippet": "==",
+      "message": "Loose equality operator `==` performs type coercion and can produce unexpected results.  Use `===` for strict equality.",
+      "evidence": {
+        "operator": "==",
+        "strict_alternative": "===",
+        "expression": "value == type"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "b364536f-1e6d-4a66-858a-d599b7f4b8c5",
+      "repository_name": "pallets-click",
+      "repository_id": "a1086f9e-8093-441f-b386-fdfc036bc17a",
+      "analysis_run_id": "bb2266e0-26e2-43d5-aadb-e408ff0486d6",
+      "language": "Python",
+      "rule_id": "PY_ASS_001",
+      "issue_type": "assert_in_production_code",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_pallets-click_flwgjg_n\\src\\click\\core.py",
+      "line_number": 799,
+      "code_snippet": "assert self.default_map is not None",
+      "message": "assert statement found in production code.  assert is removed when Python runs with -O; use an explicit if/raise for validation.",
+      "evidence": {
+        "statement": "assert self.default_map is not None"
+      },
+      "detector_severity": "low",
+      "detector_urgency": "low"
+    },
+    {
+      "id": "06c2af66-9c23-4de8-bc6c-dbb38c23cd75",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_RES_001",
+      "issue_type": "unclosed_resource",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit-adapters\\rxjava3\\src\\test\\java\\retrofit2\\adapter\\rxjava3\\RecordingMaybeObserver.java",
+      "line_number": 123,
+      "code_snippet": "new Statement() {",
+      "message": "`Statement` created outside a try-with-resources statement. Use `try (Statement r = new Statement(...))` to ensure the resource is closed even when an exception occurs.",
+      "evidence": {
+        "resource_type": "Statement"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "1b1a5ef1-2f61-4fa4-8f63-4b2493759b80",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\vendor\\firebug-lite\\src\\firebug-lite-debug.js",
+      "line_number": 2926,
+      "code_snippet": "==",
+      "message": "Loose equality operator `==` performs type coercion and can produce unexpected results.  Use `===` for strict equality.",
+      "evidence": {
+        "operator": "==",
+        "strict_alternative": "===",
+        "expression": "url.length == 0"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "3458e4cb-f012-452b-b6ff-d2233bc3344d",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\test\\test.js",
+      "line_number": 2662,
+      "code_snippet": "1 / _.clamp(-0, -5, 5)",
+      "message": "Division by potentially zero value: the divisor `_.clamp(-0, -5, 5)` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "_.clamp(-0, -5, 5)",
+        "right_node_type": "call_expression",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "038c264a-5064-429d-948d-12da541c6ec2",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_AWA_001",
+      "issue_type": "await_in_loop",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\tests\\unit\\adapters\\fetch.test.js",
+      "line_number": 564,
+      "code_snippet": "await setTimeoutAsync(1100)",
+      "message": "`await` found inside a loop body.  This processes items sequentially.  Consider collecting promises and using Promise.all() instead.",
+      "evidence": {
+        "await_expression": "await setTimeoutAsync(1100)"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "dfb3de7b-74c2-4a59-b248-dc093fed61bc",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit\\java-test\\src\\test\\java\\retrofit2\\RetrofitTest.java",
+      "line_number": 387,
+      "code_snippet": "getRawType(returnType) != Call.class",
+      "message": "Object compared with `!=` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "!=",
+        "left_operand": "getRawType(returnType)",
+        "right_operand": "Call.class",
+        "suggested": "!object.equals(other)"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "73899248-9745-43e5-85c3-7843dfe30e12",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\test\\java\\com\\google\\gson\\functional\\ReflectionAccessFilterTest.java",
+      "line_number": 521,
+      "code_snippet": "f.getType() == ReflectionAccessFilter.class",
+      "message": "Object compared with `==` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "==",
+        "left_operand": "f.getType()",
+        "right_operand": "ReflectionAccessFilter.class",
+        "suggested": ".equals()"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "e25cd1e1-8ba1-4edd-ba34-c51ee2a1df47",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\lib\\platform\\node\\index.js",
+      "line_number": 21,
+      "code_snippet": "randomValues[i] % length",
+      "message": "Division by potentially zero value: the divisor `length` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "%",
+        "right_operand": "length",
+        "right_node_type": "identifier",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "be572aef-fbec-4e74-8a8f-db5ebe365a54",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\website\\public\\2.x\\adapter-scala\\script.js",
+      "line_number": 6,
+      "code_snippet": "!=",
+      "message": "Loose equality operator `!=` performs type coercion and can produce unexpected results.  Use `!==` for strict equality.",
+      "evidence": {
+        "operator": "!=",
+        "strict_alternative": "!==",
+        "expression": "(methods[key] &  type) != 0"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "70e1f4b7-8870-4730-b972-9f0958565879",
+      "repository_name": "pallets-click",
+      "repository_id": "a1086f9e-8093-441f-b386-fdfc036bc17a",
+      "analysis_run_id": "bb2266e0-26e2-43d5-aadb-e408ff0486d6",
+      "language": "Python",
+      "rule_id": "PY_ASS_001",
+      "issue_type": "assert_in_production_code",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_pallets-click_flwgjg_n\\src\\click\\parser.py",
+      "line_number": 197,
+      "code_snippet": "assert isinstance(value, cabc.Sequence)",
+      "message": "assert statement found in production code.  assert is removed when Python runs with -O; use an explicit if/raise for validation.",
+      "evidence": {
+        "statement": "assert isinstance(value, cabc.Sequence)"
+      },
+      "detector_severity": "low",
+      "detector_urgency": "low"
+    },
+    {
+      "id": "2260e013-9196-4af1-ae39-f01e0e78ab0d",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_RES_001",
+      "issue_type": "unclosed_resource",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit-adapters\\rxjava\\src\\test\\java\\retrofit2\\adapter\\rxjava\\RecordingSubscriber.java",
+      "line_number": 142,
+      "code_snippet": "new Statement() {",
+      "message": "`Statement` created outside a try-with-resources statement. Use `try (Statement r = new Statement(...))` to ensure the resource is closed even when an exception occurs.",
+      "evidence": {
+        "resource_type": "Statement"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "453ece3b-0ca3-45c3-85b6-df54e09e8c44",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\vendor\\firebug-lite\\src\\firebug-lite-debug.js",
+      "line_number": 27058,
+      "code_snippet": "==",
+      "message": "Loose equality operator `==` performs type coercion and can produce unexpected results.  Use `===` for strict equality.",
+      "evidence": {
+        "operator": "==",
+        "strict_alternative": "===",
+        "expression": "name == \"-moz-background-clip\""
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "46ef63ef-1e03-4b47-8104-e25e3590d141",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\test\\test.js",
+      "line_number": 21459,
+      "code_snippet": "1 / result",
+      "message": "Division by potentially zero value: the divisor `result` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "result",
+        "right_node_type": "identifier",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "f23ec00d-f50e-4622-845c-beb2ce82470c",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_AWA_001",
+      "issue_type": "await_in_loop",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\tests\\unit\\adapters\\fetch.test.js",
+      "line_number": 468,
+      "code_snippet": "await setTimeoutAsync(1100)",
+      "message": "`await` found inside a loop body.  This processes items sequentially.  Consider collecting promises and using Promise.all() instead.",
+      "evidence": {
+        "await_expression": "await setTimeoutAsync(1100)"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "80b5195c-aaa5-4df5-82c2-ca259eda3b54",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit\\src\\main\\java\\retrofit2\\RequestFactory.java",
+      "line_number": 629,
+      "code_snippet": "String.class != keyType",
+      "message": "Object compared with `!=` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "!=",
+        "left_operand": "String.class",
+        "right_operand": "keyType",
+        "suggested": "!object.equals(other)"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "f0f2a6fd-d738-409b-8d4a-9afc4a78e7a3",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\main\\java\\com\\google\\gson\\stream\\JsonReader.java",
+      "line_number": 679,
+      "code_snippet": "strictness == Strictness.LENIENT",
+      "message": "Object compared with `==` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "==",
+        "left_operand": "strictness",
+        "right_operand": "Strictness.LENIENT",
+        "suggested": ".equals()"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "81a3fe76-bdda-4c97-8a1d-ad6068852cdb",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\lib\\helpers\\AxiosTransformStream.js",
+      "line_number": 71,
+      "code_snippet": "maxRate / divider",
+      "message": "Division by potentially zero value: the divisor `divider` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "divider",
+        "right_node_type": "identifier",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "501d8e45-6ae1-42bf-840a-703d1fbcce37",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\website\\public\\1.x\\retrofit\\script.js",
+      "line_number": 21,
+      "code_snippet": "==",
+      "message": "Loose equality operator `==` performs type coercion and can produce unexpected results.  Use `===` for strict equality.",
+      "evidence": {
+        "operator": "==",
+        "strict_alternative": "===",
+        "expression": "value == type"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "8cac5d71-9a41-436c-ac51-6c8c7510d1a7",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_RES_001",
+      "issue_type": "unclosed_resource",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit-adapters\\rxjava2\\src\\test\\java\\retrofit2\\adapter\\rxjava2\\RecordingSingleObserver.java",
+      "line_number": 118,
+      "code_snippet": "new Statement() {",
+      "message": "`Statement` created outside a try-with-resources statement. Use `try (Statement r = new Statement(...))` to ensure the resource is closed even when an exception occurs.",
+      "evidence": {
+        "resource_type": "Statement"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "eb7b6b83-e5bb-43bc-be16-4ef88ed7b63f",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\test\\test.js",
+      "line_number": 17232,
+      "code_snippet": "==",
+      "message": "Loose equality operator `==` performs type coercion and can produce unexpected results.  Use `===` for strict equality.",
+      "evidence": {
+        "operator": "==",
+        "strict_alternative": "===",
+        "expression": "methodName == 'pad'"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "084df5e8-b47b-4bb1-bdcb-5d831a029dc3",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\test\\test.js",
+      "line_number": 2650,
+      "code_snippet": "1 / _.clamp(0, -5, 5)",
+      "message": "Division by potentially zero value: the divisor `_.clamp(0, -5, 5)` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "_.clamp(0, -5, 5)",
+        "right_node_type": "call_expression",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "fbee7c62-a391-403c-bdea-2ebd50989e20",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_AWA_001",
+      "issue_type": "await_in_loop",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\tests\\unit\\adapters\\http.test.js",
+      "line_number": 4079,
+      "code_snippet": "await assert.rejects(",
+      "message": "`await` found inside a loop body.  This processes items sequentially.  Consider collecting promises and using Promise.all() instead.",
+      "evidence": {
+        "await_expression": "await assert.rejects(\r\n        () =>\r\n          axios.get(url, {\r\n            adapter: 'http',\r\n            headers: {\r\n              'X-Test': 'yes',\r\n            },\r\n          }),\r\n        (error) => {\r\n          assert.ok(error instanceof AxiosError);\r\n          assert.strictEqual(error.code, AxiosError.ERR_INVALID_URL);\r\n          assert.match(error.message, /^Invalid URL \".*\": missing \"\\/\\/\" after protocol$/);\r\n          assert.strictEqual(error.config.url, url);\r\n          assert.strictEqual(error.config.headers.get('X-Test'), 'yes');\r\n          return true;\r\n        }\r\n      )"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "46ce5f74-d5bc-4c89-892e-326f7a31b8bd",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit\\src\\main\\java\\retrofit2\\CompletableFutureCallAdapterFactory.java",
+      "line_number": 32,
+      "code_snippet": "getRawType(returnType) != CompletableFuture.class",
+      "message": "Object compared with `!=` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "!=",
+        "left_operand": "getRawType(returnType)",
+        "right_operand": "CompletableFuture.class",
+        "suggested": "!object.equals(other)"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "9647c797-75ee-4de5-93fa-db864feaad0f",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\main\\java\\com\\google\\gson\\Gson.java",
+      "line_number": 268,
+      "code_snippet": "builder == GsonBuilder.DEFAULT",
+      "message": "Object compared with `==` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "==",
+        "left_operand": "builder",
+        "right_operand": "GsonBuilder.DEFAULT",
+        "suggested": ".equals()"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "2b3b1a38-6aee-464e-8c48-c8e2ab131dba",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\tests\\unit\\adapters\\http.test.js",
+      "line_number": 4982,
+      "code_snippet": "(chunkLength * i) / contentLength",
+      "message": "Division by potentially zero value: the divisor `contentLength` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "contentLength",
+        "right_node_type": "identifier",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "8def1567-3136-47da-a0c8-6b59e0f9e37c",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\website\\public\\2.x\\converter-wire\\script.js",
+      "line_number": 6,
+      "code_snippet": "!=",
+      "message": "Loose equality operator `!=` performs type coercion and can produce unexpected results.  Use `!==` for strict equality.",
+      "evidence": {
+        "operator": "!=",
+        "strict_alternative": "!==",
+        "expression": "(methods[key] &  type) != 0"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "d71b7d2d-ff86-4594-afce-28ff8cafba5f",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_RES_001",
+      "issue_type": "unclosed_resource",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit-converters\\simplexml\\src\\main\\java\\retrofit2\\converter\\simplexml\\SimpleXmlRequestBodyConverter.java",
+      "line_number": 40,
+      "code_snippet": "new OutputStreamWriter(buffer.outputStream(), CHARSET)",
+      "message": "`OutputStreamWriter` created outside a try-with-resources statement. Use `try (OutputStreamWriter r = new OutputStreamWriter(...))` to ensure the resource is closed even when an exception occurs.",
+      "evidence": {
+        "resource_type": "OutputStreamWriter"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "56acf5d6-abff-47f8-8380-04b857fe59cd",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\lodash.js",
+      "line_number": 6556,
+      "code_snippet": "==",
+      "message": "Loose equality operator `==` performs type coercion and can produce unexpected results.  Use `===` for strict equality.",
+      "evidence": {
+        "operator": "==",
+        "strict_alternative": "===",
+        "expression": "srcBitmask == (WRAP_ARY_FLAG | WRAP_REARG_FLAG)"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "ce6d96ef-15ff-44b1-83b8-cf968c4a333e",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\dist\\lodash.core.min.js",
+      "line_number": 24,
+      "code_snippet": "1/0",
+      "message": "Division by zero: the divisor `0` is always zero.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "0",
+        "right_node_type": "number",
+        "classification": "definitely_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "8f3455bd-d699-4d50-ad1d-f198600a86a1",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_AWA_001",
+      "issue_type": "await_in_loop",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\tests\\unit\\adapters\\http.test.js",
+      "line_number": 6502,
+      "code_snippet": "await setTimeoutAsync(0)",
+      "message": "`await` found inside a loop body.  This processes items sequentially.  Consider collecting promises and using Promise.all() instead.",
+      "evidence": {
+        "await_expression": "await setTimeoutAsync(0)"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "f93d8cb8-eed6-4cdb-8f5a-690edae7ee68",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit\\src\\main\\java\\retrofit2\\Retrofit.java",
+      "line_number": 194,
+      "code_snippet": "candidate != service",
+      "message": "Object compared with `!=` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "!=",
+        "left_operand": "candidate",
+        "right_operand": "service",
+        "suggested": "!object.equals(other)"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "bca4ab7f-bff1-4f9a-bbbf-d1809540299c",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\proto\\src\\main\\java\\com\\google\\gson\\protobuf\\ProtoTypeAdapter.java",
+      "line_number": 263,
+      "code_snippet": "desc.getType() == ENUM_TYPE",
+      "message": "Object compared with `==` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "==",
+        "left_operand": "desc.getType()",
+        "right_operand": "ENUM_TYPE",
+        "suggested": ".equals()"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "fb6bdb0d-0d2b-4f8e-90df-5bd87c7e29af",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\website\\public\\2.x\\adapter-rxjava\\script.js",
+      "line_number": 21,
+      "code_snippet": "==",
+      "message": "Loose equality operator `==` performs type coercion and can produce unexpected results.  Use `===` for strict equality.",
+      "evidence": {
+        "operator": "==",
+        "strict_alternative": "===",
+        "expression": "value == type"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "91810157-be30-4327-a32a-12e372775d67",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_EQ_001",
+      "issue_type": "loose_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\vendor\\firebug-lite\\src\\firebug-lite-debug.js",
+      "line_number": 6199,
+      "code_snippet": "==",
+      "message": "Loose equality operator `==` performs type coercion and can produce unexpected results.  Use `===` for strict equality.",
+      "evidence": {
+        "operator": "==",
+        "strict_alternative": "===",
+        "expression": "m[4] == \".\""
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "1b785605-6f5f-4bf5-b390-1f00fdfe0885",
+      "repository_name": "lodash-js",
+      "repository_id": "b8ae644a-ba17-40ac-b4c2-0440a6aadb52",
+      "analysis_run_id": "779277b5-ba2a-4612-a385-6a6a56a7902c",
+      "language": "JavaScript",
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_lodash-js_5mqj4yye\\vendor\\firebug-lite\\src\\firebug-lite-debug.js",
+      "line_number": 1560,
+      "code_snippet": "topSpace/element.offsetHeight",
+      "message": "Division by potentially zero value: the divisor `element.offsetHeight` may be zero at runtime.  Add a zero-guard before dividing.",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "element.offsetHeight",
+        "right_node_type": "member_expression",
+        "classification": "potentially_zero"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "78f9d81f-ae21-4850-be9c-10658bf35468",
+      "repository_name": "axios-http",
+      "repository_id": "1ad9bbdf-e0b4-4e32-bf27-774b4f3e6547",
+      "analysis_run_id": "8aff345b-4f22-44c9-9f10-9909f60c7d81",
+      "language": "JavaScript",
+      "rule_id": "JS_AWA_001",
+      "issue_type": "await_in_loop",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_axios-http_ncy7jfnq\\tests\\browser\\adapter.browser.test.js",
+      "line_number": 74,
+      "code_snippet": "await sleep(0)",
+      "message": "`await` found inside a loop body.  This processes items sequentially.  Consider collecting promises and using Promise.all() instead.",
+      "evidence": {
+        "await_expression": "await sleep(0)"
+      },
+      "detector_severity": "medium",
+      "detector_urgency": "medium"
+    },
+    {
+      "id": "e2a919a4-1a4a-4a3e-803d-945d49cc272d",
+      "repository_name": "square-retrofit",
+      "repository_id": "15709074-500f-416a-a8d4-9562b71a67dd",
+      "analysis_run_id": "9ba30461-5b26-433d-90e7-94ba7b0760c2",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_square-retrofit__4gwfesx\\retrofit-adapters\\guava\\src\\main\\java\\retrofit2\\adapter\\guava\\GuavaCallAdapterFactory.java",
+      "line_number": 64,
+      "code_snippet": "getRawType(returnType) != ListenableFuture.class",
+      "message": "Object compared with `!=` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "!=",
+        "left_operand": "getRawType(returnType)",
+        "right_operand": "ListenableFuture.class",
+        "suggested": "!object.equals(other)"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    },
+    {
+      "id": "cba21646-464c-4820-a362-fbf071d8cddd",
+      "repository_name": "google-gson",
+      "repository_id": "a739cba0-fe4f-4802-849f-d401f75fae8e",
+      "analysis_run_id": "a6ed51d7-154f-4e04-a4cf-cad146ad98e6",
+      "language": "Java",
+      "rule_id": "JAVA_EQ_001",
+      "issue_type": "string_reference_equality",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\repo_google-gson_wnxo34j1\\gson\\src\\main\\java\\com\\google\\gson\\internal\\bind\\JsonTreeReader.java",
+      "line_number": 313,
+      "code_snippet": "peeked == JsonToken.NAME",
+      "message": "Object compared with `==` checks reference identity, not value equality. For Strings use `.equals()` or `Objects.equals()` instead.",
+      "evidence": {
+        "operator": "==",
+        "left_operand": "peeked",
+        "right_operand": "JsonToken.NAME",
+        "suggested": ".equals()"
+      },
+      "detector_severity": "high",
+      "detector_urgency": "high"
+    }
+  ]
+}

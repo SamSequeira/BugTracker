@@ -1,0 +1,34 @@
+/* frontend/src/pages/TemporaryReviewDashboard/ReviewDashboard.css */
+
+.review-code-editor {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  tab-size: 4;
+}
+
+.source-line-highlight {
+  background-color: rgba(239, 68, 68, 0.15);
+  border-left: 4px solid #ef4444;
+  color: #fecaca;
+  font-weight: 600;
+}
+
+.source-line-normal {
+  border-left: 4px solid transparent;
+}
+
+.source-line-normal:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.badge-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}

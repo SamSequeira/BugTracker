@@ -54,16 +54,34 @@ class CandidateIssueMapper:
             message = finding.message
             file_path = finding.file_path
             line_number = finding.line_number
+            column = finding.column
             code_snippet = finding.code_snippet
+            evidence = finding.evidence
             severity = finding.severity
+            language = getattr(finding, "language", None)
         else:
             rule_id = finding.get("rule_id", "")
             issue_type = finding.get("issue_type", "unknown_issue")
             message = finding.get("message", "")
             file_path = finding.get("file_path", "")
             line_number = finding.get("line_number")
+            column = finding.get("column")
             code_snippet = finding.get("code_snippet")
+            evidence = finding.get("evidence")
             severity = finding.get("severity", "medium")
+            language = finding.get("language")
+
+        if not language or language == "Unknown":
+            r_id = rule_id.upper() if rule_id else ""
+            f_p = file_path.lower() if file_path else ""
+            if r_id.startswith("PY_") or f_p.endswith(".py"):
+                language = "Python"
+            elif r_id.startswith("JS_") or f_p.endswith((".js", ".jsx", ".ts", ".tsx", ".mjs")):
+                language = "JavaScript"
+            elif r_id.startswith("JAVA_") or f_p.endswith(".java"):
+                language = "Java"
+            else:
+                language = "Unknown"
 
         issue_id = str(uuid.uuid4())
         title = self._format_title(issue_type, rule_id)
@@ -77,8 +95,19 @@ class CandidateIssueMapper:
             description=description,
             file_path=file_path,
             line_number=line_number,
-            severity=severity,
+            column=column,
+            rule_id=rule_id,
+            issue_type=issue_type,
+            message=message,
+            code_snippet=code_snippet,
+            evidence=evidence,
+            language=language,
+            severity=severity,  # Preserved original detector severity
             urgency=urgency,
+            verified_severity=None,  # Not verified yet; ground truth assigned separately
+            verified_priority=None,  # Not verified yet; ground truth assigned separately
+            verified_at=None,
+            verification_notes=None,
         )
 
         status_id = str(uuid.uuid4())

@@ -1,12 +1,12 @@
 {
-  "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpnysanka0.py",
+  "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpt6z50_o4.py",
   "language": "Python",
   "issues": [
     {
       "rule_id": "PY_DIV_001",
       "issue_type": "division_by_zero",
-      "message": "Division by potentially zero value: the divisor `b` may be zero at runtime.  Add a zero-guard before dividing.",
-      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpnysanka0.py",
+      "message": "Division by potentially zero value: divisor `b` is not guarded against zero.",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpt6z50_o4.py",
       "line_number": 2,
       "column": 11,
       "code_snippet": "a / b",
@@ -14,22 +14,30 @@
         "operator": "/",
         "right_operand": "b",
         "right_node_type": "identifier",
-        "classification": "potentially_zero"
+        "classification": "potentially_zero",
+        "confidence": "medium",
+        "reason": "Dynamic divisor `b` has no active zero guard in flow state."
       },
-      "severity": "high"
+      "severity": "high",
+      "confidence": "medium"
     },
     {
       "rule_id": "PY_RES_001",
       "issue_type": "unclosed_resource",
-      "message": "open() called outside a `with` statement.  Use `with open(...) as f:` to guarantee the file is closed even when an exception occurs.",
-      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpnysanka0.py",
+      "message": "`open()` called outside `with` statement and resource `f` is not guaranteed to be closed on error paths.",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpt6z50_o4.py",
       "line_number": 5,
-      "column": 8,
-      "code_snippet": "open(path, \"r\")",
+      "column": 4,
+      "code_snippet": "f = open(path, \"r\")",
       "evidence": {
-        "call_text": "open(path, \"r\")"
+        "call": "open(path, \"r\")",
+        "assigned_variable": "f",
+        "lifecycle_status": "UNCLOSED",
+        "confidence": "high",
+        "reason": "File opened with `open(path, \"r\")` outside `with` and lifecycle status is UNCLOSED."
       },
-      "severity": "high"
+      "severity": "high",
+      "confidence": "high"
     }
   ],
   "issue_count": 2,

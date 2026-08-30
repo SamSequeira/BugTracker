@@ -118,3 +118,17 @@ class S3Service:
 
 # Module-level singleton
 s3_service = S3Service()
+
+
+def upload_file_to_s3(local_path: str | Path, s3_key: str) -> str:
+    """Convenience functional wrapper around s3_service.upload_file."""
+    return s3_service.upload_file(local_path, s3_key)
+
+
+def download_file_from_s3(s3_key: str, local_path: str | Path) -> str:
+    """Convenience functional wrapper to download an object from S3."""
+    client = s3_service._get_client()
+    local_path = Path(local_path)
+    local_path.parent.mkdir(parents=True, exist_ok=True)
+    client.download_file(s3_config.bucket_name, s3_key, str(local_path))
+    return str(local_path)

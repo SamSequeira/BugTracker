@@ -60,3 +60,7 @@ backend/data/repos/
 # Generated AST/output files
 # Uncomment if these should NOT be committed:
 # output/
+*.log
+
+# ML model weights
+*.safetensors

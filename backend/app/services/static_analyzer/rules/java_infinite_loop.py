@@ -23,8 +23,8 @@ The rule evaluates constant boolean conditions in `if_statement`:
   - `if (!false) break;`       → reachable exit → loop is not infinite
   - `if (cond) break;`         → dynamic condition → conservative: treated reachable
 
-Nested loop & switch awareness (FN-5 & Phase 5.7)
--------------------------------------------------
+Nested loop & switch awareness (FN-5)
+---------------------------------------
 Unlabeled `break;` inside a nested loop or switch statement terminates the
 inner loop / switch only, and does NOT exit the outer loop.
 A labeled break `break outer;` terminates the loop iff `outer` matches an
@@ -232,26 +232,35 @@ class JavaInfiniteLoop(BaseRule):
             # Pattern 1: while (true)
             if ntype == "while_statement":
                 if self._is_while_true(node):
+                    self.record_syntax_match()
                     body = self._body_block(node)
                     valid_labels = self._ancestor_labels(node, parent_map)
                     if body is not None and not self._has_exit(body, valid_labels):
                         yield self._make_loop_issue(node, body, file_path, source_lines)
+                    else:
+                        self.record_suppression("loop_has_reachable_exit")
 
             # Pattern 2: for (;;)
             elif ntype == "for_statement":
                 if self._is_for_ever(node):
+                    self.record_syntax_match()
                     body = self._body_block(node)
                     valid_labels = self._ancestor_labels(node, parent_map)
                     if body is not None and not self._has_exit(body, valid_labels):
                         yield self._make_loop_issue(node, body, file_path, source_lines)
+                    else:
+                        self.record_suppression("loop_has_reachable_exit")
 
             # Pattern 3: do { } while (true)
             elif ntype == "do_statement":
                 if self._is_do_while_true(node):
+                    self.record_syntax_match()
                     body = self._body_block(node)
                     valid_labels = self._ancestor_labels(node, parent_map)
                     if body is not None and not self._has_exit(body, valid_labels):
                         yield self._make_loop_issue(node, body, file_path, source_lines)
+                    else:
+                        self.record_suppression("loop_has_reachable_exit")
 
     # ------------------------------------------------------------------
     # Loop-pattern detectors
@@ -259,179 +268,127 @@ class JavaInfiniteLoop(BaseRule):
 
     @staticmethod
     def _is_while_true(node: dict) -> bool:
-        for child in node.get("children", []):
-            if child.get("type") == "parenthesized_expression":
-                inner = [c for c in child.get("children", [])
-                         if (c.get("text") or "") not in ("(", ")")]
-                return len(inner) == 1 and inner[0].get("type") == "true"
-        return False
+        cond = next(
+            (c for c in node.get("children", []) if c.get("type") == "parenthesized_expression"),
+            None,
+        )
+        if cond is None:
+            return False
+        return JavaInfiniteLoop._eval_bool_const(cond) is True
+
+    @staticmethod
+    def _is_do_while_true(node: dict) -> bool:
+        cond = next(
+            (c for c in node.get("children", []) if c.get("type") == "parenthesized_expression"),
+            None,
+        )
+        if cond is None:
+            return False
+        return JavaInfiniteLoop._eval_bool_const(cond) is True
 
     @staticmethod
     def _is_for_ever(node: dict) -> bool:
         children = node.get("children", [])
-        texts = [(c.get("text") or "") for c in children]
-        semi_indices = [i for i, t in enumerate(texts) if t == ";"]
-        if len(semi_indices) >= 2:
-            first_semi, second_semi = semi_indices[0], semi_indices[1]
-            between = children[first_semi + 1:second_semi]
-            return len(between) == 0
-        return False
-
-    @staticmethod
-    def _is_do_while_true(node: dict) -> bool:
-        children = node.get("children", [])
-        found_while = False
-        for child in children:
-            if (child.get("text") or "") == "while":
-                found_while = True
-                continue
-            if found_while and child.get("type") == "parenthesized_expression":
-                inner = [c for c in child.get("children", [])
-                         if (c.get("text") or "") not in ("(", ")")]
-                return len(inner) == 1 and inner[0].get("type") == "true"
+        sc_indices = [i for i, c in enumerate(children) if (c.get("text") or "").strip() == ";"]
+        if len(sc_indices) >= 2:
+            start_idx, end_idx = sc_indices[0], sc_indices[1]
+            cond_children = [
+                c for c in children[start_idx + 1: end_idx]
+                if c.get("type") not in ("line_comment", "block_comment")
+                and (c.get("text") or "").strip()
+            ]
+            if not cond_children:
+                return True
+            if len(cond_children) == 1:
+                return JavaInfiniteLoop._eval_bool_const(cond_children[0]) is True
         return False
 
     @staticmethod
     def _body_block(node: dict) -> Optional[dict]:
-        for child in node.get("children", []):
-            if child.get("type") in ("block", "statement_block"):
-                return child
         children = node.get("children", [])
-        if len(children) >= 3:
-            return children[-1]
+        for c in reversed(children):
+            if c.get("type") in ("block", "statement", "expression_statement", "return_statement"):
+                return c
         return None
 
-    # ------------------------------------------------------------------
-    # Label helpers (FN-5)
-    # ------------------------------------------------------------------
-
-    def _build_parent_map(self, node: dict, mapping: dict) -> None:
-        for child in node.get("children", []):
-            mapping[id(child)] = node
-            self._build_parent_map(child, mapping)
-
-    @staticmethod
-    def _ancestor_labels(loop_node: dict, parent_map: dict) -> Set[str]:
+    def _ancestor_labels(self, node: dict, parent_map: dict) -> Set[str]:
         labels: Set[str] = set()
-        curr = parent_map.get(id(loop_node))
+        curr = parent_map.get(id(node))
         while curr is not None:
-            lbl = _label_of(curr)
-            if lbl:
-                labels.add(lbl)
+            if curr.get("type") == "labeled_statement":
+                ident = next((c for c in curr.get("children", []) if c.get("type") == "identifier"), None)
+                if ident:
+                    text = (ident.get("text") or "").strip()
+                    if text:
+                        labels.add(text)
+            if curr.get("type") in _METHOD_SCOPE_BOUNDARIES:
+                break
             curr = parent_map.get(id(curr))
         return labels
 
     # ------------------------------------------------------------------
-    # Exit-path detection (FN-4 + FN-5)
+    # Exit-path detection
     # ------------------------------------------------------------------
 
-    def _has_exit(self, node: dict, valid_labels: Set[str]) -> bool:
-        return self._search_exit(node, valid_labels, in_nested_loop=False)
+    def _has_exit(self, body_node: dict, valid_labels: Set[str]) -> bool:
+        return self._search_exit(body_node, valid_labels, in_nested_loop=False)
 
-    def _search_exit(
-        self,
-        node: dict,
-        valid_labels: Set[str],
-        in_nested_loop: bool,
-    ) -> bool:
+    def _search_exit(self, node: dict, valid_labels: Set[str], in_nested_loop: bool) -> bool:
         ntype = node.get("type", "")
 
-        # return/throw always exit the method → definitely exit this loop
         if ntype in _EXIT_STMT_TYPES:
             return True
 
-        # System.exit(...)
         if self._is_system_exit(node):
             return True
 
-        # break_statement
         if ntype == "break_statement":
-            label = _break_label(node)
-            if in_nested_loop:
-                if label is None:
-                    return False
-                return label in valid_labels
+            label = self._break_label(node)
+            if label is None:
+                if not in_nested_loop:
+                    return True
             else:
-                return (label is None) or (label in valid_labels)
+                if label in valid_labels:
+                    return True
+            return False
 
-        # Don't cross method / lambda boundaries for return/throw
         if ntype in _METHOD_SCOPE_BOUNDARIES:
             return False
 
-        # Cross into nested loops or switch constructs with in_nested_loop=True
-        if ntype in _NESTED_BREAK_TARGETS:
-            return any(
-                self._search_exit(c, valid_labels, in_nested_loop=True)
-                for c in node.get("children", [])
-            )
-
-        # if_statement: check constant condition (FN-4)
         if ntype == "if_statement":
-            return self._exit_in_if(node, valid_labels, in_nested_loop)
+            return self._search_if_exit(node, valid_labels, in_nested_loop)
 
-        # Recurse into all other nodes
-        return any(
-            self._search_exit(c, valid_labels, in_nested_loop)
-            for c in node.get("children", [])
-        )
+        new_nested = in_nested_loop or (ntype in _NESTED_BREAK_TARGETS)
 
-    def _exit_in_if(
-        self,
-        if_node: dict,
-        valid_labels: Set[str],
-        in_nested_loop: bool,
-    ) -> bool:
+        for child in node.get("children", []):
+            if self._search_exit(child, valid_labels, new_nested):
+                return True
+
+        return False
+
+    @staticmethod
+    def _break_label(break_node: dict) -> Optional[str]:
+        for c in break_node.get("children", []):
+            if c.get("type") == "identifier":
+                t = (c.get("text") or "").strip()
+                if t and t != "break":
+                    return t
+        return None
+
+    def _search_if_exit(self, if_node: dict, valid_labels: Set[str], in_nested_loop: bool) -> bool:
         children = if_node.get("children", [])
-        cond_node = None
-        then_branch = None
-        else_branch = None
+        cond = next((c for c in children if c.get("type") == "parenthesized_expression"), None)
+        then_branch = next((c for c in children if c.get("type") in ("block", "expression_statement", "return_statement", "throw_statement", "break_statement")), None)
+        else_branch = next((c for c in children if c.get("type") == "else_clause"), None)
 
-        found_if = False
-        then_idx = 0
-        for i, child in enumerate(children):
-            text = child.get("text") or ""
-            if text == "if" and not found_if:
-                found_if = True
-                continue
-            if found_if and cond_node is None:
-                cond_node = child
-                then_idx = i + 1
-                break
-
-        past_else = False
-        for i in range(then_idx, len(children)):
-            child = children[i]
-            ctext = (child.get("text") or "").strip()
-            ctype = child.get("type", "")
-            if ctext == "else" or ctype == "else":
-                past_else = True
-                continue
-            if ctext in (":", ";", "(", ")", "{", "}") or ctype in (":", ";", "(", ")"):
-                continue
-            if not past_else and then_branch is None:
-                then_branch = child
-            elif past_else and else_branch is None:
-                else_branch = child
-
-        cond_val: Optional[bool] = None
-        if cond_node is not None:
-            inner = _unwrap_parens(cond_node)
-            cond_val = _eval_const_bool(inner)
-
-        # Evaluate reachability:
-        if cond_val is False:
-            if else_branch is not None:
-                return self._search_exit(else_branch, valid_labels, in_nested_loop)
-            return False
-        elif cond_val is True:
-            if then_branch is not None:
-                return self._search_exit(then_branch, valid_labels, in_nested_loop)
-            return False
+        const_cond = self._eval_bool_const(cond) if cond is not None else None
+        if const_cond is True:
+            return then_branch is not None and self._search_exit(then_branch, valid_labels, in_nested_loop)
+        elif const_cond is False:
+            return else_branch is not None and self._search_exit(else_branch, valid_labels, in_nested_loop)
         else:
-            then_has = (then_branch is not None and
-                        self._search_exit(then_branch, valid_labels, in_nested_loop))
-            else_has = (else_branch is not None and
-                        self._search_exit(else_branch, valid_labels, in_nested_loop))
+            then_has = (then_branch is not None and self._search_exit(then_branch, valid_labels, in_nested_loop))
+            else_has = (else_branch is not None and self._search_exit(else_branch, valid_labels, in_nested_loop))
             return then_has or else_has
 
     @staticmethod
@@ -440,6 +397,20 @@ class JavaInfiniteLoop(BaseRule):
             return False
         text = (node.get("text") or "").replace(" ", "")
         return "System.exit(" in text
+
+    @staticmethod
+    def _eval_bool_const(node: dict) -> Optional[bool]:
+        text = (node.get("text") or "").strip().replace("(", "").replace(")", "").strip()
+        if text == "true":
+            return True
+        if text == "false":
+            return False
+        return None
+
+    def _build_parent_map(self, node: dict, mapping: dict) -> None:
+        for child in node.get("children", []):
+            mapping[id(child)] = node
+            self._build_parent_map(child, mapping)
 
     def _make_loop_issue(
         self,
@@ -453,12 +424,14 @@ class JavaInfiniteLoop(BaseRule):
             file_path=file_path,
             source_lines=source_lines,
             message=(
-                "Infinite loop detected: this loop condition is unconditionally "
-                "`true` and its body contains no reachable `break`, `return`, "
-                "or exception-throwing statement."
+                "Infinite loop detected: loop condition is unconditionally `true` "
+                "and body contains no reachable exit statement."
             ),
             evidence={
                 "loop_type": loop_node.get("type", "while_statement"),
                 "has_body": body_node is not None,
+                "confidence": "high",
+                "reason": "Unconditional infinite loop condition without any reachable break/return/throw exit.",
             },
+            confidence="high",
         )

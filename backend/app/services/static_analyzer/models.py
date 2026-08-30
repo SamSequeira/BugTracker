@@ -39,6 +39,7 @@ class CandidateIssue:
     code_snippet: str
     evidence: dict = field(default_factory=dict)
     severity: str = "medium"
+    confidence: str = "medium"  # "high" | "medium" | "low"
 
     def to_dict(self) -> dict:
         return {
@@ -51,4 +52,6 @@ class CandidateIssue:
             "code_snippet": self.code_snippet,
             "evidence": self.evidence,
             "severity": self.severity,
+            "confidence": self.confidence,
         }
+

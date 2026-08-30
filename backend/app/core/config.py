@@ -118,3 +118,6 @@ settings = Settings()
 
 
 s3_config = S3Config()
+
+AWS_REGION = _optional("AWS_REGION")
+S3_BUCKET_NAME = _optional("S3_BUCKET_NAME")

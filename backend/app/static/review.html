@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BugTracker — Ground Truth Review (Temporary Tool)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0B0F17;
+      --card-bg: #111827;
+      --card-border: #1F2937;
+      --text-main: #E2E8F0;
+      --text-muted: #94A3B8;
+      --cyan-main: #06B6D4;
+      --cyan-bg: rgba(6, 182, 212, 0.12);
+      --amber-main: #F59E0B;
+      --amber-bg: rgba(245, 158, 11, 0.12);
+      --red-main: #EF4444;
+      --red-bg: rgba(239, 68, 68, 0.15);
+      --emerald-main: #10B981;
+      --emerald-bg: rgba(16, 185, 129, 0.15);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      padding: 24px 16px;
+      line-height: 1.5;
+    }
+
+    .container { max-width: 1300px; margin: 0 auto; }
+    .header {
+      background: rgba(17, 24, 39, 0.8);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 20px 24px;
+      margin-bottom: 24px;
+    }
+
+    .header-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
+    .title-area { display: flex; align-items: center; gap: 12px; }
+    .badge-warn {
+      background: var(--amber-bg);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      color: var(--amber-main);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .controls-top { display: flex; gap: 10px; align-items: center; }
+    .btn-toggle {
+      background: #1E293B;
+      border: 1px solid #334155;
+      color: #94A3B8;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-toggle.active {
+      background: rgba(6, 182, 212, 0.15);
+      border-color: var(--cyan-main);
+      color: #A5F3FC;
+    }
+
+    .progress-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid var(--card-border);
+    }
+    .stat-card {
+      background: #060910;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid #1E293B;
+    }
+    .stat-label { font-size: 10px; text-transform: uppercase; color: var(--text-muted); font-weight: 700; }
+    .stat-val { font-size: 18px; font-weight: 800; font-family: 'JetBrains Mono', monospace; }
+
+    .progress-track {
+      width: 100%;
+      height: 8px;
+      background: #060910;
+      border-radius: 9999px;
+      margin-top: 14px;
+      overflow: hidden;
+      display: flex;
+    }
+    .track-conf { background: var(--emerald-main); height: 100%; transition: width 0.3s; }
+    .track-fp { background: var(--red-main); height: 100%; transition: width 0.3s; }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    @media (max-width: 960px) {
+      .main-grid { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: rgba(17, 24, 39, 0.9);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+
+    .issue-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--card-border);
+      margin-bottom: 18px;
+    }
+
+    .badge-status {
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .status-confirmed { background: var(--emerald-bg); color: var(--emerald-main); border: 1px solid rgba(16,185,129,0.3); }
+    .status-fp { background: var(--red-bg); color: var(--red-main); border: 1px solid rgba(239,68,68,0.3); }
+    .status-unreviewed { background: #1E293B; color: #94A3B8; border: 1px solid #334155; }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .meta-item {
+      background: #060910;
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid #1E293B;
+      font-size: 11px;
+    }
+    .meta-item span { display: block; color: var(--text-muted); font-size: 9px; text-transform: uppercase; font-weight: 700; }
+    .meta-item strong { display: block; color: #F1F5F9; margin-top: 2px; }
+
+    .file-bar {
+      background: #060910;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid #1E293B;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .finding-box {
+      background: var(--amber-bg);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      border-radius: 12px;
+      padding: 14px;
+      color: #FDE68A;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+
+    .code-block {
+      background: #05070B;
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: #E2E8F0;
+      overflow-x: auto;
+      margin-bottom: 18px;
+    }
+
+    .context-box {
+      background: #05070B;
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      border-radius: 12px;
+      padding: 14px;
+      margin-top: 12px;
+      margin-bottom: 18px;
+    }
+    .context-line {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      padding: 2px 6px;
+      display: flex;
+    }
+    .line-highlight {
+      background: rgba(239, 68, 68, 0.2);
+      border-left: 3px solid var(--red-main);
+      color: #FECACA;
+      font-weight: 700;
+    }
+
+    .section-title {
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--cyan-main);
+      margin-bottom: 12px;
+    }
+
+    .btn-group { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; }
+    .btn-choice {
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid #1E293B;
+      background: #060910;
+      color: #94A3B8;
+      font-weight: 700;
+      font-size: 11px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-choice:hover { background: #1E293B; color: #FFF; }
+    .btn-choice.selected-crit { background: #DC2626; border-color: #EF4444; color: #FFF; }
+    .btn-choice.selected-high { background: #D97706; border-color: #F59E0B; color: #FFF; }
+    .btn-choice.selected-med { background: #B45309; border-color: #D97706; color: #FFF; }
+    .btn-choice.selected-low { background: #059669; border-color: #10B981; color: #FFF; }
+    .btn-choice.selected-p { background: #2563EB; border-color: #3B82F6; color: #FFF; }
+
+    textarea {
+      width: 100%;
+      background: #060910;
+      border: 1px solid #1E293B;
+      border-radius: 10px;
+      padding: 12px;
+      color: #FFF;
+      font-size: 12px;
+      font-family: inherit;
+      resize: vertical;
+      margin-bottom: 18px;
+    }
+    textarea:focus { outline: none; border-color: var(--cyan-main); }
+
+    .action-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding-top: 14px;
+      border-top: 1px solid var(--card-border);
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #059669, #10B981);
+      border: none;
+      color: #FFF;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 12px;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+    .btn-danger {
+      background: var(--red-bg);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #FCA5A5;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 12px;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+    .btn-secondary {
+      background: #1E293B;
+      border: 1px solid #334155;
+      color: #E2E8F0;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .sidebar-card {
+      background: rgba(17, 24, 39, 0.85);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 18px;
+      margin-bottom: 18px;
+    }
+    .matrix-table { width: 100%; border-collapse: collapse; font-size: 11px; font-family: 'JetBrains Mono', monospace; text-align: center; }
+    .matrix-table th, .matrix-table td { padding: 6px 4px; border-bottom: 1px solid #1E293B; }
+    .matrix-table th { color: var(--text-muted); font-size: 10px; }
+
+    .modal {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center; z-index: 999;
+    }
+    .modal-content {
+      background: #111827; border: 1px solid rgba(239,68,68,0.4); border-radius: 16px;
+      max-width: 480px; width: 90%; padding: 24px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-top">
+      <div class="title-area">
+        <h1 style="font-size: 20px; font-weight: 800;">BugTracker — Ground Truth Review</h1>
+        <span class="badge-warn">TEMPORARY DATASET REVIEW TOOL</span>
+      </div>
+      <div class="controls-top">
+        <button id="btnBlinded" class="btn-toggle active" onclick="toggleBlinded()">Blinded Review: ON</button>
+        <span style="font-size: 12px; color: var(--text-muted);">Jump:</span>
+        <input id="jumpInput" type="number" min="1" max="200" style="width: 55px; background: #060910; border: 1px solid #334155; color: #fff; padding: 4px 6px; border-radius: 6px; text-align: center; font-family: monospace;" />
+        <button class="btn-secondary" onclick="handleJump()">Go</button>
+      </div>
+    </div>
+
+    <!-- PROGRESS COUNTERS -->
+    <div class="progress-stats">
+      <div class="stat-card">
+        <div class="stat-label">Reviewed Progress</div>
+        <div id="statReviewed" class="stat-val" style="color: #FFF;">0 / 200 (0%)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label" style="color: var(--emerald-main);">Confirmed Valid</div>
+        <div id="statConfirmed" class="stat-val" style="color: var(--emerald-main);">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label" style="color: var(--red-main);">False Positives</div>
+        <div id="statFp" class="stat-val" style="color: var(--red-main);">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label" style="color: var(--amber-main);">Remaining Queue</div>
+        <div id="statRemaining" class="stat-val" style="color: var(--amber-main);">200</div>
+      </div>
+    </div>
+
+    <div class="progress-track">
+      <div id="trackConf" class="track-conf" style="width: 0%;"></div>
+      <div id="trackFp" class="track-fp" style="width: 0%;"></div>
+    </div>
+  </header>
+
+  <!-- MAIN TWO-COLUMN LAYOUT -->
+  <div class="main-grid">
+    <!-- LEFT: CURRENT ISSUE -->
+    <main class="card">
+      <div class="issue-header">
+        <div>
+          <span id="issueHeading" style="font-size: 16px; font-weight: 800; font-family: 'JetBrains Mono', monospace; color: var(--cyan-main);">Issue 1 of 200</span>
+          <span id="issueIdTag" style="font-size: 11px; color: var(--text-muted); margin-left: 8px;"></span>
+        </div>
+        <span id="badgeStatus" class="badge-status status-unreviewed">UNREVIEWED</span>
+      </div>
+
+      <!-- GOAL 1: PROMINENT HUMAN-READABLE EXPLANATION -->
+      <div style="background: linear-gradient(135deg, #070B14 0%, #0F172A 100%); border: 1px solid rgba(6, 182, 212, 0.35); border-radius: 14px; padding: 18px; margin-bottom: 18px; box-shadow: 0 10px 20px -5px rgba(0,0,0,0.5);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 10px; font-weight: 800; color: var(--cyan-main); text-transform: uppercase; letter-spacing: 0.5px;">ISSUE EXPLANATION</span>
+          <span id="ruleCategory" style="font-size: 11px; font-weight: 700; color: #A5F3FC; background: rgba(6, 182, 212, 0.15); border: 1px solid rgba(6, 182, 212, 0.3); padding: 2px 8px; border-radius: 9999px;">-</span>
+        </div>
+        <h2 id="ruleTitle" style="font-size: 18px; font-weight: 800; color: #FFF; margin-bottom: 8px;">Loading issue explanation...</h2>
+        <p id="ruleExplanation" style="font-size: 13px; color: #CBD5E1; line-height: 1.6; margin-bottom: 12px;">-</p>
+        <div style="padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-muted); display: flex; gap: 16px; flex-wrap: wrap;">
+          <span>Technical Rule ID: <strong id="ruleIdBadge" style="color: #E2E8F0; background: #1E293B; padding: 2px 6px; border-radius: 4px; border: 1px solid #334155;">-</strong></span>
+          <span id="patternTag" style="display: none;">Pattern: <strong id="metaType" style="color: #E2E8F0;">-</strong></span>
+        </div>
+      </div>
+
+      <!-- METADATA & LOCATION -->
+      <div class="meta-grid">
+        <div class="meta-item"><span>Repository</span><strong id="metaRepo">-</strong></div>
+        <div class="meta-item"><span>Language</span><strong id="metaLang" style="color: var(--cyan-main);">-</strong></div>
+        <div class="meta-item" style="grid-column: span 2;"><span>File & Line Location</span><strong id="metaLocation" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">-</strong></div>
+      </div>
+
+      <!-- GOAL 2: ALWAYS SHOW THE STORED POSTGRESQL CODE SNIPPET -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+        <span style="font-size: 11px; font-weight: 800; color: var(--cyan-main); text-transform: uppercase; letter-spacing: 0.5px;">CODE FLAGGED BY ANALYZER (Stored PostgreSQL Snippet)</span>
+      </div>
+      <pre class="code-block" style="border-left: 4px solid var(--cyan-main);"><code id="codeSnippet">// Loading snippet from PostgreSQL...</code></pre>
+
+      <!-- SOURCE CONTEXT TOGGLE -->
+      <div style="margin-bottom: 18px; display: flex; gap: 8px;">
+        <button id="btnContext" class="btn-secondary" onclick="toggleContext()">View Full Source Context [V]</button>
+        <button class="btn-secondary" onclick="toggleEvidence()">Technical Details</button>
+      </div>
+
+      <!-- SOURCE CONTEXT DRAWER -->
+      <div id="contextBox" class="context-box" style="display: none;">
+        <div id="contextHeader" style="font-size: 11px; color: var(--cyan-main); font-family: monospace; margin-bottom: 8px;">Source Context (Surrounding Lines)</div>
+        <div id="contextLines" style="max-height: 280px; overflow-y: auto;"></div>
+      </div>
+
+      <!-- AST EVIDENCE DRAWER -->
+      <div id="evidenceBox" class="context-box" style="display: none; background: #080C14;">
+        <pre id="evidenceContent" style="font-size: 11px; color: #CBD5E1; font-family: monospace;"></pre>
+      </div>
+
+      <!-- REVIEW DECISION FORM -->
+      <div style="padding-top: 18px; border-top: 1px solid var(--card-border);">
+        <div class="section-title">Human Ground-Truth Review Decision</div>
+
+        <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 6px;">1. Ground-Truth Severity: *</label>
+        <div class="btn-group">
+          <button class="btn-choice" id="sev-critical" onclick="selectSeverity('critical')">Critical</button>
+          <button class="btn-choice" id="sev-high" onclick="selectSeverity('high')">High</button>
+          <button class="btn-choice" id="sev-medium" onclick="selectSeverity('medium')">Medium</button>
+          <button class="btn-choice" id="sev-low" onclick="selectSeverity('low')">Low</button>
+        </div>
+
+        <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 6px;">2. Ground-Truth Priority: *</label>
+        <div class="btn-group">
+          <button class="btn-choice" id="prio-p1" onclick="selectPriority('p1')">P1</button>
+          <button class="btn-choice" id="prio-p2" onclick="selectPriority('p2')">P2</button>
+          <button class="btn-choice" id="prio-p3" onclick="selectPriority('p3')">P3</button>
+          <button class="btn-choice" id="prio-p4" onclick="selectPriority('p4')">P4</button>
+        </div>
+
+        <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 6px;">3. Reviewer Rationale Notes: *</label>
+        <textarea id="notesInput" rows="3" placeholder="Enter technical explanation for this severity & priority decision..."></textarea>
+
+        <div class="action-row">
+          <div style="display: flex; gap: 10px;">
+            <button class="btn-primary" onclick="confirmValid()">✓ Confirm & Save [C]</button>
+            <button class="btn-danger" onclick="openFpModal()">✗ False Positive [F]</button>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn-secondary" onclick="prevIssue()">← Previous</button>
+            <button class="btn-secondary" onclick="skipIssue()">Skip [S]</button>
+            <button class="btn-secondary" onclick="nextIssue()">Next →</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- RIGHT: DISTRIBUTION SIDEBAR -->
+    <aside>
+      <div class="sidebar-card">
+        <div class="section-title">Verified Severity Balance</div>
+        <div id="sevList" style="font-size: 12px; display: flex; flex-direction: column; gap: 6px;"></div>
+      </div>
+
+      <div class="sidebar-card">
+        <div class="section-title">Verified Priority Balance</div>
+        <div id="prioList" style="font-size: 12px; display: flex; flex-direction: column; gap: 6px;"></div>
+      </div>
+
+      <div class="sidebar-card">
+        <div class="section-title">Severity × Priority Matrix</div>
+        <table class="matrix-table">
+          <thead>
+            <tr><th>Sev \ Prio</th><th>P1</th><th>P2</th><th>P3</th><th>P4</th></tr>
+          </thead>
+          <tbody id="matrixBody"></tbody>
+        </table>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- FALSE POSITIVE MODAL -->
+<div id="fpModal" class="modal" style="display: none;">
+  <div class="modal-content">
+    <h3 style="color: #F87171; font-size: 16px; margin-bottom: 8px;">Mark as False Positive</h3>
+    <p style="font-size: 12px; color: #94A3B8; margin-bottom: 14px;">This candidate issue will be excluded from the ML training dataset.</p>
+    <label style="font-size: 11px; font-weight: 700; color: #CBD5E1; display: block; margin-bottom: 6px;">Technical Explanation: *</label>
+    <textarea id="fpNotesInput" rows="4" placeholder="e.g. Divisor count is verified > 0 by upstream guard statement..."></textarea>
+    <div style="display: flex; justify-content: flex-end; gap: 8px;">
+      <button class="btn-secondary" onclick="closeFpModal()">Cancel</button>
+      <button class="btn-danger" onclick="saveFalsePositive()">Confirm False Positive</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const RULE_EXPLANATIONS = {
+    PY_DIV_001: {
+      title: "Division by Zero",
+      explanation: "This code performs a division where the divisor may be zero. Depending on the language and execution context, this can cause a runtime error, invalid numeric result, or unexpected program behavior.",
+      technicalCategory: "Arithmetic Safety"
+    },
+    PY_RES_001: {
+      title: "Potentially Unclosed Resource",
+      explanation: "This code opens or acquires a resource, such as a file, stream, or connection, but the analyzer cannot confirm that it is properly closed. This may eventually cause resource leaks or resource exhaustion.",
+      technicalCategory: "Resource Management"
+    },
+    PY_ASS_001: {
+      title: "Assert Statement in Production Code",
+      explanation: "This code relies on an assert statement for a runtime check. Assertions may be disabled in optimized execution environments, so important validation should not depend solely on them.",
+      technicalCategory: "Defensive Programming"
+    },
+    PY_MUT_001: {
+      title: "Mutable Default Argument",
+      explanation: "This function uses a mutable object, such as a list or dictionary, as a default argument. The same object may be reused across multiple function calls, potentially causing unexpected shared state.",
+      technicalCategory: "State Management"
+    },
+    PY_EXC_001: {
+      title: "Problematic Exception Handling",
+      explanation: "This code handles an exception in a potentially unsafe or overly broad way. Important errors may be hidden, making failures difficult to diagnose or allowing the program to continue in an unexpected state.",
+      technicalCategory: "Error Handling"
+    },
+    JAVA_EQ_001: {
+      title: "Incorrect String Comparison",
+      explanation: "This code compares strings using == instead of comparing their actual contents. In Java, == may compare object references rather than the text inside the strings, which can cause incorrect program logic.",
+      technicalCategory: "Logic Error"
+    },
+    JAVA_RES_001: {
+      title: "Potentially Unclosed Resource",
+      explanation: "This code acquires a resource but the analyzer cannot confirm that it is properly closed. This may lead to resource leaks or exhaustion over time.",
+      technicalCategory: "Resource Management"
+    },
+    JAVA_EXC_001: {
+      title: "Empty Catch Block",
+      explanation: "This code catches an exception but does not handle it. The error may be silently ignored, making failures difficult to detect and potentially allowing the program to continue in an unexpected state.",
+      technicalCategory: "Error Handling"
+    },
+    JAVA_DIV_001: {
+      title: "Division by Zero",
+      explanation: "This code performs a division where the divisor may be zero. This can cause a runtime exception or invalid behavior depending on the execution path.",
+      technicalCategory: "Arithmetic Safety"
+    },
+    JS_EQ_001: {
+      title: "Loose Equality Comparison",
+      explanation: "This code uses loose equality (==) instead of strict equality (===). Loose equality performs automatic type conversion, which can sometimes produce unexpected comparison results.",
+      technicalCategory: "Logic Safety"
+    },
+    JS_AWA_001: {
+      title: "Await Inside a Loop",
+      explanation: "This code waits for each asynchronous operation to finish before starting the next one. If the operations are independent, this can unnecessarily slow down execution.",
+      technicalCategory: "Performance"
+    },
+    JS_DIV_001: {
+      title: "Division by Zero",
+      explanation: "This code performs a division where the divisor may be zero. Depending on the values and execution context, this may produce invalid numeric results or unexpected program behavior.",
+      technicalCategory: "Arithmetic Safety"
+    }
+  };
+
+  function getRuleInfo(ruleId, issueType) {
+    const rid = (ruleId || "").trim().toUpperCase();
+    if (rid && RULE_EXPLANATIONS[rid]) {
+      return { ...RULE_EXPLANATIONS[rid], technicalRuleId: rid };
+    }
+    return {
+      title: issueType ? issueType.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()) : "Potential Code Issue",
+      explanation: "This code was flagged by the static analyzer because it matches a potentially problematic code pattern. Review the code and available evidence to determine whether this is a real issue.",
+      technicalCategory: "Static Analysis Finding",
+      technicalRuleId: rid || "UNKNOWN_RULE"
+    };
+  }
+
+  let items = [];
+  let currentIndex = 0;
+  let issueStatuses = {};
+  let selectedSeverity = "";
+  let selectedPriority = "";
+  let blindedMode = true;
+
+  async function init() {
+    try {
+      const res = await fetch("/candidate-issues/review/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ target_size: 200, random_seed: 42 })
+      });
+      const data = await res.json();
+      items = data.items || [];
+
+      // Determine initial statuses & first unreviewed
+      let firstUnreviewed = 0;
+      let foundUnreviewed = false;
+
+      for (let i = 0; i < items.length; i++) {
+        const itm = items[i];
+        let st = "UNREVIEWED";
+        if (itm.verified_severity && itm.verified_priority) st = "CONFIRMED";
+        else if (itm.verification_notes && itm.verification_notes.startsWith("[FALSE_POSITIVE]")) st = "FALSE_POSITIVE";
+        else if (itm.verified_severity || itm.verified_priority) st = "PARTIAL";
+        else if (!foundUnreviewed) {
+          firstUnreviewed = i;
+          foundUnreviewed = true;
+        }
+
+        issueStatuses[itm.id] = {
+          verified_severity: itm.verified_severity || "",
+          verified_priority: itm.verified_priority || "",
+          verification_notes: itm.verification_notes || "",
+          status: st
+        };
+      }
+
+      currentIndex = firstUnreviewed;
+      renderIssue();
+      await updateStats();
+    } catch (err) {
+      alert("Failed to load review batch: " + err.message);
+    }
+  }
+
+  function renderIssue() {
+    if (!items.length) return;
+    const itm = items[currentIndex];
+    const st = issueStatuses[itm.id] || { status: "UNREVIEWED" };
+    const rInfo = getRuleInfo(itm.rule_id, itm.issue_type);
+
+    document.getElementById("issueHeading").textContent = `Issue ${currentIndex + 1} of ${items.length}`;
+    document.getElementById("issueIdTag").textContent = `ID: ${itm.id.slice(0, 12)}...`;
+    document.getElementById("jumpInput").value = currentIndex + 1;
+
+    const badge = document.getElementById("badgeStatus");
+    badge.textContent = st.status;
+    badge.className = `badge-status status-${st.status === "CONFIRMED" ? "confirmed" : st.status === "FALSE_POSITIVE" ? "fp" : "unreviewed"}`;
+
+    document.getElementById("ruleTitle").textContent = rInfo.title;
+    document.getElementById("ruleExplanation").textContent = rInfo.explanation;
+    document.getElementById("ruleCategory").textContent = rInfo.technicalCategory;
+    document.getElementById("ruleIdBadge").textContent = rInfo.technicalRuleId;
+
+    document.getElementById("metaRepo").textContent = itm.repository_name || "Unknown";
+    document.getElementById("metaLang").textContent = itm.language || "N/A";
+    document.getElementById("metaLocation").textContent = `${itm.file_path || "N/A"}:${itm.line_number || "N/A"}`;
+    
+    const hasValidSnippet = Boolean(itm.code_snippet && typeof itm.code_snippet === "string" && itm.code_snippet.trim().length > 0);
+    document.getElementById("codeSnippet").textContent = hasValidSnippet ? itm.code_snippet : "No code snippet was persisted for this candidate issue.";
+
+    selectedSeverity = st.verified_severity || "";
+    selectedPriority = st.verified_priority || "";
+    document.getElementById("notesInput").value = st.verification_notes ? st.verification_notes.replace(/^\[FALSE_POSITIVE\]\s*/, "") : "";
+
+    updateChoiceButtons();
+
+    // Reset drawer states
+    document.getElementById("contextBox").style.display = "none";
+    document.getElementById("evidenceBox").style.display = "none";
+    document.getElementById("btnContext").textContent = "View Full Source Context [V]";
+
+    updateProgressCounts();
+  }
+
+  function updateChoiceButtons() {
+    ["critical", "high", "medium", "low"].forEach(s => {
+      const el = document.getElementById(`sev-${s}`);
+      el.className = `btn-choice ${selectedSeverity === s ? `selected-${s === 'critical' ? 'crit' : s === 'high' ? 'high' : s === 'medium' ? 'med' : 'low'}` : ''}`;
+    });
+    ["p1", "p2", "p3", "p4"].forEach(p => {
+      const el = document.getElementById(`prio-${p}`);
+      el.className = `btn-choice ${selectedPriority === p ? 'selected-p' : ''}`;
+    });
+  }
+
+  function selectSeverity(s) { selectedSeverity = s; updateChoiceButtons(); }
+  function selectPriority(p) { selectedPriority = p; updateChoiceButtons(); }
+
+  async function confirmValid() {
+    if (!selectedSeverity || !selectedPriority) return alert("Select both Severity and Priority.");
+    const notes = document.getElementById("notesInput").value.trim();
+    if (!notes) return alert("Reviewer rationale notes are required.");
+
+    const itm = items[currentIndex];
+    const payload = {
+      verified_severity: selectedSeverity,
+      verified_priority: selectedPriority,
+      verification_notes: notes,
+      is_false_positive: false
+    };
+
+    const res = await fetch(`/candidate-issues/${itm.id}/labels`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) return alert("Failed to save: " + await res.text());
+
+    issueStatuses[itm.id] = { ...payload, status: "CONFIRMED" };
+    await updateStats();
+    nextIssue();
+  }
+
+  function openFpModal() {
+    document.getElementById("fpNotesInput").value = "";
+    document.getElementById("fpModal").style.display = "flex";
+  }
+  function closeFpModal() { document.getElementById("fpModal").style.display = "none"; }
+
+  async function saveFalsePositive() {
+    const notes = document.getElementById("fpNotesInput").value.trim();
+    if (!notes) return alert("Technical explanation is required.");
+
+    const itm = items[currentIndex];
+    const payload = {
+      is_false_positive: true,
+      verified_severity: null,
+      verified_priority: null,
+      verification_notes: `[FALSE_POSITIVE] ${notes}`
+    };
+
+    const res = await fetch(`/candidate-issues/${itm.id}/labels`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) return alert("Failed to save: " + await res.text());
+
+    issueStatuses[itm.id] = { ...payload, status: "FALSE_POSITIVE" };
+    closeFpModal();
+    await updateStats();
+    nextIssue();
+  }
+
+  function prevIssue() { if (currentIndex > 0) { currentIndex--; renderIssue(); } }
+  function nextIssue() { if (currentIndex < items.length - 1) { currentIndex++; renderIssue(); } }
+  function skipIssue() { nextIssue(); }
+
+  function handleJump() {
+    const val = parseInt(document.getElementById("jumpInput").value, 10);
+    if (val >= 1 && val <= items.length) { currentIndex = val - 1; renderIssue(); }
+  }
+
+  async function toggleContext() {
+    const box = document.getElementById("contextBox");
+    const btn = document.getElementById("btnContext");
+    if (box.style.display === "block") {
+      box.style.display = "none";
+      btn.textContent = "View Full Source Context [V]";
+    } else {
+      box.style.display = "block";
+      btn.textContent = "Hide Source Context [V]";
+      const itm = items[currentIndex];
+      const res = await fetch(`/candidate-issues/${itm.id}/context?context_lines=15`);
+      const data = await res.json();
+      const linesBox = document.getElementById("contextLines");
+      linesBox.innerHTML = "";
+      if (data.lines && data.lines.length) {
+        data.lines.forEach(l => {
+          const row = document.createElement("div");
+          row.className = `context-line ${l.is_target ? 'line-highlight' : ''}`;
+          row.innerHTML = `<span style="width: 20px; text-align: center; color: #64748B;">${l.is_target ? '>' : ' '}</span><span style="width: 45px; text-align: right; margin-right: 12px; color: #64748B;">${l.line_number}</span><span>${escapeHtml(l.content)}</span>`;
+          linesBox.appendChild(row);
+        });
+      } else {
+        const hasSnippet = Boolean(itm.code_snippet && typeof itm.code_snippet === "string" && itm.code_snippet.trim().length > 0);
+        linesBox.innerHTML = `
+          <div style="background: rgba(15, 23, 42, 0.9); border: 1px solid #334155; border-radius: 8px; padding: 12px; font-family: sans-serif;">
+            <div style="color: #FCD34D; font-weight: 700; font-size: 11px; text-transform: uppercase; margin-bottom: 4px;">Source Context Unavailable</div>
+            <div style="color: #E2E8F0; font-size: 12px; margin-bottom: 4px;">The original repository file is not currently available on disk.</div>
+            ${hasSnippet ? '<div style="color: #94A3B8; font-size: 11px;">The persisted candidate snippet above is still available for review.</div>' : ''}
+          </div>
+        `;
+      }
+    }
+  }
+
+  function toggleEvidence() {
+    const box = document.getElementById("evidenceBox");
+    if (box.style.display === "block") box.style.display = "none";
+    else {
+      box.style.display = "block";
+      document.getElementById("evidenceContent").textContent = JSON.stringify(items[currentIndex].evidence || {}, null, 2);
+    }
+  }
+
+  function toggleBlinded() {
+    blindedMode = !blindedMode;
+    const btn = document.getElementById("btnBlinded");
+    btn.textContent = `Blinded Review: ${blindedMode ? 'ON' : 'OFF'}`;
+    btn.className = `btn-toggle ${blindedMode ? 'active' : ''}`;
+  }
+
+  function updateProgressCounts() {
+    const total = items.length || 200;
+    const vals = Object.values(issueStatuses);
+    const conf = vals.filter(v => v.status === "CONFIRMED").length;
+    const fp = vals.filter(v => v.status === "FALSE_POSITIVE").length;
+    const rev = conf + fp;
+    const rem = Math.max(0, total - rev);
+    const pct = Math.round((rev / total) * 100);
+
+    document.getElementById("statReviewed").textContent = `${rev} / ${total} (${pct}%)`;
+    document.getElementById("statConfirmed").textContent = conf;
+    document.getElementById("statFp").textContent = fp;
+    document.getElementById("statRemaining").textContent = rem;
+
+    document.getElementById("trackConf").style.width = `${(conf / total) * 100}%`;
+    document.getElementById("trackFp").style.width = `${(fp / total) * 100}%`;
+  }
+
+  async function updateStats() {
+    try {
+      const res = await fetch("/candidate-issues/dataset/stats");
+      const stats = await res.json();
+      if (!stats) return;
+
+      // Render Severity
+      const sevList = document.getElementById("sevList");
+      sevList.innerHTML = "";
+      ["critical", "high", "medium", "low"].forEach(s => {
+        const c = stats.severity_distribution?.[s] || 0;
+        sevList.innerHTML += `<div style="display: flex; justify-content: space-between;"><span style="text-transform: capitalize; color: #CBD5E1;">${s}</span><strong>${c} ${c >= 30 ? '<span style="color:#10B981;">[MET]</span>' : `<span style="color:#94A3B8;">[${c}/30]</span>`}</strong></div>`;
+      });
+
+      // Render Priority
+      const prioList = document.getElementById("prioList");
+      prioList.innerHTML = "";
+      ["p1", "p2", "p3", "p4"].forEach(p => {
+        const c = stats.priority_distribution?.[p] || 0;
+        prioList.innerHTML += `<div style="display: flex; justify-content: space-between;"><span style="text-transform: uppercase; color: #CBD5E1;">${p}</span><strong>${c} ${c >= 30 ? '<span style="color:#10B981;">[MET]</span>' : `<span style="color:#94A3B8;">[${c}/30]</span>`}</strong></div>`;
+      });
+
+      // Render 4x4
+      const mBody = document.getElementById("matrixBody");
+      mBody.innerHTML = "";
+      ["critical", "high", "medium", "low"].forEach(s => {
+        let row = `<tr><td style="text-align: left; text-transform: capitalize; color: #94A3B8;">${s}</td>`;
+        ["p1", "p2", "p3", "p4"].forEach(p => {
+          const val = stats.crosstab?.[`${s} + ${p}`] || 0;
+          row += `<td style="${val > 0 ? 'color: #06B6D4; font-weight: bold;' : 'color: #475569;'}">${val}</td>`;
+        });
+        row += "</tr>";
+        mBody.innerHTML += row;
+      });
+    } catch {
+      // stats optional
+    }
+  }
+
+  function escapeHtml(str) {
+    return (str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  window.addEventListener("keydown", (e) => {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+    if (e.key === "ArrowLeft") prevIssue();
+    else if (e.key === "ArrowRight") nextIssue();
+    else if (e.key.toLowerCase() === "s") skipIssue();
+    else if (e.key.toLowerCase() === "v") toggleContext();
+    else if (e.key.toLowerCase() === "f") openFpModal();
+  });
+
+  window.onload = init;
+</script>
+</body>
+</html>

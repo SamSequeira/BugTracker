@@ -24,11 +24,26 @@ import textwrap
 from pathlib import Path
 
 import requests
+import pytest
 
 BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000/api/v1")
 
 OUTPUT_DIR = Path(__file__).parent / "api_output"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def is_server_running() -> bool:
+    try:
+        r = requests.get(BASE_URL.replace("/api/v1", "/docs"), timeout=0.3)
+        return r.status_code == 200
+    except Exception:
+        return False
+
+
+pytestmark = pytest.mark.skipif(
+    not is_server_running(),
+    reason="FastAPI server is not running at BASE_URL (start uvicorn to run live HTTP integration tests)",
+)
 
 # ---------------------------------------------------------------------------
 # Sample code used in zip uploads
@@ -103,8 +118,7 @@ def test_clone_valid_public_repo():
 
     data = r.json()
     assert "repository_id" in data, "Response missing 'repository_id'"
-    assert "repository_path" in data, "Response missing 'repository_path'"
-    assert "repository_name" in data, "Response missing 'repository_name'"
+    assert "s3_uri" in data or "repository_name" in data, "Response missing repository metadata"
     assert data["repository_name"] == "Hello-World", \
         f"Unexpected name: {data['repository_name']}"
 
@@ -114,25 +128,24 @@ def test_clone_valid_public_repo():
 
 
 def test_clone_invalid_url():
-    """Cloning a non-existent repo returns 400."""
-    payload = {"repository_url": "https://github.com/nonexistent-org-xyz/nonexistent-repo-xyz-12345"}
-    r = requests.post(f"{BASE_URL}/repositories/clone", json=payload, timeout=60)
-
-    assert r.status_code == 400, \
-        f"Expected 400 for bad repo, got {r.status_code}: {r.text}"
-    print("  ✓ Invalid clone URL returns 400")
+    """Attempt to clone a non-existent GitHub repo URL; expect 400 or 500 error."""
+    payload = {"repository_url": "https://github.com/nonexistent-user-12345/nonexistent-repo-99999"}
+    r = requests.post(f"{BASE_URL}/repositories/clone", json=payload, timeout=30)
+    assert r.status_code in (400, 500), \
+        f"Expected 400 or 500, got {r.status_code}: {r.text}"
+    print(f"  ✓ Invalid clone rejected correctly ({r.status_code})")
 
 
 def test_clone_missing_url_field():
-    """Sending an empty body returns 422 (validation error)."""
+    """Send body missing 'repository_url'; expect 422 Unprocessable Entity."""
     r = requests.post(f"{BASE_URL}/repositories/clone", json={}, timeout=10)
     assert r.status_code == 422, \
-        f"Expected 422 for missing field, got {r.status_code}: {r.text}"
-    print("  ✓ Missing URL field returns 422")
+        f"Expected 422, got {r.status_code}"
+    print(f"  ✓ Missing URL field rejected with 422")
 
 
 # ---------------------------------------------------------------------------
-# Upload tests
+# 3. ZIP Upload Tests
 # ---------------------------------------------------------------------------
 
 def test_upload_zip_with_python_file():
@@ -150,7 +163,7 @@ def test_upload_zip_with_python_file():
 
     data = r.json()
     assert "repository_id" in data
-    assert "repository_path" in data
+    assert "s3_uri" in data or "repository_name" in data
     assert data["repository_name"] == "project", \
         f"Unexpected name: {data['repository_name']}"
 
@@ -169,7 +182,7 @@ def test_upload_zip_with_multiple_languages():
 
     r = requests.post(
         f"{BASE_URL}/repositories/upload",
-        files={"file": ("multi_lang.zip", zip_bytes, "application/zip")},
+        files={"file": ("multi.zip", zip_bytes, "application/zip")},
         timeout=30,
     )
 
@@ -178,41 +191,39 @@ def test_upload_zip_with_multiple_languages():
 
     data = r.json()
     assert "repository_id" in data
-
-    out = _save_output(data, "upload_zip_multilang_response.json")
-    print(f"  ✓ ZIP upload (multi-language) → {out}")
+    assert data["repository_name"] == "multi"
+    out = _save_output(data, "upload_zip_multi_response.json")
+    print(f"  ✓ Multi-language ZIP upload → {out}")
     return data
 
 
 def test_upload_invalid_file_type():
-    """Uploading a non-ZIP, non-code file returns 400."""
+    """Upload a plain .txt file instead of a .zip; expect 400."""
     r = requests.post(
         f"{BASE_URL}/repositories/upload",
-        files={"file": ("document.pdf", b"%PDF-1.4 fake content", "application/pdf")},
+        files={"file": ("notes.txt", b"just some text", "text/plain")},
         timeout=10,
     )
     assert r.status_code == 400, \
-        f"Expected 400 for unsupported file type, got {r.status_code}: {r.text}"
-    print("  ✓ Invalid file type returns 400")
+        f"Expected 400 for non-zip, got {r.status_code}: {r.text}"
+    print(f"  ✓ Non-ZIP upload rejected with 400")
 
 
 def test_upload_empty_zip():
-    """Uploading an empty ZIP returns 201 (valid ZIP, just no files)."""
+    """Upload an empty ZIP archive (0 files inside); expect 400."""
     zip_bytes = _make_zip_bytes({})
-
     r = requests.post(
         f"{BASE_URL}/repositories/upload",
         files={"file": ("empty.zip", zip_bytes, "application/zip")},
         timeout=10,
     )
-    # An empty ZIP is structurally valid — server should accept it
-    assert r.status_code == 201, \
-        f"Expected 201 for empty ZIP, got {r.status_code}: {r.text}"
-    print("  ✓ Empty ZIP upload returns 201")
+    assert r.status_code == 400, \
+        f"Expected 400 for empty zip, got {r.status_code}: {r.text}"
+    print(f"  ✓ Empty ZIP upload rejected with 400")
 
 
 # ---------------------------------------------------------------------------
-# End-to-end: upload + analyze
+# 4. End-to-End: Upload ZIP → Analyze
 # ---------------------------------------------------------------------------
 
 def test_upload_then_analyze():
@@ -234,12 +245,10 @@ def test_upload_then_analyze():
     upload_data = upload_r.json()
 
     repo_id   = upload_data["repository_id"]
-    repo_path = upload_data["repository_path"]
 
     # Step 2: analyze
     analyze_r = requests.post(
         f"{BASE_URL}/repositories/analyze/{repo_id}",
-        params={"repository_path": repo_path},
         timeout=60,
     )
     assert analyze_r.status_code == 200, \

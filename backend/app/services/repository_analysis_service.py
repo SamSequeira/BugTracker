@@ -31,7 +31,11 @@ class RepositoryAnalysisService:
         """Resolve a server-managed workspace path without trusting client input."""
         return Path("repositories") / f"{repository_id}-{repository_name}"
 
-    async def analyze_repository(self, repo_path: str) -> Dict[str, Any]:
+    async def analyze_repository(
+        self,
+        repo_path: str,
+        repository_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         Analyze a repository for language detection, AST generation,
         static analysis, candidate issues, and enriched bug reports.
@@ -56,25 +60,67 @@ class RepositoryAnalysisService:
             str(repo_path)
         )
 
-        # Step 2: Run Static Analysis on the complete AST result
+        # Step 2: Run Static Analysis / candidate issue generation on AST
         candidate_result = await asyncio.to_thread(
             candidate_issue_service.generate_from_repository,
             ast_result
         )
 
+        # Step 3: Generate enriched bug reports
+        rep_id = repository_id or repo_path.name
+        reports_result = await asyncio.to_thread(
+            bug_report_service.generate_repository_reports,
+            ast_result=ast_result,
+            candidate_result=candidate_result,
+            repository_id=rep_id,
+            repository_path=str(repo_path),
+            similarity_service=self.similarity_service,
+        )
+
+        formatted_ast = self._format_analysis_result(ast_result)
+        formatted_ast["repository_path"] = str(repo_path)
+        clean_files = [
+            {k: v for k, v in f.items() if k != "ast"}
+            for f in ast_result.get("files_analyzed", [])
+        ] if "files_analyzed" in ast_result else []
+
+        issues_list = []
+        for r in reports_result.get("bug_reports", []):
+            sim = r.get("similarity", {})
+            has_sim = (sim.get("highest_similarity", 0.0) > 0 or sim.get("is_duplicate", False) or bool(sim.get("similar_issues", []))) and sim.get("relationship_type") != "independent"
+            issues_list.append({
+                "rule_id": r.get("static_analysis", {}).get("rule_id", ""),
+                "issue_type": r.get("static_analysis", {}).get("issue_type", ""),
+                "message": r.get("static_analysis", {}).get("message", ""),
+                "severity": r.get("severity", "medium"),
+                "line_number": r.get("location", {}).get("line", 1),
+                "similarity": {
+                    "available": bool(has_sim),
+                    "duplicate": bool(sim.get("is_duplicate", False)),
+                    "similarity": float(sim.get("highest_similarity", 0.0)),
+                    "similar_bugs": sim.get("similar_issues", []),
+                },
+            })
+
+        static_analysis_result = {
+            "status": "success",
+            "total_issues": reports_result.get("total_candidate_issues", 0),
+            "results": [{"issues": issues_list}],
+        }
+
         # Step 3: Return clean response without dumping massive AST hierarchies
         return {
-            "repository_id": repository_id,
+            "repository_id": rep_id,
             "repository_path": str(repo_path),
             "summary": formatted_ast["summary"],
-            "files": formatted_ast["files"],
+            "files": clean_files,
             "ast_analysis": formatted_ast,
             "static_analysis": static_analysis_result,
-            "candidate_issues": candidate_result["candidate_issues"],
-            "total_candidate_issues": candidate_result["total_candidate_issues"],
-            "bug_reports": report_data["bug_reports"],
-            "total_reports": report_data["total_reports"],
-            "summary_stats": report_data["summary_stats"],
+            "candidate_issues": reports_result.get("candidate_issues", []),
+            "total_candidate_issues": reports_result.get("total_candidate_issues", 0),
+            "bug_reports": reports_result.get("bug_reports", []),
+            "total_reports": reports_result.get("total_reports", 0),
+            "summary_stats": reports_result.get("summary_stats", {}),
         }
 
     def _format_analysis_result(self, result: Dict[str, Any]) -> Dict[str, Any]:

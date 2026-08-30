@@ -1,5 +1,8 @@
+from pathlib import Path
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
 from .services.language_detector import detect_language
 from .services.preprocessor import preprocess_code
@@ -14,14 +17,19 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Configure CORS
+# Configure CORS for local frontend dev servers (Vite 5173, React 3000, 8000, etc.)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:8000", "http://localhost:8080"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount static files directory if present
+static_dir = Path(__file__).resolve().parent / "static"
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 app.include_router(
     repositories_router, 
@@ -38,6 +46,16 @@ app.include_router(
 @app.get("/")
 async def root():
     return {"message": "AI Bug Tracking System API is running"}
+
+
+@app.get("/review", response_class=HTMLResponse)
+async def serve_review_dashboard():
+    """Serve standalone ground-truth dataset review dashboard."""
+    review_html = Path(__file__).resolve().parent / "static" / "review.html"
+    if review_html.exists():
+        return FileResponse(str(review_html))
+    return HTMLResponse("<h1>Review dashboard static file not found</h1>", status_code=404)
+
 
 @app.post("/detect-language")
 async def detect_file_language(file: UploadFile = File(...)):
