@@ -379,6 +379,31 @@ class ApiService {
       return { live: false, data: null, error: err.message, status: status ? parseInt(status) : null };
     }
   }
+
+  // GET /api/v1/repositories/{repositoryId}/analysis-status
+  // Returns the status of the latest AnalysisRun for this repository.
+  // READ-ONLY — never triggers a new analysis.
+  // Returns { live, data: { repository_id, latest_run_id, status, total_files,
+  //   supported_files, candidate_issues_count, started_at, completed_at,
+  //   duration_seconds } }
+  // status is one of: "none" | "running" | "completed" | "failed"
+  // "none" means no run exists yet (background task may not have started);
+  // the frontend should keep polling rather than treating this as a failure.
+  async getRepositoryAnalysisStatus(repositoryId) {
+    if (!repositoryId) return { live: false, data: null, error: "No repository ID" };
+    try {
+      const data = await this.request(`/v1/repositories/${repositoryId}/analysis-status`);
+      return { live: true, data };
+    } catch (err) {
+      const httpStatus = err.message?.match(/HTTP Error (\d+)/)?.[1];
+      return {
+        live: false,
+        data: null,
+        error: err.message,
+        status: httpStatus ? parseInt(httpStatus) : null,
+      };
+    }
+  }
 }
 
 export const apiService = new ApiService();

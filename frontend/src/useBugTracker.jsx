@@ -244,6 +244,9 @@ export function BugTrackerProvider({ children }) {
   const [readNotificationIds, setReadNotificationIds] = useState(new Set());
 
   const notesTimerRef = useRef({});
+  // Ref that holds the current polling interval ID so it can be cancelled
+  // from anywhere (new scan start, unmount, completion, failure, timeout).
+  const pollingRef = useRef(null);
 
   // Listen to API Live/Demo status changes
   useEffect(() => {
@@ -270,6 +273,125 @@ export function BugTrackerProvider({ children }) {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  // =========================================================================
+  // Analysis status polling
+  // =========================================================================
+
+  // Cancel any running poll interval immediately.
+  const stopPolling = useCallback(() => {
+    if (pollingRef.current !== null) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  }, []);
+
+  // Start polling GET /analysis-status for repositoryId.
+  // Polls every 3 s, stops on completed/failed or after 5 min.
+  // Applies real metrics to state when completed.
+  const startAnalysisPolling = useCallback(
+    (repositoryId) => {
+      // Cancel any previous poll before starting a new one.
+      stopPolling();
+
+      const POLL_INTERVAL_MS = 3000;
+      const POLL_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+      const startedAt = Date.now();
+
+      pollingRef.current = setInterval(async () => {
+        // Guard: stop if the interval was already cleared externally.
+        if (pollingRef.current === null) return;
+
+        // Hard timeout — stop regardless of status after 5 minutes.
+        if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
+          stopPolling();
+          setIsScanning(false);
+          setScanProgress(0);
+          setScanStage("");
+          setScanError({
+            message:
+              "Analysis timed out after 5 minutes. The repository may be too large. " +
+              "You can still view partial results in the Architecture tab.",
+            type: "unknown",
+          });
+          return;
+        }
+
+        const res = await apiService.getRepositoryAnalysisStatus(repositoryId);
+
+        if (!res.live || !res.data) {
+          // Network hiccup — keep polling, don't give up on a single failure.
+          return;
+        }
+
+        const { status: runStatus, total_files, supported_files, candidate_issues_count, duration_seconds } = res.data;
+
+        if (runStatus === "none" || runStatus === "running") {
+          // Not done yet — update the stage label and keep polling.
+          if (runStatus === "running") {
+            // Gently advance progress from 30 → 90 while we wait.
+            setScanProgress((prev) => Math.min(prev + 2, 90));
+            setScanStage("✓ Analyzing codebase...");
+          }
+          return; // continue polling
+        }
+
+        // Terminal states — stop polling regardless.
+        stopPolling();
+
+        if (runStatus === "completed") {
+          // Apply real backend metrics to stats state.
+          // Explicitly clear linesOfCode so the DEFAULT_STATS placeholder
+          // (128,742) does not persist alongside real totalFiles/totalBugs.
+          setStats((prev) => ({
+            ...prev,
+            totalBugs: candidate_issues_count ?? prev.totalBugs,
+            totalFiles: total_files ?? prev.totalFiles,
+            scanTime: duration_seconds != null ? `${duration_seconds.toFixed(1)}s` : prev.scanTime,
+            linesOfCode: null, // cleared — real line count not available from analysis-status
+            critical: 0,       // reset to 0; no backend issue fetch here
+          }));
+          setIsLive(true);
+          setScanProgress(100);
+
+          // Update the matching recent scan preset status so it no longer
+          // shows "Analyzing…" now that analysis is complete.
+          setRecentScans((prev) =>
+            prev.map((item) =>
+              item.repository_id === repositoryId
+                ? {
+                    ...item,
+                    status: `${candidate_issues_count ?? 0} issue${candidate_issues_count === 1 ? "" : "s"}`,
+                    badgeColor: (candidate_issues_count ?? 0) > 0 ? "bg-amber-500" : "bg-emerald-500",
+                  }
+                : item
+            )
+          );
+
+          setScanStage("✓ Analysis complete");
+          setIsScanning(false);
+          setScanCompleted(true);
+        } else if (runStatus === "failed") {
+          setIsScanning(false);
+          setScanProgress(0);
+          setScanStage("");
+          setScanCompleted(false);
+          setScanError({
+            message:
+              "Backend analysis failed for this repository. " +
+              "Check server logs or try re-scanning.",
+            type: "unknown",
+          });
+        }
+      }, POLL_INTERVAL_MS);
+    },
+    [stopPolling] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  // Clean up polling interval on provider unmount.
+  useEffect(() => {
+    return () => stopPolling();
+  }, [stopPolling]);
 
   // Backend data loader (used only when a real backend is available)
   const loadData = useCallback(async () => {
@@ -300,6 +422,72 @@ export function BugTrackerProvider({ children }) {
   useEffect(() => {
     if (isAuthenticated) loadData();
   }, [isAuthenticated, loadData]);
+
+  // On login, populate recent scans from the real DB repository list
+  // (newest-first). Falls back to the existing RECENT_SCANS mock if the
+  // backend is unavailable or returns an empty list.
+  // Also fetches analysis status for each repo so the preset shows
+  // real status (completed / running / none / failed) rather than a
+  // generic "Previously scanned" label.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    (async () => {
+      const res = await apiService.getRepositories();
+      if (!res.live || !Array.isArray(res.data) || res.data.length === 0) return;
+
+      // Map DB RepositoryResponse → recentScans shape (initial neutral state).
+      const dbScans = res.data.slice(0, 5).map((repo) => ({
+        repository_id: repo.id,         // real backend ID — used by preset click handler
+        name: repo.name,
+        repo_url: repo.source_url || null,
+        date: new Date(repo.created_at).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        }),
+        status: "Previously scanned",
+        badgeColor: "bg-slate-500",
+        totalBugs: 0,
+      }));
+
+      setRecentScans(dbScans);
+
+      // Enrich each preset with the real analysis status in the background.
+      // This runs after the initial list is shown so the UI isn't blocked.
+      for (const repo of res.data.slice(0, 5)) {
+        const statusRes = await apiService.getRepositoryAnalysisStatus(repo.id);
+        if (!statusRes.live || !statusRes.data) continue;
+
+        const { status: runStatus, candidate_issues_count } = statusRes.data;
+        let badgeColor = "bg-slate-500";
+        let statusLabel = "Previously scanned";
+
+        if (runStatus === "completed") {
+          const count = candidate_issues_count ?? 0;
+          statusLabel = count > 0 ? `${count} issue${count === 1 ? "" : "s"}` : "Clean";
+          badgeColor = count > 0 ? "bg-amber-500" : "bg-emerald-500";
+        } else if (runStatus === "running") {
+          statusLabel = "Analyzing…";
+          badgeColor = "bg-cyan-500";
+        } else if (runStatus === "failed") {
+          statusLabel = "Analysis failed";
+          badgeColor = "bg-red-500";
+        } else if (runStatus === "none") {
+          statusLabel = "Not analyzed";
+          badgeColor = "bg-slate-600";
+        }
+
+        setRecentScans((prev) =>
+          prev.map((item) =>
+            item.repository_id === repo.id
+              ? { ...item, status: statusLabel, badgeColor }
+              : item
+          )
+        );
+      }
+    })();
+  }, [isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const login = async (email, password) => {
     const res = await authService.login(email, password);
@@ -347,6 +535,13 @@ export function BugTrackerProvider({ children }) {
     setScanProgress(5);
     setScanStage("Connecting to repository...");
     setScanCompleted(false);
+    // Cancel any existing poll before starting a new scan.
+    stopPolling();
+    // Reset stale repository-specific data so the previous repository's
+    // metrics don't remain visible while the new scan runs.
+    setCurrentRepositoryId(null);
+    setStats(DEFAULT_STATS);
+    setBugs(DEFAULT_BUGS);
 
     const targetUrl = typeof targetInput === "string" ? targetInput.trim() : repoUrl;
     if (!isFile && typeof targetInput === "string") {
@@ -421,65 +616,62 @@ export function BugTrackerProvider({ children }) {
           // Non-fatal — repo is cloned, metadata just won't be available
         }
 
-        setScanStage("✓ Running security analysis...");
-        setScanProgress(70);
-
-        // Analyze the cloned repo via backend
-        let analysisData = null;
-        try {
-          const analyzeRes = await fetch(
-            `http://localhost:8000/api/v1/repositories/analyze/${cloneData.repository_id}?repository_path=${encodeURIComponent(cloneData.repository_path)}`,
-            { method: "POST", signal: AbortSignal.timeout(60000) }
-          );
-          if (analyzeRes.ok) {
-            analysisData = await analyzeRes.json();
-          }
-        } catch (_) {
-          // Non-fatal — show GitHub metadata even if AST analysis fails
-        }
-
-        setScanProgress(100);
-        setScanStage("✓ Scan complete");
-
-        // fetchGitHubRepo returns { repoData, aiSummary, stats, repoMeta, ... } directly
+        // Apply GitHub metadata (stars, forks, description, repoMeta banner).
+        // Do NOT use heuristic stats/bugs from GitHub as the source of truth —
+        // those will be overwritten by real backend data once polling completes.
         if (githubResult) {
-          setStats(githubResult.stats);
           setAiSummary(githubResult.aiSummary);
           setRepoMeta(githubResult.repoMeta);
+          // Only pre-populate fileSummary-based bugs if no backend id is set yet;
+          // polling completion will later overwrite totalBugs with the real count.
           const fileSummaries = githubResult.aiSummary?.fileSummaries || [];
           if (fileSummaries.length > 0) {
             setBugs(generateBugsFromFileSummaries(fileSummaries, githubResult.repoMeta));
           }
         }
 
-        // Store the backend repository_id so the Architecture tab can fetch topology data
+        // Store the backend repository_id so Architecture tab and polling work.
         if (cloneData?.repository_id) {
           setCurrentRepositoryId(cloneData.repository_id);
         }
 
-        if (analysisData?.analysis) {
-          const summary = analysisData.analysis.summary || {};
-          setStats((prev) => ({
-            ...prev,
-            totalFiles: summary.total_files ?? prev.totalFiles,
-          }));
-        }
-
         setIsLive(true);
 
+        // Add to recent scans list (runtime — persisted list is loaded from DB on
+        // next login via the useEffect above).
         const cleanName = cloneData.repository_name;
         const critical = githubResult?.stats?.critical || 0;
         setRecentScans((prev) => [
           {
+            repository_id: cloneData.repository_id,
             name: cleanName,
             repo_url: targetUrl,
             date: "Just now",
-            status: critical > 0 ? `${critical} Critical` : "Clean",
-            badgeColor: critical > 0 ? "bg-red-500" : "bg-emerald-500",
-            totalBugs: githubResult?.stats?.totalBugs || 0,
+            status: critical > 0 ? `${critical} Critical` : "Analyzing…",
+            badgeColor: critical > 0 ? "bg-red-500" : "bg-cyan-500",
+            totalBugs: 0,
           },
           ...prev.filter((item) => item.repo_url !== targetUrl).slice(0, 4),
         ]);
+
+        // Start polling for real analysis metrics. The clone endpoint already
+        // schedules a background AnalysisRun — we just poll until it finishes.
+        // setScanCompleted / setScanProgress(100) are handled inside the poller.
+        setScanStage("✓ Repository downloaded — analyzing codebase...");
+        setScanProgress(30);
+        // Keep isScanning=true so the progress bar stays visible during polling.
+        // The poller will call setIsScanning(false) when done.
+        if (cloneData?.repository_id) {
+          startAnalysisPolling(cloneData.repository_id);
+        } else {
+          // No repository_id means something unusual happened — finish gracefully.
+          setScanProgress(100);
+          setScanStage("✓ Scan complete");
+          setScanCompleted(true);
+          setIsScanning(false);
+        }
+        // Return early — do NOT fall through to the outer setScanCompleted(true).
+        return;
 
       } else {
         // ── ZIP upload path: send to backend ────────────────────────────────
@@ -512,44 +704,19 @@ export function BugTrackerProvider({ children }) {
         }
 
         setScanStage(`✓ Uploaded ${uploadData.repository_name} — analyzing...`);
-        setScanProgress(50);
+        setScanProgress(30);
 
-        // Analyze the uploaded repo
-        let analysisData = null;
-        try {
-          const analyzeRes = await fetch(
-            `http://localhost:8000/api/v1/repositories/analyze/${uploadData.repository_id}?repository_path=${encodeURIComponent(uploadData.repository_path)}`,
-            { method: "POST", signal: AbortSignal.timeout(60000) }
-          );
-          if (analyzeRes.ok) {
-            analysisData = await analyzeRes.json();
-          }
-        } catch (_) { /* non-fatal */ }
+        // Set repo metadata for the banner (no GitHub API for ZIP uploads).
+        setRepoMeta({
+          fullName: uploadData.repository_name,
+          description: "Uploaded ZIP archive",
+          stars: 0,
+          forks: 0,
+          totalFiles: 0,
+          defaultBranch: "—",
+        });
 
-        setScanProgress(90);
-        setScanStage("✓ Building report...");
-        await new Promise((r) => setTimeout(r, 400));
-        setScanProgress(100);
-        setScanStage("✓ Archive scan complete");
-
-        if (analysisData?.analysis) {
-          const summary = analysisData.analysis.summary || {};
-          const files = analysisData.analysis.files || [];
-          setStats((prev) => ({
-            ...prev,
-            totalFiles: summary.total_files ?? prev.totalFiles,
-            totalBugs: files.length * 2,
-          }));
-          setRepoMeta({
-            fullName: uploadData.repository_name,
-            description: `Uploaded archive: ${uploadData.repository_name}`,
-            stars: 0, forks: 0,
-            totalFiles: summary.total_files || 0,
-            defaultBranch: "—",
-          });
-        }
-
-        // Store the backend repository_id so the Architecture tab can fetch topology data
+        // Store the backend repository_id so Architecture tab and polling work.
         if (uploadData?.repository_id) {
           setCurrentRepositoryId(uploadData.repository_id);
         }
@@ -558,20 +725,35 @@ export function BugTrackerProvider({ children }) {
 
         setRecentScans((prev) => [
           {
+            repository_id: uploadData.repository_id,
             name: uploadData.repository_name,
             repo_url: null,
             date: "Just now",
-            status: "Uploaded",
-            badgeColor: "bg-blue-500",
+            status: "Analyzing…",
+            badgeColor: "bg-cyan-500",
             totalBugs: 0,
           },
           ...prev.slice(0, 4),
         ]);
+
+        // Start polling for real analysis metrics.
+        setScanStage("✓ Archive uploaded — analyzing codebase...");
+        if (uploadData?.repository_id) {
+          startAnalysisPolling(uploadData.repository_id);
+        } else {
+          setScanProgress(100);
+          setScanStage("✓ Archive scan complete");
+          setScanCompleted(true);
+          setIsScanning(false);
+        }
+        // Return early — polling handles setScanCompleted.
+        return;
       }
 
       setScanCompleted(true);
 
     } catch (err) {
+      stopPolling(); // cancel any in-flight poll on scan error
       setScanProgress(0);
       setScanStage("");
       setScanCompleted(false);
@@ -580,13 +762,86 @@ export function BugTrackerProvider({ children }) {
         type: err.type || "unknown",
       });
     } finally {
-      setIsScanning(false);
+      // Only clear isScanning here when polling is NOT active.
+      // When polling is active it owns isScanning and will clear it on completion.
+      if (pollingRef.current === null) {
+        setIsScanning(false);
+      }
     }
   };
 
   const loadRecentScan = (recentItem) => {
-    setRepoUrl(recentItem.repo_url);
-    runScan(recentItem.repo_url, false);
+    // If the preset has a real backend repository_id, restore its analysis
+    // metrics without re-cloning or re-analyzing.
+    if (recentItem.repository_id) {
+      // Reset stale state from the previous repository immediately so the UI
+      // shows neutral/loading values instead of the previous repo's numbers.
+      stopPolling();
+      setCurrentRepositoryId(recentItem.repository_id);
+      setStats(DEFAULT_STATS);
+      setBugs(DEFAULT_BUGS);
+      setScanCompleted(false);
+      setScanError(null);
+      if (recentItem.repo_url) setRepoUrl(recentItem.repo_url);
+
+      // Fetch the analysis status for this repo and apply real metrics if done.
+      (async () => {
+        const res = await apiService.getRepositoryAnalysisStatus(recentItem.repository_id);
+        if (res.live && res.data && res.data.status === "completed") {
+          const { total_files, candidate_issues_count, duration_seconds } = res.data;
+          setStats((prev) => ({
+            ...prev,
+            totalBugs: candidate_issues_count ?? 0,
+            totalFiles: total_files ?? prev.totalFiles,
+            scanTime: duration_seconds != null ? `${duration_seconds.toFixed(1)}s` : prev.scanTime,
+            linesOfCode: null, // cleared to prevent stale DEFAULT_STATS value
+            critical: 0,       // reset; no backend issue fetch here
+          }));
+          setIsLive(true);
+          setScanCompleted(true);
+        } else if (res.live && res.data && res.data.status === "running") {
+          // Analysis still in progress — resume polling.
+          setScanCompleted(false);
+          setIsScanning(true);
+          setScanProgress(30);
+          setScanStage("✓ Resuming analysis monitoring...");
+          startAnalysisPolling(recentItem.repository_id);
+        } else if (res.live && res.data && res.data.status === "none") {
+          // No analysis run yet — show neutral zero state, not DEFAULT_STATS.
+          setStats((prev) => ({
+            ...prev,
+            totalBugs: 0,
+            totalFiles: 0,
+            scanTime: "—",
+            linesOfCode: null,
+            critical: 0,
+          }));
+          setBugs([]);
+          setScanCompleted(false);
+        } else if (res.live && res.data && res.data.status === "failed") {
+          // Analysis failed — show zero state.
+          setStats((prev) => ({
+            ...prev,
+            totalBugs: 0,
+            totalFiles: 0,
+            scanTime: "—",
+            linesOfCode: null,
+            critical: 0,
+          }));
+          setBugs([]);
+          setScanCompleted(false);
+        }
+        // If res.live is false (backend unreachable), stats stay as DEFAULT_STATS
+        // which is the correct demo/fallback behavior.
+      })();
+      return;
+    }
+
+    // Demo/mock preset — use the original re-scan behaviour.
+    if (recentItem.repo_url) {
+      setRepoUrl(recentItem.repo_url);
+      runScan(recentItem.repo_url, false);
+    }
   };
 
   const saveGithubToken = (token) => {

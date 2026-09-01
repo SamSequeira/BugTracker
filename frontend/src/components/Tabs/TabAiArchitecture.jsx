@@ -1,5 +1,6 @@
 // src/components/Tabs/TabAiArchitecture.jsx - Tab 2: AI Codebase Architecture & Dynamic File Cards
 import React, { useState, useMemo, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useBugTracker } from "../../useBugTracker.jsx";
 import { apiService } from "../../api.js";
 
@@ -75,6 +76,7 @@ export default function TabAiArchitecture() {
     setActiveDrawerBug,
     bugs,
     currentRepositoryId,
+    scanCompleted,
   } = useBugTracker();
 
   const [selectedFileModal, setSelectedFileModal] = useState(null);
@@ -99,6 +101,8 @@ export default function TabAiArchitecture() {
     }
   }, []);
 
+  // Primary effect: fires when the active repository changes.
+  // Clears stale data immediately and fetches architecture for the new repo.
   useEffect(() => {
     // Always clear stale data before resolving the target repository,
     // so we never show a previous repository's architecture while loading.
@@ -106,7 +110,7 @@ export default function TabAiArchitecture() {
     setArchError(null);
 
     if (currentRepositoryId) {
-      // Case 1: a repository was scanned through the frontend this session — use it directly.
+      // Case 1: a repository is active — fetch its architecture.
       fetchArchitecture(currentRepositoryId);
     } else {
       // Case 2 (temporary fallback): no frontend scan yet.
@@ -126,8 +130,24 @@ export default function TabAiArchitecture() {
     }
   }, [currentRepositoryId, fetchArchitecture]);
 
-  // Use backend data when available; fall back to context aiSummary (mock/GitHub)
-  const displaySummary = archData || aiSummary;
+  // Retry effect: when analysis completes (scanCompleted flips to true) and we
+  // still don't have valid archData for the current repository, re-fetch.
+  // This handles the case where the user opened Tab 2 while analysis was still
+  // in progress — the first fetch got a 404, and now that analysis is done we
+  // need to try again.
+  useEffect(() => {
+    if (!scanCompleted || !currentRepositoryId) return;
+    if (archData) return;          // already have good data — no need to retry
+    if (archLoading) return;       // fetch already in flight
+    fetchArchitecture(currentRepositoryId);
+  }, [scanCompleted, currentRepositoryId, archData, archLoading, fetchArchitecture]);
+
+  // Determine what to display:
+  // - When a real repository is active AND we have real DB architecture → show it.
+  // - When a real repository is active but no DB data yet → show loading/error only
+  //   (do NOT bleed GitHub-heuristic aiSummary as if it were DB architecture).
+  // - When no real repository is active (demo mode) → fall back to aiSummary.
+  const displaySummary = archData || (currentRepositoryId ? null : aiSummary);
 
   // Dynamic filter for file cards
   const filteredFiles = useMemo(() => {
@@ -153,6 +173,26 @@ export default function TabAiArchitecture() {
     });
   }, [displaySummary, aiSearchQuery, selectedFileFilter]);
 
+  // Lock body scroll while the View Info modal is open to prevent the
+  // background page from scrolling behind the fixed overlay.
+  useEffect(() => {
+    if (selectedFileModal) {
+      // Save the current scrollbar width to prevent layout shift when
+      // overflow:hidden removes the scrollbar.
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+      document.body.style.overflow = "hidden";
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    } else {
+      document.body.style.overflow = "";
+      document.body.style.paddingRight = "";
+    }
+    // Cleanup on unmount so we never leave the body locked.
+    return () => {
+      document.body.style.overflow = "";
+      document.body.style.paddingRight = "";
+    };
+  }, [selectedFileModal]);
+
   const handleCardClick = (fileItem) => {
     // Check if there is an associated bug for this file
     const matchedBug = bugs.find((b) => fileItem.file.includes(b.file) || b.file.includes(fileItem.file));
@@ -165,7 +205,9 @@ export default function TabAiArchitecture() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto">
+    <>
+      {/* ── Page content (inside the animated wrapper) ─────────────────── */}
+      <div className="space-y-6 animate-fade-in max-w-7xl mx-auto">
       {/* Header Overview Card */}
       <div className="bg-[#131B2E] border border-slate-800 rounded-2xl p-6 sm:p-8 space-y-6 shadow-xl relative">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
@@ -408,37 +450,57 @@ export default function TabAiArchitecture() {
           </div>
         )}
       </div>
+      {/* ── End of page content wrapper ─────────────────────────────── */}
+      </div>
 
-      {/* File Info Modal if file doesn't have a direct bug */}
-      {selectedFileModal && (
+      {/* File Info Modal — rendered via a portal into document.body so that
+          the fixed overlay is never trapped inside an ancestor with a CSS
+          transform (the animate-fade-in wrapper uses transform: translateY,
+          which would otherwise create a new containing block and break
+          position: fixed centering). */}
+      {selectedFileModal && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
           onClick={() => setSelectedFileModal(null)}
         >
+          {/* Modal panel — max-height keeps it within the viewport; the inner
+              content area scrolls independently if the content is taller. */}
           <div
-            className="bg-[#131B2E] border border-slate-800 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl relative"
+            className="bg-[#131B2E] border border-slate-800 rounded-2xl max-w-lg w-full shadow-2xl relative flex flex-col"
+            style={{ maxHeight: "calc(100vh - 2rem)" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-start justify-between border-b border-slate-800 pb-3">
-              <div>
-                <h3 className="text-base font-bold text-white font-mono">{selectedFileModal.file}</h3>
-                <span className="text-xs text-slate-400">{selectedFileModal.language} • {selectedFileModal.lines} lines</span>
+            {/* Sticky header — never scrolls away */}
+            <div className="flex items-start justify-between border-b border-slate-800 p-6 pb-4 shrink-0">
+              <div className="flex-1 min-w-0 pr-3">
+                {/* break-all prevents long Windows paths from overflowing */}
+                <h3 className="text-base font-bold text-white font-mono break-all leading-snug">
+                  {selectedFileModal.file}
+                </h3>
+                <span className="text-xs text-slate-400">
+                  {selectedFileModal.language} • {selectedFileModal.lines} lines
+                </span>
               </div>
               <button
                 onClick={() => setSelectedFileModal(null)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800"
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 shrink-0"
               >
                 ✕
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
+            {/* Scrollable content area */}
+            <div className="overflow-y-auto flex-1 p-6 pt-4 space-y-3 text-xs">
               <div className="bg-[#0B0F17] p-3 rounded-xl border border-slate-800">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Architectural Role</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                  Architectural Role
+                </span>
                 <p className="text-slate-200">{selectedFileModal.role}</p>
               </div>
               <div className="bg-[#0B0F17] p-3 rounded-xl border border-slate-800">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Functional Intent</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                  Functional Intent
+                </span>
                 <p className="text-slate-300">{selectedFileModal.intent}</p>
               </div>
               <div className="flex justify-between items-center bg-[#0B0F17] p-3 rounded-xl border border-slate-800">
@@ -449,7 +511,8 @@ export default function TabAiArchitecture() {
               </div>
             </div>
 
-            <div className="flex justify-end pt-2">
+            {/* Sticky footer with Close button */}
+            <div className="flex justify-end px-6 py-4 border-t border-slate-800 shrink-0">
               <button
                 onClick={() => setSelectedFileModal(null)}
                 className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-4 py-2 rounded-lg"
@@ -458,9 +521,10 @@ export default function TabAiArchitecture() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
-    </div>
+    </>
   );
 }
 

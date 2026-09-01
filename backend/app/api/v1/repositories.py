@@ -11,6 +11,7 @@ import os
 logger = logging.getLogger(__name__)
 
 from app.schemas.repository import (
+    AnalysisStatusResponse,
     RepositoryCloneRequest,
     RepositoryCloneResponse,
     RepositoryResponse,
@@ -431,6 +432,77 @@ async def export_repository_analysis(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Export failed: {str(error)}",
         ) from error
+
+
+@router.get(
+    "/{repository_id}/analysis-status",
+    response_model=AnalysisStatusResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_repository_analysis_status(
+    repository_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> AnalysisStatusResponse:
+    """
+    Return the status of the latest AnalysisRun for a repository.
+
+    This endpoint is READ-ONLY — it never creates or triggers a new analysis.
+
+    Returns status="none" (HTTP 200) when no AnalysisRun exists yet,
+    so the frontend can safely poll without treating "not started yet"
+    as an error.
+    """
+    # Verify the repository exists first so callers get a clear 404
+    # rather than a confusing "none" for a completely unknown ID.
+    repo = await repository_repository.get_by_id(db, repository_id)
+    if repo is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Repository not found.",
+        )
+
+    # Find the latest AnalysisRun for this repository (any status)
+    stmt = (
+        select(AnalysisRun)
+        .where(AnalysisRun.repository_id == repository_id)
+        .order_by(AnalysisRun.created_at.desc())
+    )
+    result = await db.execute(stmt)
+    latest_run = result.scalars().first()
+
+    # No run exists yet — background task may not have committed yet
+    if latest_run is None:
+        return AnalysisStatusResponse(
+            repository_id=repository_id,
+            latest_run_id=None,
+            status="none",
+            total_files=0,
+            supported_files=0,
+            candidate_issues_count=0,
+            started_at=None,
+            completed_at=None,
+            duration_seconds=None,
+        )
+
+    # Compute real duration from actual DB timestamps
+    duration: float | None = None
+    if latest_run.completed_at and latest_run.started_at:
+        duration = (latest_run.completed_at - latest_run.started_at).total_seconds()
+    elif latest_run.started_at and latest_run.status == "running":
+        # Still running — show elapsed time so far
+        duration = (datetime.now(timezone.utc) - latest_run.started_at).total_seconds()
+
+    return AnalysisStatusResponse(
+        repository_id=repository_id,
+        latest_run_id=latest_run.id,
+        status=latest_run.status,
+        total_files=latest_run.total_files or 0,
+        supported_files=latest_run.supported_files or 0,
+        candidate_issues_count=latest_run.candidate_issues_count or 0,
+        started_at=latest_run.started_at,
+        completed_at=latest_run.completed_at,
+        duration_seconds=round(duration, 2) if duration is not None else None,
+    )
 
 
 # ============================================================
