@@ -1,198 +1,78 @@
-﻿// src/useBugTracker.jsx - Unified Shared Application State Provider
+// src/useBugTracker.jsx - Unified Shared Application State Provider
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { apiService } from "./api.js";
 import { authService } from "./auth.js";
-import { DEFAULT_STATS, DEFAULT_BUGS, DEFAULT_AI_SUMMARY, RECENT_SCANS } from "./mockData.js";
+import { DEFAULT_STATS, DEFAULT_AI_SUMMARY, RECENT_SCANS } from "./mockData.js";
+import { parseGitHubUrl, fetchGitHubRepo } from "./github.js";
 
 const BugTrackerContext = createContext(null);
 
 // =========================================================================
-// Generate real bugs from scanned file summaries
+// Convert real PostgreSQL CandidateIssue to UI Bug Object
 // =========================================================================
-const RULE_TEMPLATES = [
-  {
-    match: (f) => f.status === "Security Risk" || f.file.toLowerCase().includes("query") || f.file.toLowerCase().includes("sql"),
-    makeIssue: (f, idx, repoMeta) => ({
-      rule: "SQL_INJECTION",
-      title: `SQL Injection risk in ${f.file.split("/").pop()}`,
-      severity: "Critical",
-      priority: "P1 â€¢ Fix now",
-      wrong: "User-controlled input may be concatenated directly into a SQL query string without sanitization.",
-      matter: "An attacker could execute arbitrary SQL commands, dump data, or destroy database records.",
-      line: Math.floor(Math.random() * (f.lines || 100)) + 10,
-      snippet: [
-        { offset: -2, text: `def get_record(user_id):` },
-        { offset: -1, text: `    conn = get_db_connection()` },
-        { offset: 0, text: `    query = "SELECT * FROM records WHERE id = " + user_id`, isErr: true },
-        { offset: 1, text: `    return conn.execute(query).fetchall()`, isErr: true },
-      ],
-      fix: {
-        remove: `- query = "SELECT * FROM records WHERE id = " + user_id`,
-        add: `+ query = "SELECT * FROM records WHERE id = %s"\n+ conn.execute(query, (user_id,))`,
-        note: "Use parameterized queries so the database driver treats input as data, not executable SQL.",
-      },
-    }),
-  },
-  {
-    match: (f) => f.status === "Credential Leak" || f.file.toLowerCase().includes("secret") || f.file.toLowerCase().includes("credential") || f.file.toLowerCase().includes(".env") || f.file.toLowerCase().includes("deploy"),
-    makeIssue: (f, idx, repoMeta) => ({
-      rule: "HARDCODED_SECRET",
-      title: `Hardcoded credentials detected in ${f.file.split("/").pop()}`,
-      severity: "Critical",
-      priority: "P1 â€¢ Fix now",
-      wrong: "API keys or passwords appear to be hardcoded directly in source code.",
-      matter: "Any developer or attacker with repository access can extract and misuse the credentials.",
-      line: Math.floor(Math.random() * (f.lines || 50)) + 5,
-      snippet: [
-        { offset: -1, text: `# Production credentials` },
-        { offset: 0, text: `SECRET_KEY = "sk-prod-xxxxxxxxxxxxxxxxxxxxxxxx"`, isErr: true },
-        { offset: 1, text: `API_TOKEN = "ghp_xxxxxxxxxxxxxxxxxxxx"`, isErr: true },
-      ],
-      fix: {
-        remove: `- SECRET_KEY = "sk-prod-..."`,
-        add: `+ SECRET_KEY = os.environ.get("SECRET_KEY")\n+ API_TOKEN = os.environ.get("API_TOKEN")`,
-        note: "Load secrets from environment variables or a secrets manager. Never commit credentials to version control.",
-      },
-    }),
-  },
-  {
-    match: (f) => f.status === "Security Review" || f.file.toLowerCase().includes("auth") || f.file.toLowerCase().includes("jwt") || f.file.toLowerCase().includes("login") || f.file.toLowerCase().includes("token"),
-    makeIssue: (f, idx, repoMeta) => ({
-      rule: "NULL_DEREFERENCE",
-      title: `Missing auth validation in ${f.file.split("/").pop()}`,
-      severity: "High",
-      priority: "P2 â€¢ Fix this week",
-      wrong: "Authentication state is not checked before accessing protected resources.",
-      matter: "An unauthenticated request could bypass access controls and access sensitive data.",
-      line: Math.floor(Math.random() * (f.lines || 80)) + 15,
-      snippet: [
-        { offset: -1, text: `async def protected_endpoint(request):` },
-        { offset: 0, text: `    user = get_user_from_token(request)`, isErr: false },
-        { offset: 1, text: `    return user.profile_data  # user may be None`, isErr: true },
-      ],
-      fix: {
-        remove: `- return user.profile_data`,
-        add: `+ if user is None:\n+     raise HTTPException(status_code=401, detail="Unauthorized")\n+ return user.profile_data`,
-        note: "Always validate that authentication returned a valid user before accessing user-specific data.",
-      },
-    }),
-  },
-  {
-    match: (f) => f.status === "Memory Leak" || f.file.toLowerCase().includes("handler") || f.file.toLowerCase().includes("socket") || f.file.toLowerCase().includes("ws"),
-    makeIssue: (f, idx, repoMeta) => ({
-      rule: "UNCLOSED_RESOURCE",
-      title: `Resource leak detected in ${f.file.split("/").pop()}`,
-      severity: "High",
-      priority: "P2 â€¢ Fix this week",
-      wrong: "Connection or file handle is opened but not guaranteed to be closed on all code paths.",
-      matter: "Leads to resource exhaustion and crashes under load as handles accumulate over time.",
-      line: Math.floor(Math.random() * (f.lines || 80)) + 20,
-      snippet: [
-        { offset: -1, text: `def handle_connection(conn):` },
-        { offset: 0, text: `    data = conn.read()`, isErr: false },
-        { offset: 1, text: `    process(data)  # conn.close() missing`, isErr: true },
-      ],
-      fix: {
-        remove: `- data = conn.read()\n- process(data)`,
-        add: `+ with contextlib.closing(conn):\n+     data = conn.read()\n+     process(data)`,
-        note: "Use context managers (with statement) to guarantee resources are closed even on exceptions.",
-      },
-    }),
-  },
-  {
-    match: (f) => f.status === "Needs Review" || f.status === "Data Ingestion Error" || f.file.toLowerCase().includes("upload") || f.file.toLowerCase().includes("parse") || f.file.toLowerCase().includes("csv"),
-    makeIssue: (f, idx, repoMeta) => ({
-      rule: "UNHANDLED_IO",
-      title: `Unhandled exception in ${f.file.split("/").pop()}`,
-      severity: "Medium",
-      priority: "P3 â€¢ Backlog",
-      wrong: "File or network I/O is performed without exception handling, which will crash on unexpected input.",
-      matter: "Malformed input or network failures cause unhandled 500 errors and silent data loss.",
-      line: Math.floor(Math.random() * (f.lines || 60)) + 10,
-      snippet: [
-        { offset: -1, text: `def parse_file(path):` },
-        { offset: 0, text: `    with open(path) as f:`, isErr: false },
-        { offset: 1, text: `        return f.read().decode("utf-8")  # no error handling`, isErr: true },
-      ],
-      fix: {
-        remove: `- return f.read().decode("utf-8")`,
-        add: `+ try:\n+     return f.read().decode("utf-8", errors="replace")\n+ except (IOError, OSError) as e:\n+     logger.error(f"Failed to read {path}: {e}")\n+     return None`,
-        note: "Wrap I/O in try/except and use error-tolerant decoding to handle unexpected file content.",
-      },
-    }),
-  },
-  {
-    match: (f) => f.status === "Needs Optimization" || f.file.toLowerCase().includes("loop") || f.file.toLowerCase().includes("worker") || f.file.toLowerCase().includes("task"),
-    makeIssue: (f, idx, repoMeta) => ({
-      rule: "INFINITE_LOOP",
-      title: `Infinite loop risk in ${f.file.split("/").pop()}`,
-      severity: "Medium",
-      priority: "P3 â€¢ Backlog",
-      wrong: "A while loop or polling loop lacks a break condition and could run indefinitely.",
-      matter: "Will hang the process under certain conditions, consuming 100% CPU and blocking other tasks.",
-      line: Math.floor(Math.random() * (f.lines || 60)) + 10,
-      snippet: [
-        { offset: -1, text: `def poll_queue():` },
-        { offset: 0, text: `    while True:`, isErr: true },
-        { offset: 1, text: `        item = queue.get()`, isErr: false },
-        { offset: 2, text: `        process(item)  # no exit condition`, isErr: true },
-      ],
-      fix: {
-        remove: `- while True:`,
-        add: `+ max_retries = 1000\n+ for _ in range(max_retries):\n+     if queue.empty():\n+         break`,
-        note: "Add explicit exit conditions, timeouts, or retry limits to all polling loops.",
-      },
-    }),
-  },
-];
+function mapBackendCandidateIssueToUiBug(issue, index = 0) {
+  const lineNum = issue.line_number || 1;
+  const rawSev = (issue.severity || "medium").toLowerCase();
+  const normalizedSev = rawSev === "low" ? "Low" : rawSev === "high" ? "High" : "Medium";
 
-function generateBugsFromFileSummaries(fileSummaries, repoMeta) {
-  const now = new Date();
-  const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")} ${now.getHours() >= 12 ? "PM" : "AM"}`;
-  const repoName = repoMeta?.fullName || "scanned-repo";
-  const engineers = ["Alex Mercer", "Sarah Chen", "David Kumar", "Elena Rostova", "Marcus Vance"];
-
-  const bugs = [];
-  let bugCounter = 1;
-
-  for (const file of fileSummaries) {
-    // Find matching rule template(s)
-    const matchedTemplates = RULE_TEMPLATES.filter((t) => t.match(file));
-    if (matchedTemplates.length === 0) continue;
-
-    // Use the first matching template (avoid flooding with too many bugs per file)
-    const template = matchedTemplates[0];
-    const issue = template.makeIssue(file, bugCounter, repoMeta);
-    const lineNum = issue.line;
-
-    bugs.push({
-      id: `BUG-${now.getFullYear()}-${String(bugCounter).padStart(4, "0")}`,
-      file: file.file,  // â† REAL file path from the scanned repo
-      line: lineNum,
-      title: issue.title,
-      severity: issue.severity,
-      priority: issue.priority,
-      status: "Open",
-      engineer: engineers[bugCounter % engineers.length],
-      createdAt: dateStr,
-      similarCount: null,
-      engineerNotes: "",
-      wrong: issue.wrong,
-      matter: issue.matter,
-      codeSnippet: issue.snippet.map((s) => ({
-        num: lineNum + (s.offset || 0),
-        text: s.text,
-        isErr: s.isErr || false,
-      })),
-      suggestedFix: issue.fix,
-      ruleId: issue.rule,
-      language: file.language,
-    });
-
-    bugCounter++;
+  // Parse code snippet from PostgreSQL candidate_issues.code_snippet
+  const rawSnippet = issue.code_snippet || issue.codeSnippet || "";
+  let codeSnippet = [];
+  if (rawSnippet && typeof rawSnippet === "string" && rawSnippet.trim()) {
+    const rawLines = rawSnippet.split("\n");
+    codeSnippet = rawLines.map((text, offset) => ({
+      num: lineNum + offset,
+      text: text,
+      isErr: offset === 0,
+    }));
+  } else if (Array.isArray(issue.codeSnippet) && issue.codeSnippet.length > 0) {
+    codeSnippet = issue.codeSnippet;
+  } else if (issue.message || issue.title) {
+    codeSnippet = [
+      { num: lineNum, text: issue.message || issue.title, isErr: true },
+    ];
   }
 
-  return bugs;
+  // Priority mapping (P1: High, P2: Medium, P3: Low)
+  const rawPrio = (issue.urgency || issue.verified_priority || "p2").toLowerCase();
+  const priorityLabel =
+    rawPrio === "high" || rawPrio === "p1"
+      ? "P1 • Fix now"
+      : rawPrio === "low" || rawPrio === "p3" || rawPrio === "p4"
+      ? "P3 • Backlog"
+      : "P2 • Fix this week";
+
+  const engineers = ["Alex Mercer", "Sarah Chen", "David Kumar", "Elena Rostova", "Marcus Vance"];
+
+  const issueStatus = issue.status?.status
+    ? issue.status.status.charAt(0).toUpperCase() + issue.status.status.slice(1)
+    : "Open";
+
+  return {
+    id: issue.id,
+    file: issue.file_path || "unknown_file",
+    line: lineNum,
+    column: issue.column || null,
+    title: issue.title || issue.message || `Issue in ${issue.file_path}`,
+    severity: normalizedSev,
+    priority: priorityLabel,
+    status: issueStatus,
+    engineer: issue.assigned_to?.name || engineers[index % engineers.length],
+    createdAt: issue.created_at ? new Date(issue.created_at).toLocaleString() : "Recently detected",
+    similarCount: null,
+    engineerNotes: issue.verification_notes || issue.status?.remarks || "",
+    wrong: issue.description || issue.message || "Static analysis vulnerability finding.",
+    matter: issue.security_impact || "Potential logic or security flaw detected during AST analysis.",
+    rawSnippet: typeof rawSnippet === "string" ? rawSnippet : "",
+    codeSnippet,
+    suggestedFix: {
+      remove: `- ${codeSnippet[0]?.text || rawSnippet || ""}`,
+      add: `+ # Review and remediate ${issue.rule_id || "vulnerability"}`,
+      note: `Detected by rule ${issue.rule_id || "AST analyzer"}. Follow defensive coding practices.`,
+    },
+    ruleId: issue.rule_id,
+    language: issue.language,
+  };
 }
 
 export function BugTrackerProvider({ children }) {
@@ -215,9 +95,9 @@ export function BugTrackerProvider({ children }) {
   const [apiUrl, setApiUrlState] = useState(apiService.getBaseUrl());
   const [isLive, setIsLive] = useState(apiService.isLive);
 
-  // 5. Shared Data Objects
+  // 5. Shared Data Objects - initialized empty, populated strictly from DB/API
   const [stats, setStats] = useState(DEFAULT_STATS);
-  const [bugs, setBugs] = useState(DEFAULT_BUGS);
+  const [bugs, setBugs] = useState([]);
   const [aiSummary, setAiSummary] = useState(DEFAULT_AI_SUMMARY);
   const [recentScans, setRecentScans] = useState(RECENT_SCANS);
   const [repoMeta, setRepoMeta] = useState(null);
@@ -232,7 +112,6 @@ export function BugTrackerProvider({ children }) {
   const [githubToken, setGithubTokenState] = useState(() => apiService.getGitHubToken() || "");
   const [currentRepositoryId, setCurrentRepositoryId] = useState(null);
 
-
   // 7. Filters and Search Queries
   const [bugSearchQuery, setBugSearchQuery] = useState("");
   const [selectedSeverity, setSelectedSeverity] = useState("All");
@@ -244,8 +123,6 @@ export function BugTrackerProvider({ children }) {
   const [readNotificationIds, setReadNotificationIds] = useState(new Set());
 
   const notesTimerRef = useRef({});
-  // Ref that holds the current polling interval ID so it can be cancelled
-  // from anywhere (new scan start, unmount, completion, failure, timeout).
   const pollingRef = useRef(null);
 
   // Listen to API Live/Demo status changes
@@ -278,7 +155,6 @@ export function BugTrackerProvider({ children }) {
   // Analysis status polling
   // =========================================================================
 
-  // Cancel any running poll interval immediately.
   const stopPolling = useCallback(() => {
     if (pollingRef.current !== null) {
       clearInterval(pollingRef.current);
@@ -286,23 +162,17 @@ export function BugTrackerProvider({ children }) {
     }
   }, []);
 
-  // Start polling GET /analysis-status for repositoryId.
-  // Polls every 3 s, stops on completed/failed or after 5 min.
-  // Applies real metrics to state when completed.
   const startAnalysisPolling = useCallback(
     (repositoryId) => {
-      // Cancel any previous poll before starting a new one.
       stopPolling();
 
-      const POLL_INTERVAL_MS = 3000;
-      const POLL_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+      const POLL_INTERVAL_MS = 2500;
+      const POLL_TIMEOUT_MS = 5 * 60 * 1000;
       const startedAt = Date.now();
 
       pollingRef.current = setInterval(async () => {
-        // Guard: stop if the interval was already cleared externally.
         if (pollingRef.current === null) return;
 
-        // Hard timeout â€” stop regardless of status after 5 minutes.
         if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
           stopPolling();
           setIsScanning(false);
@@ -320,55 +190,57 @@ export function BugTrackerProvider({ children }) {
         const res = await apiService.getRepositoryAnalysisStatus(repositoryId);
 
         if (!res.live || !res.data) {
-          // Network hiccup â€” keep polling, don't give up on a single failure.
           return;
         }
 
-        const { status: runStatus, total_files, supported_files, candidate_issues_count, duration_seconds } = res.data;
+        const { status: runStatus, total_files, candidate_issues_count, duration_seconds } = res.data;
 
         if (runStatus === "none" || runStatus === "running") {
-          // Not done yet â€” update the stage label and keep polling.
           if (runStatus === "running") {
-            // Gently advance progress from 30 â†’ 90 while we wait.
-            setScanProgress((prev) => Math.min(prev + 2, 90));
-            setScanStage("âœ“ Analyzing codebase...");
+            setScanProgress((prev) => Math.min(prev + 3, 90));
+            setScanStage("✓ Analyzing codebase AST and detecting vulnerabilities...");
           }
-          return; // continue polling
+          return;
         }
 
-        // Terminal states â€” stop polling regardless.
         stopPolling();
 
         if (runStatus === "completed") {
-          // Apply real backend metrics to stats state.
-          // Explicitly clear linesOfCode so the DEFAULT_STATS placeholder
-          // (128,742) does not persist alongside real totalFiles/totalBugs.
-          setStats((prev) => ({
-            ...prev,
-            totalBugs: candidate_issues_count ?? prev.totalBugs,
-            totalFiles: total_files ?? prev.totalFiles,
-            scanTime: duration_seconds != null ? `${duration_seconds.toFixed(1)}s` : prev.scanTime,
-            linesOfCode: null, // cleared â€” real line count not available from analysis-status
-            critical: 0,       // reset to 0; no backend issue fetch here
-          }));
           setIsLive(true);
           setScanProgress(100);
 
-          // Update the matching recent scan preset status so it no longer
-          // shows "Analyzingâ€¦" now that analysis is complete.
+          // Retrieve live candidate issues from PostgreSQL
+          const bugsRes = await apiService.getBugs({ repository_id: repositoryId });
+          let realBugs = [];
+          if (bugsRes.live && Array.isArray(bugsRes.data)) {
+            realBugs = bugsRes.data.map((b, idx) => mapBackendCandidateIssueToUiBug(b, idx));
+            setBugs(realBugs);
+          }
+
+          setStats((prev) => ({
+            ...prev,
+            totalBugs: candidate_issues_count ?? realBugs.length,
+            totalFiles: total_files ?? prev.totalFiles,
+            scanTime: duration_seconds != null ? `${duration_seconds.toFixed(1)}s` : prev.scanTime,
+            linesOfCode: null,
+            high: realBugs.filter((b) => b.severity === "High").length,
+            medium: realBugs.filter((b) => b.severity === "Medium").length,
+            low: realBugs.filter((b) => b.severity === "Low").length,
+          }));
+
           setRecentScans((prev) =>
             prev.map((item) =>
               item.repository_id === repositoryId
                 ? {
                     ...item,
-                    status: `${candidate_issues_count ?? 0} issue${candidate_issues_count === 1 ? "" : "s"}`,
-                    badgeColor: (candidate_issues_count ?? 0) > 0 ? "bg-amber-500" : "bg-emerald-500",
+                    status: `${candidate_issues_count ?? realBugs.length} issue${(candidate_issues_count ?? realBugs.length) === 1 ? "" : "s"}`,
+                    badgeColor: (candidate_issues_count ?? realBugs.length) > 0 ? "bg-amber-500" : "bg-emerald-500",
                   }
                 : item
             )
           );
 
-          setScanStage("âœ“ Analysis complete");
+          setScanStage("✓ Analysis complete");
           setIsScanning(false);
           setScanCompleted(true);
         } else if (runStatus === "failed") {
@@ -378,44 +250,38 @@ export function BugTrackerProvider({ children }) {
           setScanCompleted(false);
           setScanError({
             message:
-              "Backend analysis failed for this repository. " +
-              "Check server logs or try re-scanning.",
+              "Backend analysis failed for this repository. Check server logs or try re-scanning.",
             type: "unknown",
           });
         }
       }, POLL_INTERVAL_MS);
     },
-    [stopPolling] // eslint-disable-line react-hooks/exhaustive-deps
+    [stopPolling]
   );
 
-  // Clean up polling interval on provider unmount.
   useEffect(() => {
     return () => stopPolling();
   }, [stopPolling]);
 
-  // Backend data loader (used only when a real backend is available)
+  // Backend data loader
   const loadData = useCallback(async () => {
-    const [statsRes, bugsRes, aiRes] = await Promise.all([
-      apiService.getDashboardStats(),
+    const [reposRes, bugsRes] = await Promise.all([
+      apiService.getRepositories(),
       apiService.getBugs(),
-      apiService.getAiSummary(),
     ]);
 
-    setIsLive(statsRes.live || bugsRes.live || aiRes.live);
+    setIsLive(reposRes.live || bugsRes.live);
 
-    if (statsRes.live && statsRes.data) setStats(statsRes.data);
-    if (aiRes.live && aiRes.data) setAiSummary(aiRes.data);
-
-    if (bugsRes.live && bugsRes.data) {
-      setBugs((currentBugs) => {
-        const localMap = new Map(currentBugs.map((b) => [b.id, b]));
-        return bugsRes.data.map((fetchedBug) => {
-          const local = localMap.get(fetchedBug.id);
-          return local
-            ? { ...fetchedBug, status: local.status, engineerNotes: local.engineerNotes || fetchedBug.engineerNotes }
-            : fetchedBug;
-        });
-      });
+    if (bugsRes.live && Array.isArray(bugsRes.data)) {
+      const mapped = bugsRes.data.map((b, idx) => mapBackendCandidateIssueToUiBug(b, idx));
+      setBugs(mapped);
+      setStats((prev) => ({
+        ...prev,
+        totalBugs: mapped.length,
+        high: mapped.filter((b) => b.severity === "High").length,
+        medium: mapped.filter((b) => b.severity === "Medium").length,
+        low: mapped.filter((b) => b.severity === "Low").length,
+      }));
     }
   }, []);
 
@@ -423,12 +289,7 @@ export function BugTrackerProvider({ children }) {
     if (isAuthenticated) loadData();
   }, [isAuthenticated, loadData]);
 
-  // On login, populate recent scans from the real DB repository list
-  // (newest-first). Falls back to the existing RECENT_SCANS mock if the
-  // backend is unavailable or returns an empty list.
-  // Also fetches analysis status for each repo so the preset shows
-  // real status (completed / running / none / failed) rather than a
-  // generic "Previously scanned" label.
+  // On login, populate recent scans and default repository
   useEffect(() => {
     if (!isAuthenticated) return;
 
@@ -436,9 +297,8 @@ export function BugTrackerProvider({ children }) {
       const res = await apiService.getRepositories();
       if (!res.live || !Array.isArray(res.data) || res.data.length === 0) return;
 
-      // Map DB RepositoryResponse â†’ recentScans shape (initial neutral state).
       const dbScans = res.data.slice(0, 5).map((repo) => ({
-        repository_id: repo.id,         // real backend ID â€” used by preset click handler
+        repository_id: repo.id,
         name: repo.name,
         repo_url: repo.source_url || null,
         date: new Date(repo.created_at).toLocaleDateString("en-US", {
@@ -453,8 +313,18 @@ export function BugTrackerProvider({ children }) {
 
       setRecentScans(dbScans);
 
-      // Enrich each preset with the real analysis status in the background.
-      // This runs after the initial list is shown so the UI isn't blocked.
+      // Default to latest repository if none selected yet
+      if (!currentRepositoryId && res.data[0]) {
+        const latestRepo = res.data[0];
+        setCurrentRepositoryId(latestRepo.id);
+        const bugsRes = await apiService.getBugs({ repository_id: latestRepo.id });
+        if (bugsRes.live && Array.isArray(bugsRes.data) && bugsRes.data.length > 0) {
+          const mapped = bugsRes.data.map((b, idx) => mapBackendCandidateIssueToUiBug(b, idx));
+          setBugs(mapped);
+        }
+      }
+
+      // Enrich presets with real analysis status in background
       for (const repo of res.data.slice(0, 5)) {
         const statusRes = await apiService.getRepositoryAnalysisStatus(repo.id);
         if (!statusRes.live || !statusRes.data) continue;
@@ -468,14 +338,11 @@ export function BugTrackerProvider({ children }) {
           statusLabel = count > 0 ? `${count} issue${count === 1 ? "" : "s"}` : "Clean";
           badgeColor = count > 0 ? "bg-amber-500" : "bg-emerald-500";
         } else if (runStatus === "running") {
-          statusLabel = "Analyzingâ€¦";
+          statusLabel = "Analyzing…";
           badgeColor = "bg-cyan-500";
         } else if (runStatus === "failed") {
           statusLabel = "Analysis failed";
           badgeColor = "bg-red-500";
-        } else if (runStatus === "none") {
-          statusLabel = "Not analyzed";
-          badgeColor = "bg-slate-600";
         }
 
         setRecentScans((prev) =>
@@ -487,7 +354,7 @@ export function BugTrackerProvider({ children }) {
         );
       }
     })();
-  }, [isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   const login = async (email, password) => {
     const res = await authService.login(email, password);
@@ -535,13 +402,10 @@ export function BugTrackerProvider({ children }) {
     setScanProgress(5);
     setScanStage("Connecting to repository...");
     setScanCompleted(false);
-    // Cancel any existing poll before starting a new scan.
     stopPolling();
-    // Reset stale repository-specific data so the previous repository's
-    // metrics don't remain visible while the new scan runs.
     setCurrentRepositoryId(null);
     setStats(DEFAULT_STATS);
-    setBugs(DEFAULT_BUGS);
+    setBugs([]);
 
     const targetUrl = typeof targetInput === "string" ? targetInput.trim() : repoUrl;
     if (!isFile && typeof targetInput === "string") {
@@ -550,12 +414,9 @@ export function BugTrackerProvider({ children }) {
 
     try {
       if (!isFile) {
-        // â”€â”€ GitHub URL path: clone via backend, then fetch metadata from GitHub API â”€â”€
         setScanStage("Validating GitHub repository...");
         setScanProgress(15);
 
-        // First validate the URL looks like a GitHub repo
-        const { parseGitHubUrl, fetchGitHubRepo, RepoAccessError } = await import("./github.js");
         const parsed = parseGitHubUrl(targetUrl);
         if (!parsed) {
           throw Object.assign(
@@ -567,23 +428,21 @@ export function BugTrackerProvider({ children }) {
         setScanStage("Downloading repository to scan engine...");
         setScanProgress(25);
 
-        // Clone via backend
         let cloneData;
         try {
-          const cloneRes = await fetch("http://localhost:8000/api/v1/repositories/clone", {
+          const cloneRes = await fetch(`${apiService.getBaseUrl()}/repositories/clone`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ repository_url: targetUrl }),
-            signal: AbortSignal.timeout(120000), // 2 min for large repos
+            signal: AbortSignal.timeout(120000),
           });
 
           if (!cloneRes.ok) {
             const err = await cloneRes.json().catch(() => ({}));
             const detail = err.detail || cloneRes.statusText;
-            // Map backend error to typed frontend error
             if (cloneRes.status === 400) {
               throw Object.assign(
-                new Error(`Unable to clone repository. It may be private, not found, or the URL is invalid.\n\nDetails: ${detail}`),
+                new Error(`Unable to clone repository. It may be private or invalid.\nDetails: ${detail}`),
                 { type: "not_found" }
               );
             }
@@ -594,95 +453,75 @@ export function BugTrackerProvider({ children }) {
         } catch (err) {
           if (err.name === "TimeoutError" || err.name === "AbortError") {
             throw Object.assign(
-              new Error("Repository download timed out after 2 minutes. The repository may be too large or the server is unreachable."),
+              new Error("Repository download timed out after 2 minutes."),
               { type: "unknown" }
             );
           }
-          if (err.type) throw err; // already typed
+          if (err.type) throw err;
           throw Object.assign(
-            new Error("Backend server is not reachable. Please start it with: uvicorn app.main:app --port 8000"),
+            new Error("Backend server is not reachable. Please check if FastAPI is running on port 8000."),
             { type: "no_backend" }
           );
         }
 
-        setScanStage(`âœ“ Cloned ${cloneData.repository_name} â€” fetching GitHub metadata...`);
+        setScanStage(`✓ Cloned ${cloneData.repository_name} — fetching metadata...`);
         setScanProgress(50);
 
-        // In parallel, fetch GitHub API metadata for the UI
         let githubResult = null;
         try {
           githubResult = await fetchGitHubRepo(targetUrl);
         } catch (_) {
-          // Non-fatal â€” repo is cloned, metadata just won't be available
+          // Non-fatal
         }
 
-        // Apply GitHub metadata (stars, forks, description, repoMeta banner).
-        // Do NOT use heuristic stats/bugs from GitHub as the source of truth â€”
-        // those will be overwritten by real backend data once polling completes.
         if (githubResult) {
           setAiSummary(githubResult.aiSummary);
           setRepoMeta(githubResult.repoMeta);
-          // Only pre-populate fileSummary-based bugs if no backend id is set yet;
-          // polling completion will later overwrite totalBugs with the real count.
-          const fileSummaries = githubResult.aiSummary?.fileSummaries || [];
-          if (fileSummaries.length > 0) {
-            setBugs(generateBugsFromFileSummaries(fileSummaries, githubResult.repoMeta));
-          }
         }
 
-        // Store the backend repository_id so Architecture tab and polling work.
         if (cloneData?.repository_id) {
           setCurrentRepositoryId(cloneData.repository_id);
         }
 
         setIsLive(true);
 
-        // Add to recent scans list (runtime â€” persisted list is loaded from DB on
-        // next login via the useEffect above).
         const cleanName = cloneData.repository_name;
-        const critical = githubResult?.stats?.critical || 0;
         setRecentScans((prev) => [
           {
             repository_id: cloneData.repository_id,
             name: cleanName,
             repo_url: targetUrl,
             date: "Just now",
-            status: critical > 0 ? `${critical} Critical` : "Analyzingâ€¦",
-            badgeColor: critical > 0 ? "bg-red-500" : "bg-cyan-500",
+            status: "Analyzing…",
+            badgeColor: "bg-cyan-500",
             totalBugs: 0,
           },
           ...prev.filter((item) => item.repo_url !== targetUrl).slice(0, 4),
         ]);
 
-        // Start polling for real analysis metrics. The clone endpoint already
-        // schedules a background AnalysisRun â€” we just poll until it finishes.
-        // setScanCompleted / setScanProgress(100) are handled inside the poller.
-        setScanStage("âœ“ Repository downloaded â€” analyzing codebase...");
+        setScanStage("✓ Repository downloaded — analyzing codebase AST...");
         setScanProgress(30);
-        // Keep isScanning=true so the progress bar stays visible during polling.
-        // The poller will call setIsScanning(false) when done.
+
         if (cloneData?.repository_id) {
           startAnalysisPolling(cloneData.repository_id);
         } else {
-          // No repository_id means something unusual happened â€” finish gracefully.
           setScanProgress(100);
-          setScanStage("âœ“ Scan complete");
+          setScanStage("✓ Scan complete");
           setScanCompleted(true);
           setIsScanning(false);
         }
-        // Return early â€” do NOT fall through to the outer setScanCompleted(true).
         return;
 
       } else {
-        // â”€â”€ ZIP upload path: send to backend â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ZIP upload path
         setScanStage("Uploading archive to scan engine...");
         setScanProgress(20);
 
         let uploadData;
         try {
-          const uploadRes = await fetch("http://localhost:8000/api/v1/repositories/upload", {
+          const uploadRes = await fetch(`${apiService.getBaseUrl()}/repositories/upload`, {
             method: "POST",
-            body: targetInput, // FormData
+            body: targetInput,
             signal: AbortSignal.timeout(120000),
           });
 
@@ -698,25 +537,23 @@ export function BugTrackerProvider({ children }) {
         } catch (err) {
           if (err.type) throw err;
           throw Object.assign(
-            new Error("Backend server is not reachable. Please start it with: uvicorn app.main:app --port 8000"),
+            new Error("Backend server is not reachable. Please check if FastAPI is running on port 8000."),
             { type: "no_backend" }
           );
         }
 
-        setScanStage(`âœ“ Uploaded ${uploadData.repository_name} â€” analyzing...`);
+        setScanStage(`✓ Uploaded ${uploadData.repository_name} — analyzing...`);
         setScanProgress(30);
 
-        // Set repo metadata for the banner (no GitHub API for ZIP uploads).
         setRepoMeta({
           fullName: uploadData.repository_name,
           description: "Uploaded ZIP archive",
           stars: 0,
           forks: 0,
           totalFiles: 0,
-          defaultBranch: "â€”",
+          defaultBranch: "—",
         });
 
-        // Store the backend repository_id so Architecture tab and polling work.
         if (uploadData?.repository_id) {
           setCurrentRepositoryId(uploadData.repository_id);
         }
@@ -729,31 +566,27 @@ export function BugTrackerProvider({ children }) {
             name: uploadData.repository_name,
             repo_url: null,
             date: "Just now",
-            status: "Analyzingâ€¦",
+            status: "Analyzing…",
             badgeColor: "bg-cyan-500",
             totalBugs: 0,
           },
           ...prev.slice(0, 4),
         ]);
 
-        // Start polling for real analysis metrics.
-        setScanStage("âœ“ Archive uploaded â€” analyzing codebase...");
+        setScanStage("✓ Archive uploaded — analyzing codebase AST...");
         if (uploadData?.repository_id) {
           startAnalysisPolling(uploadData.repository_id);
         } else {
           setScanProgress(100);
-          setScanStage("âœ“ Archive scan complete");
+          setScanStage("✓ Archive scan complete");
           setScanCompleted(true);
           setIsScanning(false);
         }
-        // Return early â€” polling handles setScanCompleted.
         return;
       }
 
-      setScanCompleted(true);
-
     } catch (err) {
-      stopPolling(); // cancel any in-flight poll on scan error
+      stopPolling();
       setScanProgress(0);
       setScanStage("");
       setScanCompleted(false);
@@ -762,8 +595,6 @@ export function BugTrackerProvider({ children }) {
         type: err.type || "unknown",
       });
     } finally {
-      // Only clear isScanning here when polling is NOT active.
-      // When polling is active it owns isScanning and will clear it on completion.
       if (pollingRef.current === null) {
         setIsScanning(false);
       }
@@ -771,73 +602,49 @@ export function BugTrackerProvider({ children }) {
   };
 
   const loadRecentScan = (recentItem) => {
-    // If the preset has a real backend repository_id, restore its analysis
-    // metrics without re-cloning or re-analyzing.
     if (recentItem.repository_id) {
-      // Reset stale state from the previous repository immediately so the UI
-      // shows neutral/loading values instead of the previous repo's numbers.
       stopPolling();
       setCurrentRepositoryId(recentItem.repository_id);
       setStats(DEFAULT_STATS);
-      setBugs(DEFAULT_BUGS);
+      setBugs([]);
       setScanCompleted(false);
       setScanError(null);
       if (recentItem.repo_url) setRepoUrl(recentItem.repo_url);
 
-      // Fetch the analysis status for this repo and apply real metrics if done.
       (async () => {
-        const res = await apiService.getRepositoryAnalysisStatus(recentItem.repository_id);
-        if (res.live && res.data && res.data.status === "completed") {
-          const { total_files, candidate_issues_count, duration_seconds } = res.data;
+        const [statusRes, bugsRes] = await Promise.all([
+          apiService.getRepositoryAnalysisStatus(recentItem.repository_id),
+          apiService.getBugs({ repository_id: recentItem.repository_id }),
+        ]);
+
+        if (bugsRes.live && Array.isArray(bugsRes.data)) {
+          const mapped = bugsRes.data.map((b, idx) => mapBackendCandidateIssueToUiBug(b, idx));
+          setBugs(mapped);
+        }
+
+        if (statusRes.live && statusRes.data && statusRes.data.status === "completed") {
+          const { total_files, candidate_issues_count, duration_seconds } = statusRes.data;
           setStats((prev) => ({
             ...prev,
             totalBugs: candidate_issues_count ?? 0,
             totalFiles: total_files ?? prev.totalFiles,
             scanTime: duration_seconds != null ? `${duration_seconds.toFixed(1)}s` : prev.scanTime,
-            linesOfCode: null, // cleared to prevent stale DEFAULT_STATS value
-            critical: 0,       // reset; no backend issue fetch here
+            linesOfCode: null,
+            critical: 0,
           }));
           setIsLive(true);
           setScanCompleted(true);
-        } else if (res.live && res.data && res.data.status === "running") {
-          // Analysis still in progress â€” resume polling.
+        } else if (statusRes.live && statusRes.data && statusRes.data.status === "running") {
           setScanCompleted(false);
           setIsScanning(true);
           setScanProgress(30);
-          setScanStage("âœ“ Resuming analysis monitoring...");
+          setScanStage("✓ Resuming analysis monitoring...");
           startAnalysisPolling(recentItem.repository_id);
-        } else if (res.live && res.data && res.data.status === "none") {
-          // No analysis run yet â€” show neutral zero state, not DEFAULT_STATS.
-          setStats((prev) => ({
-            ...prev,
-            totalBugs: 0,
-            totalFiles: 0,
-            scanTime: "â€”",
-            linesOfCode: null,
-            critical: 0,
-          }));
-          setBugs([]);
-          setScanCompleted(false);
-        } else if (res.live && res.data && res.data.status === "failed") {
-          // Analysis failed â€” show zero state.
-          setStats((prev) => ({
-            ...prev,
-            totalBugs: 0,
-            totalFiles: 0,
-            scanTime: "â€”",
-            linesOfCode: null,
-            critical: 0,
-          }));
-          setBugs([]);
-          setScanCompleted(false);
         }
-        // If res.live is false (backend unreachable), stats stay as DEFAULT_STATS
-        // which is the correct demo/fallback behavior.
       })();
       return;
     }
 
-    // Demo/mock preset â€” use the original re-scan behaviour.
     if (recentItem.repo_url) {
       setRepoUrl(recentItem.repo_url);
       runScan(recentItem.repo_url, false);
@@ -851,7 +658,7 @@ export function BugTrackerProvider({ children }) {
 
   const clearScanError = () => setScanError(null);
 
-  // Toggle Bug Resolution Status
+  // Toggle Bug Resolution Status - persists to PostgreSQL
   const toggleResolveBug = async (bugId) => {
     let nextStatus = "Resolved";
     setBugs((prevBugs) =>
@@ -873,7 +680,26 @@ export function BugTrackerProvider({ children }) {
     setIsLive(res.live);
   };
 
-  // Update Engineer Remarks
+  // Update Bug Severity - persists to PostgreSQL
+  const updateBugSeverity = async (bugId, nextSeverity) => {
+    const formattedSev =
+      nextSeverity.toLowerCase() === "low"
+        ? "Low"
+        : nextSeverity.toLowerCase() === "medium"
+        ? "Medium"
+        : "High";
+
+    setBugs((prevBugs) =>
+      prevBugs.map((b) => (b.id === bugId ? { ...b, severity: formattedSev } : b))
+    );
+    if (activeDrawerBug && activeDrawerBug.id === bugId) {
+      setActiveDrawerBug((prev) => ({ ...prev, severity: formattedSev }));
+    }
+    const res = await apiService.updateBugSeverity(bugId, formattedSev.toLowerCase());
+    setIsLive(res.live);
+  };
+
+  // Update Engineer Remarks - persists to PostgreSQL with debounce
   const updateBugNotes = (bugId, newNotes) => {
     setBugs((prevBugs) =>
       prevBugs.map((b) => (b.id === bugId ? { ...b, engineerNotes: newNotes } : b))
@@ -899,11 +725,14 @@ export function BugTrackerProvider({ children }) {
 
   // Computed Values
   const totalBugsCount = bugs.length;
-  const criticalUnresolvedCount = bugs.filter(
-    (b) => b.severity === "Critical" && b.status !== "Resolved"
-  ).length;
   const highUnresolvedCount = bugs.filter(
     (b) => b.severity === "High" && b.status !== "Resolved"
+  ).length;
+  const mediumUnresolvedCount = bugs.filter(
+    (b) => b.severity === "Medium" && b.status !== "Resolved"
+  ).length;
+  const lowUnresolvedCount = bugs.filter(
+    (b) => b.severity === "Low" && b.status !== "Resolved"
   ).length;
   const resolvedCount = bugs.filter((b) => b.status === "Resolved").length;
   const openCount = bugs.filter((b) => b.status !== "Resolved").length;
@@ -943,13 +772,13 @@ export function BugTrackerProvider({ children }) {
     scanError, clearScanError,
     githubToken, saveGithubToken,
     runScan, loadRecentScan,
-    toggleResolveBug, updateBugNotes,
+    toggleResolveBug, updateBugSeverity, updateBugNotes,
     bugSearchQuery, setBugSearchQuery,
     selectedSeverity, setSelectedSeverity,
     selectedStatus, setSelectedStatus,
     aiSearchQuery, setAiSearchQuery,
     selectedFileFilter, setSelectedFileFilter,
-    totalBugsCount, criticalUnresolvedCount, highUnresolvedCount,
+    totalBugsCount, highUnresolvedCount, mediumUnresolvedCount, lowUnresolvedCount,
     resolvedCount, openCount, resolutionPercentage,
     dynamicNotifications, unreadNotificationCount,
     markNotificationAsRead, markAllNotificationsAsRead,

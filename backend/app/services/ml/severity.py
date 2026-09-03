@@ -17,7 +17,7 @@ CANONICAL_RULE_SEVERITY_MAP: Dict[str, str] = {
     "JAVA_DIV_001": "MEDIUM",
     "JAVA_EXC_001": "HIGH",
     "JAVA_RES_001": "HIGH",
-    "JAVA_INF_001": "CRITICAL",
+    "JAVA_INF_001": "HIGH",
     "PY_DIV_001": "MEDIUM",
     "PY_ASS_001": "MEDIUM",
     "PY_MUT_001": "HIGH",
@@ -32,7 +32,6 @@ SEVERITY_ORDINAL: Dict[str, int] = {
     "LOW": 0,
     "MEDIUM": 1,
     "HIGH": 2,
-    "CRITICAL": 3,
 }
 
 

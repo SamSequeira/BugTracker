@@ -1,4 +1,4 @@
-﻿"""
+"""
 bug_enrichment_service.py
 -------------------------
 Bug Enrichment Service.
@@ -33,10 +33,10 @@ from app.services.language_detector import detect_language
 logger = logging.getLogger(__name__)
 
 PRIORITY_DISPLAY_MAP = {
-    "p1": "P1 â€¢ Fix now",
-    "p2": "P2 â€¢ Fix this week",
-    "p3": "P3 â€¢ Backlog",
-    "p4": "P4 â€¢ Low priority",
+    "p1": "P1 • Fix now",
+    "p2": "P2 • Fix this week",
+    "p3": "P3 • Backlog",
+    "p4": "P4 • Low priority",
 }
 
 SEVERITY_IMPACT_MAP = {

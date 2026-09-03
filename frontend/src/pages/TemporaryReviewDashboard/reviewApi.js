@@ -1,43 +1,28 @@
 // frontend/src/pages/TemporaryReviewDashboard/reviewApi.js
-// Temporary API client for Human Ground-Truth Dataset Review
+// Client API for Human Ground-Truth Dataset Review
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = "http://localhost:8000/api/v1";
 
 /**
  * Fetch the deterministic review batch of 200 real candidate issues.
  */
 export async function fetchReviewBatch(targetSize = 200, randomSeed = 42) {
-  try {
-    const response = await fetch(`${API_BASE}/candidate-issues/review/batch`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        target_size: targetSize,
-        random_seed: randomSeed,
-        max_per_rule_per_repo: 25,
-      }),
-    });
+  const response = await fetch(`${API_BASE}/candidate-issues/review/batch`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      target_size: targetSize,
+      random_seed: randomSeed,
+      max_per_rule_per_repo: 25,
+    }),
+  });
 
-    if (!response.ok) {
-      throw new Error(`Failed to load review batch (${response.status})`);
-    }
-
-    const data = await response.json();
-    return data.items || [];
-  } catch (err) {
-    console.warn("API batch generation failed, falling back to static batch data:", err);
-    // Fallback: fetch static batch file if available
-    try {
-      const staticRes = await fetch("/backend/data/review_batch_200.json");
-      if (staticRes.ok) {
-        const staticData = await staticRes.json();
-        return staticData.items || [];
-      }
-    } catch {
-      // ignore
-    }
-    throw err;
+  if (!response.ok) {
+    throw new Error(`Failed to load review batch (${response.status})`);
   }
+
+  const data = await response.json();
+  return data.items || [];
 }
 
 /**

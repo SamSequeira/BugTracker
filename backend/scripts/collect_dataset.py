@@ -146,10 +146,10 @@ async def print_status(session: AsyncSession):
         status_tag = "[MET]" if count >= 30 else f"[{count}/30]"
         print(f"  - {prio:<10}: {count:>3}  {status_tag}")
 
-    print("\nVerified Severity x Priority 4x4 Cross-Tab (Real Ground Truth):")
+    print("\nVerified Severity x Priority 3x3 Cross-Tab (Real Ground Truth):")
     crosstab = stats.get("crosstab", {})
-    severities = ["critical", "high", "medium", "low"]
-    priorities = ["p1", "p2", "p3", "p4"]
+    severities = ["high", "medium", "low"]
+    priorities = ["p1", "p2", "p3"]
     header = "           " + "  ".join(f"{p.upper():>6}" for p in priorities)
     print(header)
     print("  " + "-" * len(header))
@@ -438,25 +438,26 @@ async def interactive_review_session(
         elif action == "c":
             # 1. Ask for severity
             while True:
-                sev_input = input("Verified Severity [critical / high / medium / low]: ").strip().lower()
-                if sev_input in ("critical", "high", "medium", "low"):
+                sev_input = input("Verified Severity [high / medium / low]: ").strip().lower()
+                if sev_input in ("high", "medium", "low"):
                     break
-                print("Error: Invalid severity. Must be one of: critical, high, medium, low")
+                print("Error: Invalid severity. Must be one of: high, medium, low")
 
             # 2. Ask for priority
             while True:
-                prio_input = input("Verified Priority [p1 / p2 / p3 / p4]: ").strip().lower()
-                if prio_input in ("p1", "p2", "p3", "p4"):
+                prio_input = input("Verified Priority [p1 / p2 / p3]: ").strip().lower()
+                if prio_input in ("p1", "p2", "p3"):
                     break
-                print("Error: Invalid priority. Must be one of: p1, p2, p3, p4")
+                print("Error: Invalid priority. Must be one of: p1, p2, p3")
 
             # 3. Ask for reviewer rationale
             while True:
                 notes = input("Reviewer Verification Rationale (required): ").strip()
                 if notes:
                     break
-                print("Error: Verification rationale notes are required.")
+                print("Error: Rationale cannot be empty.")
 
+            # Apply label update to live PostgreSQL DB
             await candidate_issue_repository.update_labels(
                 db=session,
                 issue_id=issue_id,
@@ -465,8 +466,9 @@ async def interactive_review_session(
                 verification_notes=notes,
                 is_false_positive=False,
             )
+            await session.commit()
             session_confirmed += 1
-            print(f"  [OK] Confirmed issue {issue_id}: severity={sev_input}, priority={prio_input}.")
+            print(f"  [OK] Successfully labeled issue {issue_id}: {sev_input.upper()} / {prio_input.upper()}")
             curr_idx += 1
         elif action == "s":
             session_skipped += 1

@@ -78,10 +78,15 @@ backend/data/repos/
 # Java / Maven build output
 **/target/
 
-# Generated AST/output files
-# Uncomment if these should NOT be committed:
-# output/
-*.log
+# Testing and type checking caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+coverage/
+
+# Runtime repository clones and uploads
+repositories/
+backend/repositories/
 
 # ML model weights
 *.safetensors

@@ -37,6 +37,10 @@ def _optional(name: str, default: str = "") -> str:
     return os.getenv(name, default).strip()
 
 
+AWS_REGION = _optional("AWS_REGION", "us-east-1")
+S3_BUCKET_NAME = _optional("S3_BUCKET_NAME", "bugtracker-repositories")
+
+
 # ---------------------------------------------------------------------------
 # AWS / S3
 # ---------------------------------------------------------------------------
@@ -46,18 +50,14 @@ class S3Config:
 
     @property
     def bucket_name(self) -> str:
-        return _require("S3_BUCKET_NAME")
+        return _optional("S3_BUCKET_NAME", "bugtracker-repositories")
 
     @property
     def region(self) -> str:
-        return _require("AWS_REGION")
+        return _optional("AWS_REGION", "us-east-1")
 
     @property
     def access_key_id(self) -> str:
-        """
-        AWS_ACCESS_KEY_ID — optional when running on EC2/ECS/Lambda with an
-        IAM role attached; required for local development.
-        """
         return _optional("AWS_ACCESS_KEY_ID")
 
     @property
@@ -76,15 +76,11 @@ class S3Config:
 
     @property
     def enabled(self) -> bool:
-        """
-        S3 upload is enabled when S3_BUCKET_NAME and AWS_REGION are set.
-        Set S3_ENABLED=false to disable S3 uploads in local dev without
-        unsetting the other vars.
-        """
         flag = _optional("S3_ENABLED", "true").lower()
         if flag in ("false", "0", "no"):
             return False
         return bool(_optional("S3_BUCKET_NAME") and _optional("AWS_REGION"))
+
 
 class Settings:
     @property
@@ -99,7 +95,7 @@ class Settings:
 
     @property
     def JWT_SECRET_KEY(self) -> str:
-        return _require("JWT_SECRET_KEY")
+        return _optional("JWT_SECRET_KEY", "dev-secret-key-1234567890-change-in-prod")
 
     @property
     def JWT_ALGORITHM(self) -> str:
@@ -114,7 +110,6 @@ class Settings:
             )
         )
 
+
 settings = Settings()
-
-
 s3_config = S3Config()

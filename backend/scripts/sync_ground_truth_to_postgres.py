@@ -75,12 +75,14 @@ async def sync():
 
             gt_label = r.get("ground_truth") or r.get("label")
             raw_sev = str(r.get("severity") or "medium").lower()
-            if raw_sev not in ("critical", "high", "medium", "low"):
+            if raw_sev == "critical":
+                raw_sev = "high"
+            elif raw_sev not in ("high", "medium", "low"):
                 raw_sev = "medium"
 
-            raw_prio = str(r.get("priority") or "p3").lower()
-            if raw_prio not in ("p1", "p2", "p3", "p4"):
-                raw_prio = "p3"
+            raw_prio = str(r.get("priority") or "p2").lower()
+            if raw_prio not in ("p1", "p2", "p3"):
+                raw_prio = "p2"
 
             v_sev = raw_sev if gt_label == "TRUE_POSITIVE" else None
             v_prio = raw_prio if gt_label == "TRUE_POSITIVE" else None

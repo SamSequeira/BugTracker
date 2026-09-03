@@ -30,7 +30,7 @@ export default function TabRepositoryScanner() {
     loadRecentScan,
     stats,
     repoMeta,
-    criticalUnresolvedCount,
+    highUnresolvedCount,
     resolvedCount,
     resolutionPercentage,
     setActiveTab,
@@ -477,11 +477,11 @@ export default function TabRepositoryScanner() {
 
         <div className="bg-[#131B2E] border border-red-500/20 rounded-xl p-5 space-y-1 shadow-md">
           <div className="flex items-center justify-between text-xs text-slate-400">
-            <span>Open Critical Issues</span>
+            <span>Open High Priority Issues</span>
             <span className="p-1.5 bg-red-500/10 text-red-400 rounded-lg">🚨</span>
           </div>
-          <div className="text-2xl font-bold text-red-400 font-mono">{stats.critical ?? criticalUnresolvedCount}</div>
-          <div className="text-[11px] text-red-300">Requires immediate P1 containment</div>
+          <div className="text-2xl font-bold text-red-400 font-mono">{stats.high ?? highUnresolvedCount}</div>
+          <div className="text-[11px] text-red-300">Requires immediate P1 / P2 containment</div>
         </div>
 
         <div className="bg-[#131B2E] border border-emerald-500/20 rounded-xl p-5 space-y-1 shadow-md">

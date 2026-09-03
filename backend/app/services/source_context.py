@@ -10,8 +10,28 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+import tempfile
+
 backend_dir = Path(__file__).resolve().parent.parent.parent
 workspace_dir = backend_dir.parent
+
+ALLOWED_ROOTS = [
+    backend_dir.resolve(),
+    workspace_dir.resolve(),
+    (backend_dir / "repositories").resolve(),
+    (workspace_dir / "repositories").resolve(),
+    Path.cwd().resolve(),
+    Path(tempfile.gettempdir()).resolve(),
+]
+
+
+def _is_allowed_path(path: Path) -> bool:
+    """Ensure path resolves within workspace, repositories, or system temp dirs."""
+    try:
+        resolved = path.resolve()
+        return any(root == resolved or root in resolved.parents for root in ALLOWED_ROOTS)
+    except Exception:
+        return False
 
 
 def get_structured_source_context(
@@ -33,9 +53,14 @@ def get_structured_source_context(
             "lines": [],
         }
 
-    target_path = Path(file_path)
-    if not target_path.exists():
-        import tempfile
+    # Reject obvious traversal attempts before disk probing
+    norm_path = file_path.replace("\\", "/")
+    if norm_path.startswith(("/etc", "/root", "/var", "/usr", "/proc", "/sys")) or (len(norm_path) >= 2 and norm_path[1] == ":" and not any(str(r).lower() in str(Path(file_path).resolve()).lower() for r in ALLOWED_ROOTS)):
+        target_path = None
+    else:
+        target_path = Path(file_path)
+
+    if not target_path or not target_path.exists() or not _is_allowed_path(target_path):
         temp_base = Path(tempfile.gettempdir())
         temp_repo_paths = list(temp_base.glob(f"repo_*/{file_path}")) if file_path else []
 
@@ -50,7 +75,7 @@ def get_structured_source_context(
 
         found_path = None
         for p in alt_paths:
-            if p.exists() and p.is_file():
+            if p.exists() and p.is_file() and _is_allowed_path(p):
                 found_path = p
                 break
         if found_path:

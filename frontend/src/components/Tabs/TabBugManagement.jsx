@@ -97,7 +97,6 @@ export default function TabBugManagement() {
               className="w-full bg-[#0B0F17] border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-400 transition-colors"
             >
               <option value="All">All Severities</option>
-              <option value="Critical">Critical Only</option>
               <option value="High">High Only</option>
               <option value="Medium">Medium Only</option>
               <option value="Low">Low Only</option>
@@ -140,9 +139,9 @@ export default function TabBugManagement() {
                 className={`bg-[#131B2E] hover:bg-slate-800/90 border rounded-2xl p-5 transition-all cursor-pointer shadow-md space-y-3 group ${
                   isResolved
                     ? "border-slate-800/80 opacity-80"
-                    : bug.severity === "Critical"
-                    ? "border-red-500/30 hover:border-red-500/60"
                     : bug.severity === "High"
+                    ? "border-red-500/30 hover:border-red-500/60"
+                    : bug.severity === "Medium"
                     ? "border-amber-500/30 hover:border-amber-500/60"
                     : "border-slate-800 hover:border-cyan-500/40"
                 }`}
@@ -155,9 +154,9 @@ export default function TabBugManagement() {
                     </span>
                     <span
                       className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                        bug.severity === "Critical"
+                        bug.severity === "High"
                           ? "bg-red-500/20 text-red-400 border border-red-500/30"
-                          : bug.severity === "High"
+                          : bug.severity === "Medium"
                           ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
                           : "bg-blue-500/20 text-blue-400 border border-blue-500/30"
                       }`}

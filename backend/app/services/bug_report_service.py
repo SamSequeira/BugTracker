@@ -1,4 +1,4 @@
-﻿"""
+"""
 bug_report_service.py
 ---------------------
 Bug Report Service - High-level orchestrator for generating complete,
@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from app.schemas.bug_report import (
     BugReportSummaryStats,
@@ -47,6 +47,8 @@ class BugReportService:
         repository_id: Optional[str] = None,
         repository_path: Optional[str] = None,
         source_files: Optional[Dict[str, str]] = None,
+        similarity_service: Optional[Any] = None,
+        **kwargs: Any,
     ) -> List[EnrichedBugReport]:
         """
         Takes raw candidate issues, runs ML classification (if model is available),
@@ -95,6 +97,9 @@ class BugReportService:
         candidate_result: Optional[Dict[str, Any]] = None,
         repository_id: Optional[str] = None,
         repository_path: Optional[str] = None,
+        similarity_service: Optional[Any] = None,
+        source_files: Optional[Dict[str, str]] = None,
+        **kwargs: Any,
     ) -> Dict[str, Any]:
         """
         Complete end-to-end report generation for an analyzed repository.
@@ -115,6 +120,9 @@ class BugReportService:
             ast_for_repository=ast_result,
             repository_id=repository_id,
             repository_path=repo_path,
+            similarity_service=similarity_service,
+            source_files=source_files,
+            **kwargs,
         )
 
         # 3. Compute Summary Statistics
@@ -209,11 +217,3 @@ class BugReportService:
 
 # Global singleton instance
 bug_report_service = BugReportService()
-
-"""
-bug_report_service.py
----------------------
-Bug Report Service - High-level orchestrator for generating complete,
-enriched bug reports, computing summary metrics, and formatting output
-for API endpoints and frontend dashboards.
-"""

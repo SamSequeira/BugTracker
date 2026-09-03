@@ -24,7 +24,7 @@ from app.services.dataset_preparation import ReviewSampler, classify_provenance
 def test_review_sampler_deterministic_and_diverse():
     """Verify ReviewSampler produces reproducible, diverse sample batches across repos/rules."""
     records = []
-    severities = ["critical", "high", "medium", "low"]
+    severities = ["high", "medium", "low"]
     rules = ["PY_DIV_001", "PY_RES_001", "JAVA_EQ_001", "JAVA_RES_001", "JS_EQ_001", "JS_AWA_001"]
     languages = ["Python", "Java", "JavaScript"]
     repos = ["repo_a", "repo_b", "repo_c"]
@@ -43,7 +43,7 @@ def test_review_sampler_deterministic_and_diverse():
             "language": lang,
             "repository_name": repo,
             "repository_id": f"id_{repo}",
-            "severity": severities[i % 4],
+            "severity": severities[i % len(severities)],
             "urgency": "medium",
             "verified_severity": None,
             "verified_priority": None,

@@ -1,7 +1,17 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    JSON,
+    String,
+    Text,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from data.dbconnection.base import Base
@@ -11,36 +21,30 @@ if TYPE_CHECKING:
     from app.models.issue_recommendation import IssueRecommendation
     from app.models.issue_similarity import IssueSimilarity
     from app.models.issue_status import IssueStatus
-    from app.models.source_file import SourceFile
-    from app.models.user import User
 
 
 class CandidateIssue(Base):
     __tablename__ = "candidate_issues"
 
     __table_args__ = (
-        UniqueConstraint(
-            "analysis_run_id",
-            "issue_key",
-            name="uq_candidate_issues_run_issue_key",
+        CheckConstraint(
+            "verified_severity IS NULL OR verified_severity IN ('high', 'medium', 'low')",
+            name="ck_candidate_issues_verified_severity",
+        ),
+        CheckConstraint(
+            "verified_priority IS NULL OR verified_priority IN ('p1', 'p2', 'p3', 'p4')",
+            name="ck_candidate_issues_verified_priority",
+        ),
+        Index(
+            "ix_candidate_issues_verified_labels",
+            "verified_severity",
+            "verified_priority",
         ),
     )
 
     id: Mapped[str] = mapped_column(
         String,
         primary_key=True,
-    )
-
-    issue_key: Mapped[str | None] = mapped_column(
-        String(50),
-        nullable=True,
-        index=True,
-    )
-
-    rule_id: Mapped[str | None] = mapped_column(
-        String(50),
-        nullable=True,
-        index=True,
     )
 
     analysis_run_id: Mapped[str] = mapped_column(
@@ -55,12 +59,6 @@ class CandidateIssue(Base):
         index=True,
     )
 
-    assigned_to_user_id: Mapped[str | None] = mapped_column(
-        ForeignKey("users.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
-
     title: Mapped[str] = mapped_column(
         String,
         nullable=False,
@@ -71,16 +69,6 @@ class CandidateIssue(Base):
         nullable=False,
     )
 
-    security_impact: Mapped[str | None] = mapped_column(
-        Text,
-        nullable=True,
-    )
-
-    code_snippet: Mapped[str | None] = mapped_column(
-        Text,
-        nullable=True,
-    )
-
     file_path: Mapped[str] = mapped_column(
         String,
         nullable=False,
@@ -88,6 +76,11 @@ class CandidateIssue(Base):
     )
 
     line_number: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+    )
+
+    column: Mapped[int | None] = mapped_column(
         Integer,
         nullable=True,
     )
@@ -103,6 +96,60 @@ class CandidateIssue(Base):
         nullable=False,
     )
 
+    rule_id: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+        index=True,
+    )
+
+    issue_type: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+        index=True,
+    )
+
+    message: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    code_snippet: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    evidence: Mapped[Dict[str, Any] | None] = mapped_column(
+        JSON,
+        nullable=True,
+    )
+
+    language: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+        index=True,
+    )
+
+    # Verified ground-truth labels (assigned manually)
+    verified_severity: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+    )
+
+    verified_priority: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+    )
+
+    verified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    verification_notes: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -111,16 +158,6 @@ class CandidateIssue(Base):
     analysis_run: Mapped["AnalysisRun"] = relationship(
         "AnalysisRun",
         back_populates="candidate_issues",
-    )
-
-    source_file: Mapped[Optional["SourceFile"]] = relationship(
-        "SourceFile",
-        back_populates="candidate_issues",
-    )
-
-    assigned_to: Mapped[Optional["User"]] = relationship(
-        "User",
-        back_populates="assigned_issues",
     )
 
     status: Mapped[Optional["IssueStatus"]] = relationship(

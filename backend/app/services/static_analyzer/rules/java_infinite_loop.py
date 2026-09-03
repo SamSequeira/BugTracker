@@ -1,4 +1,4 @@
-﻿"""
+"""
 JAVA_LOOP_001 â€” Infinite loop detection (Java)
 -----------------------------------------------
 Detects infinite loops that have no reachable exit:
@@ -460,38 +460,7 @@ class JavaInfiniteLoop(BaseRule):
             evidence={
                 "loop_type": loop_node.get("type", "while_statement"),
                 "has_body": body_node is not None,
+                "confidence": "high",
             },
+            confidence="high",
         )
-
-"""
-JAVA_LOOP_001 â€” Infinite loop detection (Java)
------------------------------------------------
-Detects infinite loops that have no reachable exit:
-  - while (true) { ... }
-  - for (;;) { ... }
-  - do { ... } while (true);
-
-Exit conditions that make a loop safe:
-  - return_statement (unconditional or conditionally reachable)
-  - throw_statement (unconditional or conditionally reachable)
-  - break_statement (unconditional or conditionally reachable)
-      * unlabeled break directly in this loop
-      * labeled break targeting an enclosing ancestor label
-  - System.exit(...) call
-
-Constant evaluation (FN-4)
---------------------------
-The rule evaluates constant boolean conditions in `if_statement`:
-  - `if (false) break;`        â†’ unreachable exit â†’ loop is infinite
-  - `if (true) break;`         â†’ definitely reachable â†’ loop is not infinite
-  - `if (1 == 2) break;`       â†’ unreachable exit â†’ loop is infinite
-  - `if (!false) break;`       â†’ reachable exit â†’ loop is not infinite
-  - `if (cond) break;`         â†’ dynamic condition â†’ conservative: treated reachable
-
-Nested loop & switch awareness (FN-5)
----------------------------------------
-Unlabeled `break;` inside a nested loop or switch statement terminates the
-inner loop / switch only, and does NOT exit the outer loop.
-A labeled break `break outer;` terminates the loop iff `outer` matches an
-enclosing ancestor label of the loop being analyzed.
-"""

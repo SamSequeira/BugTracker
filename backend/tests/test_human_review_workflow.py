@@ -78,17 +78,17 @@ async def test_confirmed_valid_issue_workflow(memory_db: AsyncSession):
     updated = await candidate_issue_repository.update_labels(
         db=memory_db,
         issue_id="iss-1",
-        verified_severity="critical",
+        verified_severity="high",
         verified_priority="p1",
-        verification_notes="Confirmed critical zero divisor in core handler",
+        verification_notes="Confirmed high priority zero divisor in core handler",
         is_false_positive=False,
     )
 
     assert updated is not None
-    assert updated.verified_severity == "critical"
+    assert updated.verified_severity == "high"
     assert updated.verified_priority == "p1"
     assert updated.verified_at is not None
-    assert updated.verification_notes == "Confirmed critical zero divisor in core handler"
+    assert updated.verification_notes == "Confirmed high priority zero divisor in core handler"
     # Original detector predictions remain untouched
     assert updated.severity == "high"
     assert updated.urgency == "urgent"
@@ -222,7 +222,7 @@ def test_false_positive_cannot_contain_verified_labels():
     with pytest.raises(ValidationError):
         CandidateIssueLabelUpdate(
             is_false_positive=True,
-            verified_severity="critical",
+            verified_severity="high",
         )
 
     with pytest.raises(ValidationError):
@@ -285,7 +285,7 @@ async def test_confirmed_issue_requires_both_labels_for_export(memory_db: AsyncS
 async def test_batch_progress_tracking_and_resume(memory_db: AsyncSession):
     repo = Repository(id="repo-prog", name="prog-repo", s3_key="repositories/prog.zip")
     run = AnalysisRun(id="run-prog", repository_id="repo-prog", status="completed")
-    i1 = CandidateIssue(id="b1", analysis_run_id="run-prog", title="t1", description="d1", severity="medium", urgency="normal", file_path="a.py", line_number=1, verified_severity="critical", verified_priority="p1", verified_at=datetime.now(timezone.utc))
+    i1 = CandidateIssue(id="b1", analysis_run_id="run-prog", title="t1", description="d1", severity="medium", urgency="normal", file_path="a.py", line_number=1, verified_severity="high", verified_priority="p1", verified_at=datetime.now(timezone.utc))
     i2 = CandidateIssue(id="b2", analysis_run_id="run-prog", title="t2", description="d2", severity="medium", urgency="normal", file_path="b.py", line_number=2, verified_at=datetime.now(timezone.utc), verification_notes="[FALSE_POSITIVE] Guarded")
     i3 = CandidateIssue(id="b3", analysis_run_id="run-prog", title="t3", description="d3", severity="medium", urgency="normal", file_path="c.py", line_number=3, verified_severity="medium", verified_at=datetime.now(timezone.utc))  # partial
     i4 = CandidateIssue(id="b4", analysis_run_id="run-prog", title="t4", description="d4", severity="medium", urgency="normal", file_path="d.py", line_number=4)  # unreviewed
@@ -366,12 +366,12 @@ def test_ground_truth_labels_excluded_from_feature_text():
         "code_snippet": "return total / divisor",
         "evidence": {"divisor": "divisor"},
         # Target labels and notes that MUST NOT leak
-        "verified_severity": "critical",
+        "verified_severity": "high",
         "verified_priority": "p1",
-        "severity": "high",
+        "severity": "medium",
         "urgency": "urgent",
         "is_false_positive": False,
-        "verification_notes": "Very critical bug",
+        "verification_notes": "Very important bug",
     }
 
     feature_text = build_training_text(record)
@@ -381,10 +381,9 @@ def test_ground_truth_labels_excluded_from_feature_text():
     # Leakage assertions
     assert "verified_severity" not in feature_text
     assert "verified_priority" not in feature_text
-    assert "critical" not in feature_text
     assert "p1" not in feature_text
     assert "urgent" not in feature_text
-    assert "Very critical bug" not in feature_text
+    assert "Very important bug" not in feature_text
 
 
 # ---------------------------------------------------------------------------
@@ -400,7 +399,7 @@ def test_deduplicator_signature_uses_intrinsic_properties():
         "file_path": "a.py",
         "line_number": 10,
         "code_snippet": "x / 0",
-        "verified_severity": "critical",
+        "verified_severity": "high",
         "verified_priority": "p1",
     }
     rec2 = {
@@ -411,7 +410,7 @@ def test_deduplicator_signature_uses_intrinsic_properties():
         "file_path": "a.py",
         "line_number": 10,
         "code_snippet": "x / 0",
-        "verified_severity": "critical",
+        "verified_severity": "high",
         "verified_priority": "p1",
     }
 

@@ -1,4 +1,4 @@
-﻿"""
+"""
 PY_DIV_001 ΓÇö Division by zero or potentially-zero divisor (Python)
 -------------------------------------------------------------------
 Detects `/` and `//` binary operations where the right-hand operand is
@@ -376,7 +376,9 @@ class PythonDivisionByZero(BaseRule):
                     "right_operand": right_text,
                     "right_node_type": right_type,
                     "classification": "definitely_zero",
+                    "confidence": "high",
                 },
+                confidence="high",
             )
             return
 
@@ -397,7 +399,9 @@ class PythonDivisionByZero(BaseRule):
                         "right_operand": right_text,
                         "right_node_type": right_type,
                         "classification": "definitely_zero",
+                        "confidence": "high",
                     },
+                    confidence="high",
                 )
                 return
 
@@ -416,7 +420,9 @@ class PythonDivisionByZero(BaseRule):
                 "right_operand": right_text,
                 "right_node_type": right_type,
                 "classification": "potentially_zero",
+                "confidence": "medium",
             },
+            confidence="medium",
         )
 
     def _classify_assignment_rhs(self, rhs: Optional[dict]) -> _Z:

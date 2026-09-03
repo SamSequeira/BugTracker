@@ -11,6 +11,7 @@ import logging
 import shutil
 import uuid
 import zipfile
+from typing import Any, Dict, List, Optional, Tuple
 from pathlib import Path
 
 from fastapi import UploadFile
@@ -46,7 +47,7 @@ class RepositoryUploadService:
     # Public
     # ------------------------------------------------------------------
 
-    async def upload_file(self, file: UploadFile, db: AsyncSession) -> dict:
+    async def upload_file(self, file: UploadFile, db: AsyncSession, user_id: Optional[str] = None) -> dict:
         if not file.filename:
             raise RepositoryUploadError("No file was provided.")
 
@@ -111,6 +112,7 @@ class RepositoryUploadService:
 
         repository = Repository(
             id=repository_id,
+            user_id=user_id,
             name=repository_name,
             source_url=None,
             s3_key=s3_key,
@@ -158,7 +160,10 @@ class RepositoryUploadService:
 
         try:
             with zipfile.ZipFile(zip_path, "r") as archive:
-                for member in archive.infolist():
+                infolist = archive.infolist()
+                if not infolist:
+                    raise RepositoryUploadError("The uploaded ZIP archive is empty.")
+                for member in infolist:
                     member_path = destination / member.filename
                     if not self._is_safe_path(destination, member_path):
                         raise RepositoryUploadError(

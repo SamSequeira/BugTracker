@@ -141,9 +141,9 @@ export default function GlobalSearchModal() {
                     <div className="flex items-center space-x-2 shrink-0">
                       <span
                         className={`text-[10px] px-2 py-0.5 rounded font-semibold ${
-                          bug.severity === "Critical"
+                          bug.severity === "High"
                             ? "bg-red-500/20 text-red-400"
-                            : bug.severity === "High"
+                            : bug.severity === "Medium"
                             ? "bg-amber-500/20 text-amber-400"
                             : "bg-blue-500/20 text-blue-400"
                         }`}

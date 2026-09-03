@@ -130,15 +130,16 @@ def evaluate_dataset_readiness(
     })
 
     # 7. Cross-Tab Severity x Priority Matrix Diversity
+    total_combinations = len(SEVERITY_LABELS) * len(PRIORITY_LABELS)
     cross_tab = Counter((str(r.get("verified_severity") or r.get("severity") or "").lower(),
                          str(r.get("verified_priority") or r.get("priority") or "").lower()) for r in records)
     represented_pairs = sum(1 for s in SEVERITY_LABELS for p in PRIORITY_LABELS if cross_tab.get((s, p), 0) > 0)
     criteria.append({
         "criterion": "Cross-Tab Diversity (Severity x Priority)",
-        "target": "Diverse naturally occurring combinations (out of 16)",
-        "actual": f"{represented_pairs}/16 combinations represented",
-        "status": "PASS" if represented_pairs >= 8 else ("WARN" if represented_pairs >= 4 else "FAIL"),
-        "message": f"{represented_pairs} out of 16 possible severity x priority matrix cells are populated.",
+        "target": f"Diverse naturally occurring combinations (out of {total_combinations})",
+        "actual": f"{represented_pairs}/{total_combinations} combinations represented",
+        "status": "PASS" if represented_pairs >= 4 else ("WARN" if represented_pairs >= 2 else "FAIL"),
+        "message": f"{represented_pairs} out of {total_combinations} possible severity x priority matrix cells are populated.",
     })
 
     # 8. Missingness in Essential Model Features

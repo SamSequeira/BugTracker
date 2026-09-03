@@ -521,7 +521,7 @@ def test_candidate_issue_fields_present():
     assert isinstance(issue["line_number"], int) and issue["line_number"] >= 1
     assert isinstance(issue["column"], int)
     assert isinstance(issue["evidence"], dict)
-    assert issue["severity"] in ("critical", "high", "medium", "low")
+    assert issue["severity"] in ("high", "medium", "low")
     print("  ✓ CandidateIssue: all required fields present and typed correctly")
 
 

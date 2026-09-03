@@ -378,7 +378,7 @@ function buildRisks(fileSummaries) {
         .slice(0, 4)
         .map((f) => ({
             title: `${f.status} in ${f.file.split("/").pop()}`,
-            severity: f.status === "Credential Leak" || f.status === "Security Risk" ? "Critical" : "High",
+            severity: f.status === "Credential Leak" || f.status === "Security Risk" ? "High" : "Medium",
             description: `${f.role} ${f.intent}`,
         }));
 }

@@ -378,59 +378,74 @@ class TechnologyDetector:
         root = Path(repo_path)
         detected_map: Dict[str, Dict[str, Any]] = {}
 
-        if not root.exists():
-            return []
+        # 1. Scan for manifest files if directory exists
+        if root.exists():
+            for p in root.rglob("*"):
+                if not p.is_file():
+                    continue
+                if any(part in IGNORED_DIRS for part in p.parts):
+                    continue
+                name = p.name.lower()
 
-        # 1. Scan for manifest files
-        for p in root.rglob("*"):
-            if not p.is_file():
-                continue
-            if any(part in IGNORED_DIRS for part in p.parts):
-                continue
-            name = p.name.lower()
+                raw_findings = []
+                if name == "requirements.txt":
+                    raw_findings = self._parse_requirements_txt(p)
+                elif name == "pyproject.toml":
+                    raw_findings = self._parse_pyproject_toml(p)
+                elif name == "package.json":
+                    raw_findings = self._parse_package_json(p)
+                elif name == "pom.xml":
+                    raw_findings = self._parse_pom_xml(p)
+                elif name == "dockerfile" or name.startswith("dockerfile."):
+                    raw_findings = self._parse_dockerfile(p)
+                elif name in ("docker-compose.yml", "docker-compose.yaml"):
+                    raw_findings = self._parse_docker_compose(p)
 
-            raw_findings = []
-            if name == "requirements.txt":
-                raw_findings = self._parse_requirements_txt(p)
-            elif name == "pyproject.toml":
-                raw_findings = self._parse_pyproject_toml(p)
-            elif name == "package.json":
-                raw_findings = self._parse_package_json(p)
-            elif name == "pom.xml":
-                raw_findings = self._parse_pom_xml(p)
-            elif name == "dockerfile" or name.startswith("dockerfile."):
-                raw_findings = self._parse_dockerfile(p)
-            elif name in ("docker-compose.yml", "docker-compose.yaml"):
-                raw_findings = self._parse_docker_compose(p)
+                for item in raw_findings:
+                    raw_key = item["raw_name"]
+                    if raw_key in TECH_KNOWLEDGE_BASE:
+                        canonical_name, category = TECH_KNOWLEDGE_BASE[raw_key]
+                    elif raw_key in ("docker", "docker compose", "postgresql", "redis", "mongodb", "mysql", "nginx", "rabbitmq", "elasticsearch", "python", "node.js", "java"):
+                        canonical_name = raw_key.title()
+                        category = "Infrastructure" if raw_key in ("docker", "docker compose", "nginx") else ("Database" if raw_key in ("postgresql", "redis", "mongodb", "mysql", "elasticsearch") else "Language/Runtime")
+                    else:
+                        canonical_name = raw_key.replace("-", " ").replace("_", " ").title()
+                        category = "Library/Package"
 
-            for item in raw_findings:
-                raw_key = item["raw_name"]
-                if raw_key in TECH_KNOWLEDGE_BASE:
-                    canonical_name, category = TECH_KNOWLEDGE_BASE[raw_key]
-                elif raw_key in ("docker", "docker compose", "postgresql", "redis", "mongodb", "mysql", "nginx", "rabbitmq", "elasticsearch", "python", "node.js", "java"):
-                    canonical_name = raw_key.title()
-                    category = "Infrastructure" if raw_key in ("docker", "docker compose", "nginx") else ("Database" if raw_key in ("postgresql", "redis", "mongodb", "mysql", "elasticsearch") else "Language/Runtime")
-                else:
-                    canonical_name = raw_key.replace("-", " ").replace("_", " ").title()
-                    category = "Library/Package"
-
-                unique_key = canonical_name.lower()
-                if unique_key not in detected_map or (item["version"] and not detected_map[unique_key].get("version")):
-                    detected_map[unique_key] = {
-                        "name": canonical_name,
-                        "category": category,
-                        "version": item.get("version"),
-                        "detection_source": item.get("source"),
-                    }
+                    unique_key = canonical_name.lower()
+                    if unique_key not in detected_map or (item["version"] and not detected_map[unique_key].get("version")):
+                        detected_map[unique_key] = {
+                            "name": canonical_name,
+                            "category": category,
+                            "version": item.get("version"),
+                            "detection_source": item.get("source"),
+                        }
 
         # 2. Add language runtimes from AST scan if not present
-        if ast_result and "languages_detected" in ast_result:
-            for lang, count in ast_result["languages_detected"].items():
-                if count > 0:
-                    lang_key = lang.lower()
+        if ast_result:
+            langs = (
+                ast_result.get("languages_detected")
+                or ast_result.get("languages")
+                or (ast_result.get("summary", {}).get("languages") if isinstance(ast_result.get("summary"), dict) else None)
+                or {}
+            )
+            if isinstance(langs, dict):
+                for lang, count in langs.items():
+                    if (isinstance(count, int) and count > 0) or count:
+                        lang_key = str(lang).lower()
+                        if lang_key not in detected_map:
+                            detected_map[lang_key] = {
+                                "name": str(lang),
+                                "category": "Programming Language",
+                                "version": None,
+                                "detection_source": "AST Code Analysis",
+                            }
+            elif isinstance(langs, (list, set, tuple)):
+                for lang in langs:
+                    lang_key = str(lang).lower()
                     if lang_key not in detected_map:
                         detected_map[lang_key] = {
-                            "name": lang,
+                            "name": str(lang),
                             "category": "Programming Language",
                             "version": None,
                             "detection_source": "AST Code Analysis",

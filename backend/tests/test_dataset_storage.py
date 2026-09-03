@@ -181,7 +181,7 @@ async def test_detector_severity_preserved_after_verification(test_db: AsyncSess
     """
     Test 6: Verify detector severity remains unchanged when verified labels disagree.
     Before: severity=high, verified_severity=None, verified_priority=None
-    After:  severity=high, verified_severity=critical, verified_priority=p1
+    After:  severity=high, verified_severity=low, verified_priority=p3
     """
     _, run = sample_analysis_run
 
@@ -205,21 +205,21 @@ async def test_detector_severity_preserved_after_verification(test_db: AsyncSess
     await candidate_issue_repository.create(test_db, issue)
     await test_db.commit()
 
-    # Manually verify with intentional disagreement: critical + p1
+    # Manually verify with intentional disagreement: low + p3
     updated = await candidate_issue_repository.update_labels(
         test_db,
         issue_id=issue.id,
-        verified_severity="critical",
-        verified_priority="p1",
-        verification_notes="Upgraded to critical because it is in the core payment path",
+        verified_severity="low",
+        verified_priority="p3",
+        verification_notes="Downgraded to low because it is in a test helper",
     )
 
     assert updated is not None
     assert updated.severity == "high"  # Original detector output is preserved!
-    assert updated.verified_severity == "critical"  # Ground truth
-    assert updated.verified_priority == "p1"  # Ground truth
+    assert updated.verified_severity == "low"  # Ground truth
+    assert updated.verified_priority == "p3"  # Ground truth
     assert updated.verified_at is not None
-    assert "payment path" in updated.verification_notes
+    assert "test helper" in updated.verification_notes
 
 
 # ===========================================================================
@@ -231,8 +231,8 @@ async def test_valid_verified_labels(test_db: AsyncSession, sample_analysis_run)
     """Test 7 & 9: Verify all valid severity and priority values are accepted."""
     _, run = sample_analysis_run
 
-    valid_severities = ["critical", "high", "medium", "low"]
-    valid_priorities = ["p1", "p2", "p3", "p4"]
+    valid_severities = ["high", "medium", "low"]
+    valid_priorities = ["p1", "p2", "p3"]
 
     for sev, prio in zip(valid_severities, valid_priorities):
         issue = CandidateIssue(
@@ -311,7 +311,7 @@ async def test_partial_label_handling_and_training_dataset_filter(test_db: Async
       1. No labels (verified_severity=None, verified_priority=None)
       2. Severity only (verified_severity=high, verified_priority=None)
       3. Priority only (verified_severity=None, verified_priority=p2)
-      4. Fully verified (verified_severity=critical, verified_priority=p1)
+      4. Fully verified (verified_severity=high, verified_priority=p1)
     Confirm get_verified_training_dataset() returns ONLY state 4.
     """
     _, run = sample_analysis_run
@@ -368,9 +368,9 @@ async def test_partial_label_handling_and_training_dataset_filter(test_db: Async
         message="Division by zero",
         code_snippet="x / 0",
         evidence={"operator": "/"},
-        severity="high",  # detector prediction
-        urgency="high",
-        verified_severity="critical",  # ground truth
+        severity="medium",  # detector prediction
+        urgency="medium",
+        verified_severity="high",  # ground truth
         verified_priority="p1",  # ground truth
     )
 
@@ -386,10 +386,10 @@ async def test_partial_label_handling_and_training_dataset_filter(test_db: Async
 
     assert record["id"] == "issue-fully-verified"
     # Ground-truth targets
-    assert record["severity"] == "critical"
+    assert record["severity"] == "high"
     assert record["priority"] == "p1"
     # Original detector prediction preserved under detector_severity
-    assert record["detector_severity"] == "high"
+    assert record["detector_severity"] == "medium"
 
 
 @pytest.mark.asyncio
@@ -399,10 +399,10 @@ async def test_explicit_ground_truth_target_mapping(test_db: AsyncSession, sampl
     DATABASE:
       severity = high
       verified_severity = low
-      verified_priority = p4
+      verified_priority = p3
     TRAINING DATASET OUTPUT:
       severity = low   (NOT high!)
-      priority = p4
+      priority = p3
       detector_severity = high
     """
     _, run = sample_analysis_run
@@ -422,7 +422,7 @@ async def test_explicit_ground_truth_target_mapping(test_db: AsyncSession, sampl
         severity="high",  # Static analyzer thought it was high
         urgency="high",
         verified_severity="low",  # Human expert verified it as low
-        verified_priority="p4",  # Human expert assigned p4
+        verified_priority="p3",  # Human expert assigned p3
     )
     await candidate_issue_repository.create(test_db, issue)
     await test_db.commit()
@@ -432,7 +432,7 @@ async def test_explicit_ground_truth_target_mapping(test_db: AsyncSession, sampl
 
     assert target is not None
     assert target["severity"] == "low", "Training dataset target MUST use verified_severity"
-    assert target["priority"] == "p4", "Training dataset target MUST use verified_priority"
+    assert target["priority"] == "p3", "Training dataset target MUST use verified_priority"
     assert target["detector_severity"] == "high", "Detector severity must remain preserved separately"
     assert target["severity"] != target["detector_severity"]
 

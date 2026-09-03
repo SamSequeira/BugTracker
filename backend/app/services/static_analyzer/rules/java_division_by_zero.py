@@ -1,39 +1,8 @@
-﻿"""
-JAVA_DIV_001 â€” Division by zero or potentially-zero divisor (Java)
+"""
+JAVA_DIV_001 — Division by zero or potentially-zero divisor (Java)
 -------------------------------------------------------------------
 Detects `/` and `%` binary expressions where the right-hand operand is
 provably zero or cannot be proven non-zero.
-
-Classification
---------------
-DEFINITELY_ZERO      â€” literal 0, 0L, 0.0f, 0.0d, -0, +0, 0x0, 0b0
-                       â†’ always reported (definite error)
-DEFINITELY_NON_ZERO  â€” any other numeric literal whose value â‰  0
-                       â†’ never reported (provably safe)
-POTENTIALLY_ZERO     â€” variable, field, method call, ternary, etc.
-                       â†’ reported as a potential issue (warning)
-
-Root-cause notes (F-03, F-04)
-------------------------------
-The original rule skipped ALL numeric literals regardless of their value,
-so `x / 0` was silently accepted.  Fix: parse each literal to detect zeros.
-
-Java numeric literal types (tree-sitter)
------------------------------------------
-  decimal_integer_literal       e.g.  0  1  42  100_000L
-  decimal_floating_point_literal  e.g.  0.0  0.0f  1.5d
-  hex_integer_literal           e.g.  0x0  0xFF
-  octal_integer_literal         e.g.  00  07
-  binary_integer_literal        e.g.  0b0  0b1010
-  hex_floating_point_literal    e.g.  0x0.0p0
-  integer_literal / floating_point_literal  (older tree-sitter versions)
-
-Unary minus / plus on a literal
----------------------------------
-  `-0`  â†’  still zero  â†’ flag
-  `-1`  â†’  non-zero    â†’ safe
-  `+0`  â†’  still zero  â†’ flag
-  `+1`  â†’  non-zero    â†’ safe
 """
 
 from __future__ import annotations
@@ -113,12 +82,14 @@ class JavaDivisionByZero(BaseRule):
                     f"Division by zero: the divisor `{right_text}` is always zero."
                 )
                 evidence_class = "definitely_zero"
+                confidence = "high"
             else:
                 message = (
                     f"Division by potentially zero value: the divisor `{right_text}` "
                     f"may be zero at runtime. Add a zero-guard before dividing."
                 )
                 evidence_class = "potentially_zero"
+                confidence = "medium"
 
             yield self._make_issue(
                 node=node,
@@ -130,7 +101,9 @@ class JavaDivisionByZero(BaseRule):
                     "right_operand": right_text,
                     "right_node_type": right_node["type"],
                     "classification": evidence_class,
+                    "confidence": confidence,
                 },
+                confidence=confidence,
             )
 
     # ------------------------------------------------------------------
@@ -138,9 +111,26 @@ class JavaDivisionByZero(BaseRule):
     # ------------------------------------------------------------------
 
     def _classify(self, node: dict) -> _Z:
-        ntype = node["type"]
+        # Check constant evaluation first (e.g. 60 * 1000)
+        c_val = self._evaluate_constant_expr(node)
+        if c_val is not None and isinstance(c_val, (int, float)):
+            return _Z.DEFINITELY_ZERO if c_val == 0 else _Z.DEFINITELY_NON_ZERO
 
-        # Numeric literal â€” check its value
+        ntype = node.get("type", "")
+
+        # Check Math.max(1, x) or Math.max(x, 1)
+        if ntype == "method_invocation":
+            text = node.get("text", "")
+            if "Math.max" in text or "max(" in text:
+                args = [c for c in node.get("children", []) if c.get("type") == "argument_list"]
+                if args:
+                    for arg in args[0].get("children", []):
+                        if arg.get("text", "") not in (",", "(", ")"):
+                            val = self._evaluate_constant_expr(arg)
+                            if val is not None and isinstance(val, (int, float)) and val >= 1:
+                                return _Z.DEFINITELY_NON_ZERO
+
+        # Numeric literal — check its value
         if ntype in self._LITERAL_TYPES:
             return self._classify_literal(node)
 
@@ -148,91 +138,46 @@ class JavaDivisionByZero(BaseRule):
         if ntype == "unary_expression":
             return self._classify_unary(node)
 
-        # Everything else: variable, field, call, ternary, etc.
+        # Parenthesised expression
+        if ntype == "parenthesized_expression":
+            inner = [c for c in node.get("children", []) if c.get("text", "") not in ("(", ")")]
+            if len(inner) == 1:
+                return self._classify(inner[0])
+
         return _Z.POTENTIALLY_ZERO
+
+    def _classify_literal(self, node: dict) -> _Z:
+        text = (node.get("text") or "").strip()
+        clean = re.sub(r"[lLfFdD_]", "", text).lower()
+
+        if not clean:
+            return _Z.POTENTIALLY_ZERO
+
+        try:
+            if clean.startswith("0x"):
+                val = int(clean, 16)
+            elif clean.startswith("0b"):
+                val = int(clean, 2)
+            elif clean.startswith("0") and len(clean) > 1 and clean.isdigit():
+                val = int(clean, 8)
+            elif "." in clean or "e" in clean or "p" in clean:
+                val = float(clean)
+            else:
+                val = int(clean)
+
+            return _Z.DEFINITELY_ZERO if val == 0 else _Z.DEFINITELY_NON_ZERO
+        except ValueError:
+            return _Z.POTENTIALLY_ZERO
 
     def _classify_unary(self, node: dict) -> _Z:
         children = node.get("children", [])
-        if not children:
+        if len(children) < 2:
             return _Z.POTENTIALLY_ZERO
-        op = children[0].get("text", "").strip()
-        if op not in ("+", "-"):
-            return _Z.POTENTIALLY_ZERO
-        operand = children[-1]
-        return self._classify(operand)
 
-    def _classify_literal(self, node: dict) -> _Z:
-        val = self._literal_value(node)
-        if val is None:
-            return _Z.POTENTIALLY_ZERO
-        return _Z.DEFINITELY_ZERO if val == 0.0 else _Z.DEFINITELY_NON_ZERO
+        op = (children[0].get("text") or "").strip()
+        operand = children[1]
 
-    @staticmethod
-    def _literal_value(node: dict) -> Optional[float]:
-        """
-        Parse a Java numeric literal node to a float.
-        Returns None on parse failure.
+        if op in ("-", "+"):
+            return self._classify(operand)
 
-        Handles:
-        - Java type suffixes: L, l, f, F, d, D  â€” BUT only after determining
-          the base so we don't accidentally strip a valid hex digit.
-        - Digit group separators: _
-        """
-        raw = node.get("text", "").strip()
-        text = raw.replace("_", "")
-        if not text:
-            return None
-
-        # --- Hex: 0xâ€¦ or 0Xâ€¦ ---
-        # Strip only non-hex suffix chars (L only; f/F/d/D are valid hex digits)
-        if re.match(r'^[+-]?0[xX]', text):
-            hex_body = text.rstrip("lL")   # only Long suffix after hex
-            try:
-                return float.fromhex(hex_body)   # handles 0x1.0p0
-            except ValueError:
-                pass
-            try:
-                return float(int(hex_body, 16))
-            except ValueError:
-                return None
-
-        # --- Binary: 0bâ€¦ or 0Bâ€¦ ---
-        if re.match(r'^[+-]?0[bB]', text):
-            bin_body = text.rstrip("lL")
-            try:
-                return float(int(bin_body, 2))
-            except ValueError:
-                return None
-
-        # --- Octal: starts with 0 followed by octal digits only ---
-        if re.match(r'^[+-]?0[0-7]+$', text.rstrip("lL")):
-            oct_body = text.rstrip("lL")
-            try:
-                return float(int(oct_body, 8))
-            except ValueError:
-                return None
-
-        # --- Decimal integer or float (with optional L/f/d suffix) ---
-        dec_body = text.rstrip("lLfFdD")
-        try:
-            return float(dec_body)
-        except ValueError:
-            return None
-
-"""
-JAVA_DIV_001 â€” Division by zero or potentially-zero divisor (Java)
--------------------------------------------------------------------
-Detects `/` and `%` binary expressions where the right-hand operand is
-provably zero or an unguarded dynamic divisor with risk of zero.
-
-Suppression criteria (provably safe / intentional):
-- Literal non-zero constants (e.g. `x / 5`, `x / 60000L`)
-- Constant expressions that evaluate to non-zero (e.g. `offset / (60 * 1000)`)
-- Built-in non-zero math wrappers (e.g. `Math.max(x, 1)`)
-- Guarded divisions (e.g. `if (d != 0) { ... / d ... }` or `d != 0 ? n / d : 0`)
-
-Confidence calibration:
-- HIGH: Literal zero (`x / 0`, `x / 0.0`) or constant expression evaluating to 0.
-- MEDIUM: Unguarded dynamic variable divisor with potential zero values.
-- LOW: Weak risk in test helper or complex context.
-"""
+        return _Z.POTENTIALLY_ZERO

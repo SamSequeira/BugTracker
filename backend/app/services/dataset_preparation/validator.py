@@ -10,8 +10,8 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional, Tuple
 
 
-SEVERITY_LABELS: List[str] = ["critical", "high", "medium", "low"]
-PRIORITY_LABELS: List[str] = ["p1", "p2", "p3", "p4"]
+SEVERITY_LABELS: List[str] = ["high", "medium", "low"]
+PRIORITY_LABELS: List[str] = ["p1", "p2", "p3"]
 
 SEVERITY_TO_ID: Dict[str, int] = {label: idx for idx, label in enumerate(SEVERITY_LABELS)}
 ID_TO_SEVERITY: Dict[int, str] = {idx: label for idx, label in enumerate(SEVERITY_LABELS)}

@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional
@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
-VerifiedSeverityType = Literal["critical", "high", "medium", "low"]
+VerifiedSeverityType = Literal["high", "medium", "low"]
 VerifiedPriorityType = Literal["p1", "p2", "p3", "p4"]
 VerificationStatusFilter = Literal["all", "unverified", "partial", "verified"]
 
@@ -18,7 +18,7 @@ class CandidateIssueLabelUpdate(BaseModel):
     """
     verified_severity: Optional[VerifiedSeverityType] = Field(
         default=None,
-        description="Ground-truth verified severity: critical, high, medium, low",
+        description="Ground-truth verified severity: high, medium, low",
     )
     verified_priority: Optional[VerifiedPriorityType] = Field(
         default=None,

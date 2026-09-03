@@ -72,7 +72,7 @@ class TestReportExporter(unittest.TestCase):
                 "function_name": "read_config",
                 "class_name": None,
                 "category": "unclosed_resource",
-                "severity": "critical",
+                "severity": "high",
                 "priority": "p1",
                 "priority_formatted": "P1 • Fix immediately",
                 "confidence": 0.99,
@@ -94,8 +94,7 @@ class TestReportExporter(unittest.TestCase):
         ]
         self.sample_stats = {
             "total_bugs": 2,
-            "critical": 1,
-            "high": 1,
+            "high": 2,
             "medium": 0,
             "low": 0,
             "priority_p1": 1,
@@ -146,7 +145,7 @@ class TestReportExporter(unittest.TestCase):
 
         row2 = reader[2]
         self.assertEqual(row2[0], "BUG-2026-0002")
-        self.assertEqual(row2[2], "CRITICAL")
+        self.assertEqual(row2[2], "HIGH")
         self.assertEqual(row2[14], "BUG-2026-0001")  # duplicate_of
 
     # -------------------------------------------------------------------------

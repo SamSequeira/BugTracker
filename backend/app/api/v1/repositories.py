@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 import logging
 import uuid
+from typing import Any, Dict, List, Optional, Union
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, File, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,6 +24,7 @@ from app.services.s3_service import S3UploadError
 from app.utils.git import GitCloneError
 from app.models.analysis_run import AnalysisRun
 from app.models.repository import Repository
+from app.models.candidate_issues import CandidateIssue
 from app.repositories.repository_repo import repository_repository
 from data.dbconnection.session import get_db, AsyncSessionLocal
 
@@ -119,6 +121,10 @@ async def _run_analysis_for_repository(repository_id: str, repository_name: str)
             )
 
 
+from app.api.deps import get_current_user_optional
+from app.models.user import User
+
+
 # ============================================================
 # LIST REPOSITORIES  (used by the frontend Architecture tab as a
 # temporary fallback when no repository has been scanned yet in the
@@ -130,7 +136,13 @@ async def _run_analysis_for_repository(repository_id: str, repository_name: str)
     response_model=list[RepositoryResponse],
     status_code=status.HTTP_200_OK,
 )
+@router.get(
+    "",
+    response_model=list[RepositoryResponse],
+    status_code=status.HTTP_200_OK,
+)
 async def list_repositories(
+    current_user: Optional[User] = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db),
 ) -> list[RepositoryResponse]:
     """
@@ -154,12 +166,14 @@ async def list_repositories(
 async def clone_repository(
     request: RepositoryCloneRequest,
     background_tasks: BackgroundTasks,
+    current_user: Optional[User] = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db),
 ) -> RepositoryCloneResponse:
 
     try:
+        user_id = current_user.id if current_user else None
         result = await repository_service.clone_repository(
-            str(request.repository_url), db
+            str(request.repository_url), db, user_id=user_id
         )
 
         # Automatically trigger full analysis pipeline in the background.
@@ -211,11 +225,13 @@ async def clone_repository(
 async def upload_repository(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
+    current_user: Optional[User] = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db),
 ) -> RepositoryCloneResponse:
 
     try:
-        result = await repository_upload_service.upload_file(file, db)
+        user_id = current_user.id if current_user else None
+        result = await repository_upload_service.upload_file(file, db, user_id=user_id)
 
         # Automatically trigger full analysis pipeline in the background.
         background_tasks.add_task(
@@ -382,8 +398,9 @@ async def analyze_file(
 )
 async def export_repository_analysis(
     repository_id: str,
-    repository_path: str,
+    repository_path: Optional[str] = None,
     format: str = "pdf",
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Export repository analysis and bug reports in various formats:
@@ -392,27 +409,74 @@ async def export_repository_analysis(
     from fastapi.responses import Response
     from app.services.bug_report_service import bug_report_service
 
-    path = Path(repository_path)
-    if not path.exists():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Repository path not found: {repository_path}",
-        )
+    # 1. If repository path is provided and exists on disk, run full pipeline export
+    if repository_path and Path(repository_path).exists():
+        path = Path(repository_path)
+        try:
+            analysis_result = await repository_analysis_service.analyze_repository(
+                repository_path,
+                repository_id=repository_id,
+            )
+
+            content, media_type, filename = bug_report_service.export_reports(
+                reports=analysis_result.get("bug_reports", []),
+                format_type=format,
+                summary_stats=analysis_result.get("summary_stats"),
+                repo_info={
+                    "id": repository_id,
+                    "path": repository_path,
+                    "name": path.name,
+                },
+            )
+
+            headers = {
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Access-Control-Expose-Headers": "Content-Disposition",
+            }
+            return Response(content=content, media_type=media_type, headers=headers)
+        except Exception as error:
+            logger.warning(f"Disk analysis export failed, falling back to database export: {error}")
+
+    # 2. Database-backed export for ingested repository
+    repo = await db.get(Repository, repository_id)
+    repo_name = repo.name if repo else "Repository"
+
+    stmt = (
+        select(CandidateIssue)
+        .join(AnalysisRun, CandidateIssue.analysis_run_id == AnalysisRun.id)
+        .where(AnalysisRun.repository_id == repository_id)
+    )
+    db_issues = (await db.execute(stmt)).scalars().all()
+
+    reports = []
+    for ci in db_issues:
+        sev = (ci.verified_severity or ci.severity or "medium").lower()
+        prio = (ci.verified_priority or ("p1" if sev == "high" else "p2" if sev == "medium" else "p3")).lower()
+        reports.append({
+            "id": ci.id,
+            "title": ci.title,
+            "description": ci.description or ci.message or "",
+            "file_path": ci.file_path,
+            "line_number": ci.line_number,
+            "column": ci.column,
+            "severity": sev,
+            "priority": prio,
+            "rule_id": ci.rule_id,
+            "issue_type": ci.issue_type,
+            "message": ci.message,
+            "code_snippet": ci.code_snippet,
+            "category": "Security" if (ci.rule_id or "").upper().startswith("SEC") or "injection" in (ci.issue_type or "").lower() else "Reliability",
+            "status": "open",
+        })
 
     try:
-        analysis_result = await repository_analysis_service.analyze_repository(
-            repository_path,
-            repository_id=repository_id,
-        )
-
         content, media_type, filename = bug_report_service.export_reports(
-            reports=analysis_result.get("bug_reports", []),
+            reports=reports,
             format_type=format,
-            summary_stats=analysis_result.get("summary_stats"),
             repo_info={
                 "id": repository_id,
-                "path": repository_path,
-                "name": path.name,
+                "path": repository_path or "",
+                "name": repo_name,
             },
         )
 
@@ -421,12 +485,6 @@ async def export_repository_analysis(
             "Access-Control-Expose-Headers": "Content-Disposition",
         }
         return Response(content=content, media_type=media_type, headers=headers)
-
-    except ValueError as error:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(error),
-        ) from error
     except Exception as error:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

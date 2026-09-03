@@ -1,3 +1,4 @@
+from typing import Tuple
 from uuid import uuid4
 
 from sqlalchemy import select
@@ -49,15 +50,15 @@ async def signup_user(
     return new_user
 
 
-async def login_user(
+async def authenticate_user(
     db: AsyncSession,
     email: str,
     password: str,
-) -> str:
+) -> Tuple[str, User]:
 
     result = await db.execute(
         select(User).where(
-            User.email == email.lower()
+            User.email == email.lower().strip()
         )
     )
 
@@ -72,4 +73,14 @@ async def login_user(
     ):
         raise ValueError("Invalid email or password")
 
-    return create_access_token(user.id)
+    token = create_access_token(user.id)
+    return token, user
+
+
+async def login_user(
+    db: AsyncSession,
+    email: str,
+    password: str,
+) -> str:
+    token, _ = await authenticate_user(db, email, password)
+    return token

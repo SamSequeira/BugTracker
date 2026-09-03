@@ -1,12 +1,12 @@
 {
-  "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpqxf9olsj.java",
+  "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpg4cjju3n.java",
   "language": "Java",
   "issues": [
     {
       "rule_id": "JAVA_DIV_001",
       "issue_type": "division_by_zero",
       "message": "Division by potentially zero value: the divisor `b` may be zero at runtime. Add a zero-guard before dividing.",
-      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpqxf9olsj.java",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpg4cjju3n.java",
       "line_number": 4,
       "column": 15,
       "code_snippet": "a / b",
@@ -14,52 +14,8 @@
         "operator": "/",
         "right_operand": "b",
         "right_node_type": "identifier",
-        "classification": "potentially_zero"
-      },
-      "severity": "high"
-    },
-    {
-      "rule_id": "JAVA_RES_001",
-      "issue_type": "unclosed_resource",
-      "message": "`FileReader` created outside a try-with-resources statement. Use `try (FileReader r = new FileReader(...))` to ensure the resource is closed even when an exception occurs.",
-      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpqxf9olsj.java",
-      "line_number": 12,
-      "column": 32,
-      "code_snippet": "new java.io.FileReader(path)",
-      "evidence": {
-        "resource_type": "FileReader"
-      },
-      "severity": "high"
-    }
-  ],
-  "issue_count": 2,
-  "rules_run": [
-    "JAVA_DIV_001",
-    "JAVA_EXC_001",
-    "JAVA_EQ_001",
-    "JAVA_RES_001",
-    "JAVA_LOOP_001"
-  ],
-  "errors": []
-}
-{
-  "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpe3zx8wu7.java",
-  "language": "Java",
-  "issues": [
-    {
-      "rule_id": "JAVA_DIV_001",
-      "issue_type": "division_by_zero",
-      "message": "Division by potentially zero value: divisor `b` is not guarded against 0. Ensure divisor is validated before dividing.",
-      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpe3zx8wu7.java",
-      "line_number": 4,
-      "column": 15,
-      "code_snippet": "a / b",
-      "evidence": {
-        "operator": "/",
-        "right_operand": "b",
-        "right_node_type": "identifier",
-        "confidence": "medium",
-        "reason": "Dynamic divisor `b` has no static zero guard."
+        "classification": "potentially_zero",
+        "confidence": "medium"
       },
       "severity": "high",
       "confidence": "medium"
@@ -68,7 +24,7 @@
       "rule_id": "JAVA_RES_001",
       "issue_type": "unclosed_resource",
       "message": "`FileReader` created outside try-with-resources and not guaranteed to be closed. Wrap in `try (FileReader res = new FileReader(...))` to prevent leaks.",
-      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpe3zx8wu7.java",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpg4cjju3n.java",
       "line_number": 12,
       "column": 27,
       "code_snippet": "fr = new java.io.FileReader(path)",

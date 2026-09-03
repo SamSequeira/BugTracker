@@ -1,4 +1,4 @@
-﻿// src/components/Layout/Sidebar.jsx - Fixed Left Navigation Bar
+// src/components/Layout/Sidebar.jsx - Fixed Left Navigation Bar
 import React from "react";
 import { useBugTracker } from "../../useBugTracker.jsx";
 
@@ -10,7 +10,7 @@ export default function Sidebar() {
     setIsHelpOpen,
     setIsUserMenuOpen,
     sessionUser,
-    criticalUnresolvedCount,
+    highUnresolvedCount,
   } = useBugTracker();
 
   const name = sessionUser?.name || "Alex Mercer";
@@ -43,7 +43,7 @@ export default function Sidebar() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0a8 8 0 11-16 0 8 8 0 0116 0z" />
         </svg>
       ),
-      badge: criticalUnresolvedCount > 0 ? criticalUnresolvedCount : null,
+      badge: highUnresolvedCount > 0 ? highUnresolvedCount : null,
     },
     {
       id: "reports",
