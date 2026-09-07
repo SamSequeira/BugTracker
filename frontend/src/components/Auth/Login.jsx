@@ -46,7 +46,7 @@ export default function Login({ onSwitchToSignup, onOpenForgotPassword }) {
         setApiError(result.error || "Invalid credentials. Please verify your email and password.");
       }
     } catch (err) {
-      setApiError("Authentication service timed out. Loaded local demo workspace.");
+      setApiError(err.message || "Authentication service is unavailable. Please try again.");
     } finally {
       setIsLoading(false);
     }

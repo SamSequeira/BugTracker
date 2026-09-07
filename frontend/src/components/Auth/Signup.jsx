@@ -61,7 +61,7 @@ export default function Signup({ onSwitchToLogin }) {
         setApiError(result.error || "Failed to create account. Please try again.");
       }
     } catch (err) {
-      setApiError("Backend unreachable. Initialized demo session.");
+      setApiError(err.message || "Backend is unreachable. Please try again.");
     } finally {
       setIsLoading(false);
     }

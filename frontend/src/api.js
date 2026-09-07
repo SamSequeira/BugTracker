@@ -1,6 +1,10 @@
+/*
 // src/api.js - Central Data Access Layer for BugTracker
 // Manages backend requests, AbortController timeout, live/demo state, and caching.
+// Manages backend requests, AbortController timeout, live/demo state, and caching.
 
+import { DEFAULT_STATS, DEFAULT_AI_SUMMARY } from "./mockData.js";
+import { fetchGitHubRepo, setGitHubToken, getGitHubToken } from "./github.js";
 import { DEFAULT_STATS, DEFAULT_AI_SUMMARY } from "./mockData.js";
 import { fetchGitHubRepo, setGitHubToken, getGitHubToken } from "./github.js";
 
@@ -42,6 +46,11 @@ class ApiService {
       cleanUrl += "/v1";
     }
     this.baseUrl = cleanUrl;
+    let cleanUrl = url.trim().replace(/\/+$/, "");
+    if (cleanUrl.endsWith("/api")) {
+      cleanUrl += "/v1";
+    }
+    this.baseUrl = cleanUrl;
     sessionStorage.setItem("bugtracker_api_url", this.baseUrl);
     this.cache = {}; // Invalidate cache when changing backend target
   }
@@ -59,6 +68,7 @@ class ApiService {
     return this.token || sessionStorage.getItem("bugtracker_auth_token");
   }
 
+  // Core fetch wrapper with AbortController timeout
   // Core fetch wrapper with AbortController timeout
   async request(endpoint, options = {}, timeoutMs = TIMEOUT_MS) {
     const controller = new AbortController();
@@ -101,6 +111,18 @@ class ApiService {
           status: response.status,
           detail,
         });
+        const errorText = await response.text().catch(() => "");
+        let detail = response.statusText;
+        try {
+          const jsonErr = JSON.parse(errorText);
+          detail = jsonErr.detail || detail;
+        } catch {
+          if (errorText) detail = errorText;
+        }
+        throw Object.assign(new Error(`HTTP Error ${response.status}: ${detail}`), {
+          status: response.status,
+          detail,
+        });
       }
 
       this.notifyStatus(true);
@@ -129,6 +151,7 @@ class ApiService {
 
     try {
       const res = await fetch(`${targetUrl}/repositories/`, {
+      const res = await fetch(`${targetUrl}/repositories/`, {
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
@@ -141,8 +164,10 @@ class ApiService {
 
   // =========================================================================
   // 1. AUTHENTICATION ENDPOINTS
+  // 1. AUTHENTICATION ENDPOINTS
   // =========================================================================
 
+  // POST /api/v1/auth/login
   // POST /api/v1/auth/login
   async login(email, password) {
     try {
@@ -151,6 +176,7 @@ class ApiService {
         body: JSON.stringify({ email, password }),
       });
       const token = res.access_token;
+      const token = res.access_token;
       this.setToken(token);
       return {
         success: true,
@@ -158,7 +184,9 @@ class ApiService {
         user: res.user || {
           id: "usr-live-01",
           name: email.split("@")[0],
+          name: email.split("@")[0],
           email: email,
+          initials: email.substring(0, 2).toUpperCase(),
           initials: email.substring(0, 2).toUpperCase(),
           role: "Security Engineer",
         },
@@ -171,23 +199,6 @@ class ApiService {
         live: isHttp,
         error: detail,
         user: null,
-      };
-    }
-  }
-
-  // POST /api/v1/auth/signup
-  async signup(name, email, password) {
-    try {
-      await this.request("/auth/signup", {
-        method: "POST",
-        body: JSON.stringify({ name, email, password }),
-      });
-      // After signup, automatically log in
-      return await this.login(email, password);
-    } catch (err) {
-      const isHttp = Boolean(err.status);
-      const detail = err.detail || (err.status === 400 ? "Email already registered." : err.message);
-      return {
         success: false,
         live: isHttp,
         error: detail,
@@ -196,6 +207,38 @@ class ApiService {
     }
   }
 
+  // POST /api/v1/auth/signup
+  // POST /api/v1/auth/signup
+  async signup(name, email, password) {
+    try {
+      await this.request("/auth/signup", {
+      await this.request("/auth/signup", {
+        method: "POST",
+        body: JSON.stringify({ name, email, password }),
+      });
+      // After signup, automatically log in
+      return await this.login(email, password);
+      // After signup, automatically log in
+      return await this.login(email, password);
+    } catch (err) {
+      const isHttp = Boolean(err.status);
+      const detail = err.detail || (err.status === 400 ? "Email already registered." : err.message);
+      const isHttp = Boolean(err.status);
+      const detail = err.detail || (err.status === 400 ? "Email already registered." : err.message);
+      return {
+        success: false,
+        live: isHttp,
+        error: detail,
+        user: null,
+        success: false,
+        live: isHttp,
+        error: detail,
+        user: null,
+      };
+    }
+  }
+
+  // GET /api/v1/auth/me
   // GET /api/v1/auth/me
   async getCurrentUser() {
     try {
@@ -206,6 +249,7 @@ class ApiService {
     }
   }
 
+  // POST /api/v1/auth/logout
   // POST /api/v1/auth/logout
   async logout() {
     try {
@@ -221,6 +265,7 @@ class ApiService {
   // 2. REPOSITORY & SCAN ENDPOINTS
   // =========================================================================
 
+  // Scan a GitHub URL directly via GitHub public API for client metadata
   // Scan a GitHub URL directly via GitHub public API for client metadata
   async scanGitHubRepo(repoUrl) {
     const result = await fetchGitHubRepo(repoUrl);
@@ -252,6 +297,7 @@ class ApiService {
   async getRepositories() {
     try {
       const data = await this.request("/repositories/");
+      const data = await this.request("/repositories/");
       return { live: true, data: Array.isArray(data) ? data : [] };
     } catch (err) {
       return { live: false, data: [] };
@@ -263,12 +309,106 @@ class ApiService {
     if (!repositoryId) return { live: false, data: null, error: "No repository ID" };
     try {
       const data = await this.request(`/repositories/${repositoryId}/architecture`);
+      const data = await this.request(`/repositories/${repositoryId}/architecture`);
       return { live: true, data };
     } catch (err) {
       const status = err.message?.match(/HTTP Error (\d+)/)?.[1];
       return { live: false, data: null, error: err.message, status: status ? parseInt(status) : null };
     }
   }
+}
+
+export const apiService = new ApiService();
+*/
+
+// src/api.js - Central Data Access Layer for BugTracker
+// Manages backend requests, 4s AbortController timeout, live/demo state, caching, and graceful fallbacks.
+
+import { DEFAULT_STATS, DEFAULT_BUGS, DEFAULT_AI_SUMMARY } from "./mockData.js";
+import { fetchGitHubRepo, parseGitHubUrl, RepoAccessError, setGitHubToken, getGitHubToken } from "./github.js";
+
+const DEFAULT_API_URL = "http://localhost:8000/api";
+const TIMEOUT_MS = 4000;
+
+class ApiService {
+  constructor() {
+    this.baseUrl = sessionStorage.getItem("bugtracker_api_url") || DEFAULT_API_URL;
+    this.isLive = false;
+    this.token = sessionStorage.getItem("bugtracker_auth_token") || null;
+    this.cache = {};
+    this.statusListeners = new Set();
+  }
+
+  // Register live/demo status change listener
+  onStatusChange(listener) {
+    this.statusListeners.add(listener);
+    return () => this.statusListeners.delete(listener);
+  }
+
+  notifyStatus(live) {
+    this.isLive = live;
+    this.statusListeners.forEach((fn) => fn(live));
+  }
+
+  getBaseUrl() {
+    return this.baseUrl;
+  }
+
+  setBaseUrl(url) {
+    if (!url) return;
+    this.baseUrl = url.trim().replace(/\/+$/, "");
+    sessionStorage.setItem("bugtracker_api_url", this.baseUrl);
+    this.cache = {}; // Invalidate cache when changing backend target
+  }
+
+  setToken(token) {
+    this.token = token;
+    if (token) {
+      sessionStorage.setItem("bugtracker_auth_token", token);
+    } else {
+      sessionStorage.removeItem("bugtracker_auth_token");
+    }
+  }
+
+  getToken() {
+    return this.token || sessionStorage.getItem("bugtracker_auth_token");
+  }
+
+  // Core fetch wrapper with 4-second AbortController timeout
+  async request(endpoint, options = {}, timeoutMs = TIMEOUT_MS) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    const headers = {
+      ...(options.headers || {}),
+    };
+
+    // Attach auth token if available
+    const token = this.getToken();
+    if (token && !headers["Authorization"]) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    // Default to JSON headers unless FormData is passed
+    if (!(options.body instanceof FormData) && !headers["Content-Type"]) {
+      headers["Content-Type"] = "application/json";
+    }
+
+    try {
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        ...options,
+        headers,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
+      }
+
+      this.notifyStatus(true);
+      return await response.json();
 
   // GET /api/v1/repositories/{repositoryId}/analysis-status
   async getRepositoryAnalysisStatus(repositoryId) {
@@ -283,11 +423,14 @@ class ApiService {
         data: null,
         error: err.message,
         status: httpStatus ? parseInt(httpStatus) : null,
+        error: err.message,
+        status: httpStatus ? parseInt(httpStatus) : null,
       };
     }
   }
 
   // =========================================================================
+  // 3. CANDIDATE ISSUES & BUGS MANAGEMENT
   // 3. CANDIDATE ISSUES & BUGS MANAGEMENT
   // =========================================================================
 
@@ -310,11 +453,43 @@ class ApiService {
       const items = data.items || [];
       this.cache["bugs"] = items;
       return { live: true, data: items, total: data.total || items.length };
+  // GET /api/v1/candidate-issues
+  async getBugs(params = {}) {
+    try {
+      const query = new URLSearchParams();
+      if (params.repository_id) query.append("repository_id", params.repository_id);
+      if (params.analysis_run_id) query.append("analysis_run_id", params.analysis_run_id);
+      if (params.severity && params.severity !== "All") query.append("severity", params.severity.toLowerCase());
+      if (params.verification_status && params.verification_status !== "all") {
+        query.append("verification_status", params.verification_status);
+      }
+      query.append("limit", params.limit || "500");
+
+      const queryString = query.toString();
+      const endpoint = `/candidate-issues${queryString ? `?${queryString}` : ""}`;
+      const data = await this.request(endpoint);
+
+      const items = data.items || [];
+      this.cache["bugs"] = items;
+      return { live: true, data: items, total: data.total || items.length };
     } catch (err) {
+      return { live: false, data: this.cache["bugs"] || [], total: (this.cache["bugs"] || []).length, error: err.message };
       return { live: false, data: this.cache["bugs"] || [], total: (this.cache["bugs"] || []).length, error: err.message };
     }
   }
 
+  // GET /api/v1/repositories/{repositoryId}/candidate-issues
+  // Returns real backend candidate issues for a specific repository.
+  // Falls back to an empty array (not DEFAULT_BUGS) so the UI correctly
+  // shows no "Inspect Bug" cards when the backend is unreachable.
+  async getBugs(params = {}) {
+    const { repository_id } = params;
+    if (!repository_id) return { live: false, data: [] };
+    try {
+      const data = await this.request(`/v1/repositories/${repository_id}/candidate-issues`);
+      const items = data.items || [];
+      this.cache[`bugs_${repository_id}`] = items;
+      return { live: true, data: items, total: data.total || items.length };
   // GET /api/v1/repositories/{repositoryId}/candidate-issues
   // Returns real backend candidate issues for a specific repository.
   // Falls back to an empty array (not DEFAULT_BUGS) so the UI correctly
@@ -333,12 +508,19 @@ class ApiService {
         data: this.cache[`bugs_${repository_id}`] || [],
         error: err.message,
       };
+      return {
+        live: false,
+        data: this.cache[`bugs_${repository_id}`] || [],
+        error: err.message,
+      };
     }
   }
 
   // PATCH /api/v1/candidate-issues/{id}/status
+  // PATCH /api/v1/candidate-issues/{id}/status
   async resolveBug(bugId, nextStatus) {
     try {
+      const data = await this.request(`/candidate-issues/${bugId}/status`, {
       const data = await this.request(`/candidate-issues/${bugId}/status`, {
         method: "PATCH",
         body: JSON.stringify({ status: nextStatus }),
@@ -365,8 +547,24 @@ class ApiService {
   }
 
   // PATCH /api/v1/candidate-issues/{id}/notes
+  // PATCH /api/v1/candidate-issues/{id}/severity
+  async updateBugSeverity(bugId, nextSeverity) {
+    try {
+      const data = await this.request(`/candidate-issues/${bugId}/severity`, {
+        method: "PATCH",
+        body: JSON.stringify({ severity: nextSeverity }),
+      });
+      return { live: true, data };
+    } catch (err) {
+      console.warn(`Local severity update for ${bugId}: ${err.message}`);
+      return { live: false, data: { id: bugId, severity: nextSeverity, optimistic: true } };
+    }
+  }
+
+  // PATCH /api/v1/candidate-issues/{id}/notes
   async updateBugNotes(bugId, remarks) {
     try {
+      const data = await this.request(`/candidate-issues/${bugId}/notes`, {
       const data = await this.request(`/candidate-issues/${bugId}/notes`, {
         method: "PATCH",
         body: JSON.stringify({ remarks, engineerNotes: remarks }),
@@ -408,10 +606,43 @@ class ApiService {
     });
   }
 
+  // PATCH /api/v1/candidate-issues/{id}/labels
+  async saveCandidateLabels(issueId, payload) {
+    return await this.request(`/candidate-issues/${issueId}/labels`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  // GET /api/v1/candidate-issues/dataset/stats
+  async getDatasetStats() {
+    try {
+      const data = await this.request("/candidate-issues/dataset/stats");
+      return { live: true, data };
+    } catch (err) {
+      return { live: false, data: null };
+    }
+  }
+
+  // POST /api/v1/candidate-issues/review/batch
+  async getReviewBatch(targetSize = 200, randomSeed = 42) {
+    return await this.request("/candidate-issues/review/batch", {
+      method: "POST",
+      body: JSON.stringify({
+        target_size: targetSize,
+        random_seed: randomSeed,
+        max_per_rule_per_repo: 25,
+      }),
+    });
+  }
+
   // =========================================================================
+  // 4. AI ARCHITECTURE & DASHBOARD STATS
   // 4. AI ARCHITECTURE & DASHBOARD STATS
   // =========================================================================
 
+  // GET /api/v1/dashboard-stats
+  async getDashboardStats() {
   // GET /api/v1/dashboard-stats
   async getDashboardStats() {
     try {
@@ -438,8 +669,38 @@ class ApiService {
     if (!repositoryId) return { live: false, data: null, error: "No repository ID" };
     try {
       const data = await this.request(`/v1/repositories/${repositoryId}/analysis-status`);
+      const statsRes = await this.getDatasetStats();
+      if (statsRes.live && statsRes.data) {
+        return { live: true, data: statsRes.data };
+      }
+      return { live: false, data: DEFAULT_STATS };
+    } catch (err) {
+      return { live: false, data: this.cache["stats"] || DEFAULT_STATS };
+    }
+  }
+
+  // GET /api/v1/repositories/{repositoryId}/analysis-status
+  // Returns the status of the latest AnalysisRun for this repository.
+  // READ-ONLY — never triggers a new analysis.
+  // Returns { live, data: { repository_id, latest_run_id, status, total_files,
+  //   supported_files, candidate_issues_count, high_open_issues, started_at, completed_at,
+  //   duration_seconds } }
+  // status is one of: "none" | "running" | "completed" | "failed"
+  // "none" means no run exists yet (background task may not have started);
+  // the frontend should keep polling rather than treating this as a failure.
+  async getRepositoryAnalysisStatus(repositoryId) {
+    if (!repositoryId) return { live: false, data: null, error: "No repository ID" };
+    try {
+      const data = await this.request(`/v1/repositories/${repositoryId}/analysis-status`);
       return { live: true, data };
     } catch (err) {
+      const httpStatus = err.message?.match(/HTTP Error (\d+)/)?.[1];
+      return {
+        live: false,
+        data: null,
+        error: err.message,
+        status: httpStatus ? parseInt(httpStatus) : null,
+      };
       const httpStatus = err.message?.match(/HTTP Error (\d+)/)?.[1];
       return {
         live: false,

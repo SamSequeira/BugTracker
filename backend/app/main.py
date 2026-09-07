@@ -11,6 +11,7 @@ from app.api.v1.repositories import router as repositories_router
 from app.api.v1.candidate_issues import router as candidate_issues_router
 from app.api.v1.candidate_issues import router as candidate_issues_router
 from app.api.v1.auth import router as auth_router
+from app.core.config import settings
 
 
 app = FastAPI(
@@ -18,10 +19,10 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# Configure CORS for local frontend dev servers (Vite 5173, React 3000, 8000, etc.)
+# Configure CORS for the explicitly configured local frontend origins.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -37,6 +38,7 @@ app.include_router(
     prefix="/api/v1",
     tags=["Repositories"]
 )
+app.include_router(candidate_issues_router)
 # Mount API v1 Routers
 app.include_router(
     candidate_issues_router,

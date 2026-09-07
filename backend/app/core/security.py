@@ -41,6 +41,20 @@ def create_access_token(user_id: str) -> str:
     )
 
 
+def decode_access_token(token: str) -> str:
+    """Return the authenticated user id encoded in a valid access token."""
+    payload = jwt.decode(
+        token,
+        settings.JWT_SECRET_KEY,
+        algorithms=[settings.JWT_ALGORITHM],
+    )
+    user_id = payload.get("sub")
+    if not user_id:
+        raise jwt.InvalidTokenError("Token has no subject")
+    return user_id
+
+
+
 def decode_access_token(token: str) -> Optional[Dict[str, Any]]:
     try:
         payload = jwt.decode(

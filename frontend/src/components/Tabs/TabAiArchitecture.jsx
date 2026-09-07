@@ -1,3 +1,4 @@
+/*
 // src/components/Tabs/TabAiArchitecture.jsx - Tab 2: AI Codebase Architecture & Dynamic File Cards
 import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
@@ -209,6 +210,8 @@ export default function TabAiArchitecture() {
   };
 
   return (
+    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto">
+      {/* Header Overview Card * /}
     <>
       {/* ── Page content (inside the animated wrapper) ─────────────────── */}
       <div className="space-y-6 animate-fade-in max-w-7xl mx-auto">
@@ -233,7 +236,7 @@ export default function TabAiArchitecture() {
           </div>
         </div>
 
-        {/* Loading state */}
+        {/* Loading state * /}
         {archLoading && (
           <div className="flex items-center gap-2 text-xs text-cyan-400 bg-cyan-500/5 border border-cyan-500/20 rounded-xl px-4 py-2.5">
             <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
@@ -241,7 +244,7 @@ export default function TabAiArchitecture() {
           </div>
         )}
 
-        {/* Error / no-analysis-yet state (only shown when a backend repo was resolved) */}
+        {/* Error / no-analysis-yet state (only shown when a backend repo was resolved) * /}
         {!archLoading && archError && (
           <div className="text-xs text-amber-400 bg-amber-500/5 border border-amber-500/20 rounded-xl px-4 py-2.5">
             {archError.status === 404
@@ -250,7 +253,7 @@ export default function TabAiArchitecture() {
           </div>
         )}
 
-        {/* System Intent & Architecture Summary */}
+        {/* System Intent & Architecture Summary * /}
         <div className="space-y-4">
           <div>
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
@@ -261,7 +264,7 @@ export default function TabAiArchitecture() {
             </p>
           </div>
 
-          {/* Tech Stack Badges */}
+          {/* Tech Stack Badges * /}
           <div>
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
               Detected Technology Stack
@@ -281,9 +284,9 @@ export default function TabAiArchitecture() {
         </div>
       </div>
 
-      {/* Main Subsystems & Architectural Risks Grid */}
+      {/* Main Subsystems & Architectural Risks Grid * /}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Main Subsystems */}
+        {/* Main Subsystems * /}
         <div className="bg-[#131B2E] border border-slate-800 rounded-2xl p-6 space-y-4 shadow-lg">
           <h3 className="text-sm font-bold text-white flex items-center gap-2">
             <span>🧩</span> Main Architecture Components
@@ -304,7 +307,7 @@ export default function TabAiArchitecture() {
           </div>
         </div>
 
-        {/* Potential Architectural Risks & Recommendations */}
+        {/* Potential Architectural Risks & Recommendations * /}
         <div className="bg-[#131B2E] border border-slate-800 rounded-2xl p-6 space-y-4 shadow-lg flex flex-col justify-between">
           <div className="space-y-4">
             <h3 className="text-sm font-bold text-white flex items-center gap-2">
@@ -328,7 +331,7 @@ export default function TabAiArchitecture() {
             </div>
           </div>
 
-          {/* Recommendations Banner */}
+          {/* Recommendations Banner * /}
           <div className="bg-[#0B0F17] border border-cyan-500/20 rounded-xl p-4 space-y-2 mt-4">
             <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider block">
               💡 Primary AI Remediation Strategy
@@ -342,7 +345,7 @@ export default function TabAiArchitecture() {
         </div>
       </div>
 
-      {/* File Decomposition & Dynamic Search / Filter Grid */}
+      {/* File Decomposition & Dynamic Search / Filter Grid * /}
       <div className="bg-[#131B2E] border border-slate-800 rounded-2xl p-6 sm:p-8 space-y-6 shadow-xl">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
           <div>
@@ -354,7 +357,7 @@ export default function TabAiArchitecture() {
             </p>
           </div>
 
-          {/* Category Filter Chips */}
+          {/* Category Filter Chips * /}
           <div className="flex flex-wrap gap-1.5">
             {["All", "Risks", "Clean"].map((cat) => (
               <button
@@ -373,7 +376,7 @@ export default function TabAiArchitecture() {
           </div>
         </div>
 
-        {/* Real-time Search Field */}
+        {/* Real-time Search Field * /}
         <div className="relative">
           <svg
             className="w-4 h-4 text-cyan-400 absolute left-3.5 top-3"
@@ -400,7 +403,7 @@ export default function TabAiArchitecture() {
           )}
         </div>
 
-        {/* Grid of File Cards */}
+        {/* Grid of File Cards * /}
         {filteredFiles.length === 0 ? (
           <div className="text-center py-10 text-slate-400 space-y-1">
             <p>No file cards matched "{aiSearchQuery}"</p>
@@ -458,6 +461,9 @@ export default function TabAiArchitecture() {
           </div>
         )}
       </div>
+
+      {/* File Info Modal if file doesn't have a direct bug * /}
+      {selectedFileModal && (
       {/* ── End of page content wrapper ───────────────────────────────── */}
       </div>
 
@@ -506,6 +512,133 @@ export default function TabAiArchitecture() {
                 <p className="text-slate-200">{selectedFileModal.role}</p>
               </div>
               <div className="bg-[#0B0F17] p-3 rounded-xl border border-slate-800">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Functional Intent</span>
+                <p className="text-slate-300">{selectedFileModal.intent}</p>
+              </div>
+              <div className="flex justify-between items-center bg-[#0B0F17] p-3 rounded-xl border border-slate-800">
+                <span className="text-slate-400">Security Status:</span>
+                <span className={`text-xs font-semibold px-2.5 py-0.5 rounded border ${selectedFileModal.statusColor}`}>
+                  {selectedFileModal.status}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setSelectedFileModal(null)}
+                className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-4 py-2 rounded-lg"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+*/
+
+// src/components/Tabs/TabAiArchitecture.jsx - Tab 2: AI Codebase Architecture & Dynamic File Cards
+import React, { useState, useMemo } from "react";
+import { useBugTracker } from "../../useBugTracker.jsx";
+
+export default function TabAiArchitecture() {
+  const {
+    aiSummary,
+    aiSearchQuery,
+    setAiSearchQuery,
+    selectedFileFilter,
+    setSelectedFileFilter,
+    setActiveTab,
+    setActiveDrawerBug,
+    bugs,
+  } = useBugTracker();
+
+  const [selectedFileModal, setSelectedFileModal] = useState(null);
+
+  // Dynamic filter for file cards
+  const filteredFiles = useMemo(() => {
+    const fileList = aiSummary?.fileSummaries || [];
+    const query = aiSearchQuery.toLowerCase().trim();
+
+    return fileList.filter((f) => {
+      const matchesSearch =
+        !query ||
+        f.file.toLowerCase().includes(query) ||
+        f.role.toLowerCase().includes(query) ||
+        f.intent.toLowerCase().includes(query) ||
+        f.language.toLowerCase().includes(query) ||
+        f.status.toLowerCase().includes(query);
+
+      const matchesCategory =
+        selectedFileFilter === "All" ||
+        (selectedFileFilter === "Risks" && f.status !== "Clean" && f.status !== "Documentation") ||
+        (selectedFileFilter === "Clean" && f.status === "Clean") ||
+        f.status === selectedFileFilter;
+
+      return matchesSearch && matchesCategory;
+    });
+  }, [aiSummary, aiSearchQuery, selectedFileFilter]);
+
+  const handleCardClick = (fileItem) => {
+    // Check if there is an associated bug for this file
+    const matchedBug = bugs.find((b) => fileItem.file.includes(b.file) || b.file.includes(fileItem.file));
+    if (matchedBug) {
+      setActiveTab("bugs");
+      setActiveDrawerBug(matchedBug);
+    } else {
+      setSelectedFileModal(fileItem);
+    }
+  };
+
+  return (
+    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto">
+      {/* Header Overview Card */}
+      <div className="bg-[#131B2E] border border-slate-800 rounded-2xl p-6 sm:p-8 space-y-6 shadow-xl relative">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
+          <div>
+            <span className="text-[11px] font-mono uppercase tracking-wider text-cyan-400 font-semibold bg-cyan-500/10 px-2.5 py-1 rounded-full border border-cyan-500/20">
+              Tab 2 • Code Intelligence
+            </span>
+            <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight mt-2">
+              AI Codebase Architecture & Topology
+            </h2>
+            <p className="text-xs text-slate-400 mt-1">
+              Semantic NLP summary, detected technology stacks, subsystem boundaries, and file decomposition.
+            </p>
+          </div>
+
+          <div className="flex items-center space-x-2 text-xs text-slate-400 bg-[#0B0F17] px-3 py-1.5 rounded-xl border border-slate-800">
+            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+            <span>AST Semantic Parser v2.4</span>
+          </div>
+        </div>
+
+        {/* System Intent & Architecture Summary */}
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+              Identified System Intent & Architecture
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-200 leading-relaxed bg-[#0B0F17]/80 border border-slate-800 rounded-xl p-4">
+              {aiSummary.intent || "Enterprise microservice platform orchestrating authentication, checkout workflows, and WebSocket telemetry."}
+            </p>
+          </div>
+
+          {/* Tech Stack Badges */}
+          <div>
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+              Detected Technology Stack
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {(aiSummary.techStack || []).map((tech, idx) => (
+                <span
+                  key={idx}
+                  className="bg-[#0B0F17] border border-cyan-500/30 text-cyan-300 font-mono text-xs px-3 py-1 rounded-lg flex items-center gap-1.5 shadow-xs"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+                  {tech}
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
                   Functional Intent
                 </span>
