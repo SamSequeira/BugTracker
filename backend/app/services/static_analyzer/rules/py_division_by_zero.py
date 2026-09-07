@@ -714,7 +714,7 @@ lambdas), sequential fact updates, branch forks and merges, loop states,
 and assignment invalidations (kills).
 """
 
-from __future__ import annotations
+
 
 from enum import Enum, auto
 from typing import Dict, Iterator, List, Optional, Set, Tuple

@@ -19,7 +19,11 @@ async def signup_user(
     password: str,
 ) -> User:
 
+    normalized_name = name.strip()
     normalized_email = email.lower().strip()
+
+    if len(normalized_name) < 2:
+        raise ValueError("Name must be at least 2 characters")
 
     result = await db.execute(
         select(User).where(User.email == normalized_email)
@@ -32,7 +36,7 @@ async def signup_user(
 
     new_user = User(
         id=str(uuid4()),
-        name=name,
+        name=normalized_name,
         email=normalized_email,
         password_hash=hash_password(password),
     )
@@ -55,6 +59,15 @@ async def login_user(
     password: str,
 ) -> str:
 
+    user = await authenticate_user(db, email, password)
+    return create_access_token(user.id)
+
+
+async def authenticate_user(
+    db: AsyncSession,
+    email: str,
+    password: str,
+) -> User:
     result = await db.execute(
         select(User).where(
             User.email == email.lower()
@@ -72,4 +85,9 @@ async def login_user(
     ):
         raise ValueError("Invalid email or password")
 
-    return create_access_token(user.id)
+    return user
+
+
+async def get_user_by_id(db: AsyncSession, user_id: str) -> User | None:
+    result = await db.execute(select(User).where(User.id == user_id))
+    return result.scalar_one_or_none()

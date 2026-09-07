@@ -125,8 +125,6 @@ Regression Suite: Java Declared-Type Resolution & Shadowing
 ============================================================
 Validates hierarchical scoping in JAVA_EQ_001.
 """
-from __future__ import annotations
-
 import pathlib
 import sys
 

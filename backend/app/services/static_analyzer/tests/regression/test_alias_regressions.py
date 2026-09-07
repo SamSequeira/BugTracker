@@ -62,8 +62,6 @@ Regression Suite: Mutable Alias Propagation & Invalidation
 ===========================================================
 Validates alias-tracking guarantees in PY_MUT_001.
 """
-from __future__ import annotations
-
 import pathlib
 import sys
 

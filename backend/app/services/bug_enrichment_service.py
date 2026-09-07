@@ -872,8 +872,6 @@ Severity/Priority predictions, and Similarity/Deduplication into complete
 structured bug reports with actionable explanations.
 """
 
-from __future__ import annotations
-
 import hashlib
 import logging
 from typing import Any, Dict, List, Optional, Tuple, Union

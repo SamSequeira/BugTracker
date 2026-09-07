@@ -1,15 +1,19 @@
+/*
 // src/api.js - Central Data Access Layer for BugTracker
 // Manages backend requests, 4s AbortController timeout, live/demo state, caching, and graceful fallbacks.
 
 import { DEFAULT_STATS, DEFAULT_BUGS, DEFAULT_AI_SUMMARY } from "./mockData.js";
 import { fetchGitHubRepo, parseGitHubUrl, RepoAccessError, setGitHubToken, getGitHubToken } from "./github.js";
 
-const DEFAULT_API_URL = "http://localhost:8000/api";
+const DEFAULT_API_URL = "http://localhost:8000/api/v1";
 const TIMEOUT_MS = 4000;
 
 class ApiService {
   constructor() {
-    this.baseUrl = sessionStorage.getItem("bugtracker_api_url") || DEFAULT_API_URL;
+    const savedBaseUrl = sessionStorage.getItem("bugtracker_api_url");
+    this.baseUrl = savedBaseUrl === "http://localhost:8000/api"
+      ? DEFAULT_API_URL
+      : (savedBaseUrl || DEFAULT_API_URL);
     this.isLive = false;
     this.token = sessionStorage.getItem("bugtracker_auth_token") || null;
     this.cache = {};
@@ -145,6 +149,7 @@ class ApiService {
         },
       };
     } catch (err) {
+      throw err;
       // Graceful demo login fallback
       const token = "demo-session-token-" + Date.now();
       this.setToken(token);
@@ -382,6 +387,7 @@ class ApiService {
 }
 
 export const apiService = new ApiService();
+*/
 
 // src/api.js - Central Data Access Layer for BugTracker
 // Manages backend requests, 4s AbortController timeout, live/demo state, caching, and graceful fallbacks.
@@ -389,12 +395,15 @@ export const apiService = new ApiService();
 import { DEFAULT_STATS, DEFAULT_BUGS, DEFAULT_AI_SUMMARY } from "./mockData.js";
 import { fetchGitHubRepo, parseGitHubUrl, RepoAccessError, setGitHubToken, getGitHubToken } from "./github.js";
 
-const DEFAULT_API_URL = "http://localhost:8000/api";
+const DEFAULT_API_URL = "http://localhost:8000/api/v1";
 const TIMEOUT_MS = 4000;
 
 class ApiService {
   constructor() {
-    this.baseUrl = sessionStorage.getItem("bugtracker_api_url") || DEFAULT_API_URL;
+    const savedBaseUrl = sessionStorage.getItem("bugtracker_api_url");
+    this.baseUrl = savedBaseUrl === "http://localhost:8000/api"
+      ? DEFAULT_API_URL
+      : (savedBaseUrl || DEFAULT_API_URL);
     this.isLive = false;
     this.token = sessionStorage.getItem("bugtracker_auth_token") || null;
     this.cache = {};
@@ -530,7 +539,9 @@ class ApiService {
         },
       };
     } catch (err) {
+      throw err;
       // Graceful demo login fallback
+      throw err;
       const token = "demo-session-token-" + Date.now();
       this.setToken(token);
       const namePart = email.split("@")[0].replace(/[^a-zA-Z0-9]/g, " ");
@@ -571,6 +582,7 @@ class ApiService {
         },
       };
     } catch (err) {
+      throw err;
       const token = "demo-session-token-" + Date.now();
       this.setToken(token);
       return {

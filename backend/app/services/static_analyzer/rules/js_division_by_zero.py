@@ -232,7 +232,7 @@ Confidence calibration:
 - LOW: Ambiguous expressions in test/spec files.
 """
 
-from __future__ import annotations
+
 
 import re
 from typing import Iterator, List, Optional

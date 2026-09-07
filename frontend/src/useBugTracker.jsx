@@ -1,3 +1,4 @@
+/*
 // src/useBugTracker.jsx - Unified Shared Application State Provider
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { apiService } from "./api.js";
@@ -197,7 +198,7 @@ function generateBugsFromFileSummaries(fileSummaries, repoMeta) {
 
 export function BugTrackerProvider({ children }) {
   // 1. Authentication & Session State
-  const [sessionUser, setSessionUser] = useState(() => authService.getSavedSession());
+  const [sessionUser, setSessionUser] = useState(null);
   const isAuthenticated = Boolean(sessionUser);
 
   // 2. Active Tab View
@@ -249,6 +250,30 @@ export function BugTrackerProvider({ children }) {
   useEffect(() => {
     const unsub = apiService.onStatusChange((live) => setIsLive(live));
     return unsub;
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const restoreSession = async () => {
+      if (!apiService.getToken()) {
+        authService.saveSession(null);
+        return;
+      }
+
+      const res = await apiService.getCurrentUser();
+      if (cancelled) return;
+      if (res.success && res.user) {
+        authService.saveSession(res.user);
+        setSessionUser(res.user);
+      } else {
+        apiService.setToken(null);
+        authService.saveSession(null);
+      }
+    };
+
+    restoreSession();
+    return () => { cancelled = true; };
   }, []);
 
   // Keyboard shortcuts
@@ -524,7 +549,7 @@ export function BugTrackerProvider({ children }) {
           if (analyzeRes.ok) {
             analysisData = await analyzeRes.json();
           }
-        } catch (_) { /* non-fatal */ }
+        } catch (_) { /* non-fatal * / }
 
         setScanProgress(90);
         setScanStage("✓ Building report...");
@@ -712,6 +737,7 @@ export function useBugTracker() {
   if (!context) throw new Error("useBugTracker must be used within a BugTrackerProvider");
   return context;
 }
+*/
 
 // src/useBugTracker.jsx - Unified Shared Application State Provider
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
@@ -912,7 +938,7 @@ function generateBugsFromFileSummaries(fileSummaries, repoMeta) {
 
 export function BugTrackerProvider({ children }) {
   // 1. Authentication & Session State
-  const [sessionUser, setSessionUser] = useState(() => authService.getSavedSession());
+  const [sessionUser, setSessionUser] = useState(null);
   const isAuthenticated = Boolean(sessionUser);
 
   // 2. Active Tab View
@@ -962,6 +988,30 @@ export function BugTrackerProvider({ children }) {
   useEffect(() => {
     const unsub = apiService.onStatusChange((live) => setIsLive(live));
     return unsub;
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const restoreSession = async () => {
+      if (!apiService.getToken()) {
+        authService.saveSession(null);
+        return;
+      }
+
+      const res = await apiService.getCurrentUser();
+      if (cancelled) return;
+      if (res.success && res.user) {
+        authService.saveSession(res.user);
+        setSessionUser(res.user);
+      } else {
+        apiService.setToken(null);
+        authService.saveSession(null);
+      }
+    };
+
+    restoreSession();
+    return () => { cancelled = true; };
   }, []);
 
   // Keyboard shortcuts

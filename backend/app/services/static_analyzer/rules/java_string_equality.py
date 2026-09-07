@@ -366,8 +366,6 @@ Confidence calibration:
 - MEDIUM: One operand is proven String and the other is a String-like variable/method.
 """
 
-from __future__ import annotations
-
 import re
 from typing import Iterator, List, Optional, Set, Dict, Tuple
 

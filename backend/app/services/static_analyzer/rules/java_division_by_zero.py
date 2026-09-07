@@ -237,7 +237,7 @@ Confidence calibration:
 - LOW: Weak risk in test helper or complex context.
 """
 
-from __future__ import annotations
+
 
 import re
 from typing import Iterator, List, Optional, Set

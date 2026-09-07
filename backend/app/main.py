@@ -12,19 +12,16 @@ from app.api.v1.candidate_issues import (
     router as candidate_issues_router
 )
 from app.api.v1.auth import router as auth_router
-from app.api.v1.candidate_issues import (
-    router as candidate_issues_router
-)
-from app.api.v1.auth import router as auth_router
+from app.core.config import settings
 app = FastAPI(
     title="AI Bug Tracking System",
     version="1.0.0"
 )
 
-# Configure CORS for local frontend dev servers (Vite 5173, React 3000, 8000, etc.)
+# Configure CORS for the explicitly configured local frontend origins.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -39,12 +36,6 @@ app.include_router(
     repositories_router, 
     prefix="/api/v1",
     tags=["Repositories"]
-)
-app.include_router(candidate_issues_router)
-app.include_router(
-    auth_router,
-    prefix="/api/v1",
-    tags=["Authentication"],
 )
 app.include_router(candidate_issues_router)
 app.include_router(
@@ -88,16 +79,6 @@ async def detect_file_language(file: UploadFile = File(...)):
     }
 
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(
-        "app.main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True,
-        reload_dirs=["app"],
-        reload_excludes=["repositories"],
-    )
 
 if __name__ == "__main__":
     import uvicorn

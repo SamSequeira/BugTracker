@@ -1,3 +1,4 @@
+/*
 // src/components/Layout/Sidebar.jsx - Fixed Left Navigation Bar
 import React from "react";
 import { useBugTracker } from "../../useBugTracker.jsx";
@@ -58,7 +59,7 @@ export default function Sidebar() {
 
   return (
     <aside className="w-16 bg-[#0F1623] border-r border-slate-800 flex flex-col items-center py-4 space-y-4 shrink-0 sticky top-0 h-screen z-30 select-none">
-      {/* Brand Logo */}
+      {/* Brand Logo * /}
       <div
         onClick={() => setActiveTab("scanner")}
         title="BugTracker AI Home"
@@ -69,7 +70,7 @@ export default function Sidebar() {
         </svg>
       </div>
 
-      {/* Navigation Tabs */}
+      {/* Navigation Tabs * /}
       <nav className="flex flex-col space-y-2 w-full items-center pt-3 flex-1">
         {navItems.map((item) => {
           const isActive = activeTab === item.id;
@@ -86,12 +87,12 @@ export default function Sidebar() {
             >
               {item.icon}
 
-              {/* Dynamic Issue Badge for Tab 3 */}
+              {/* Dynamic Issue Badge for Tab 3 * /}
               {item.badge && !isActive && (
                 <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
               )}
 
-              {/* Tooltip Hover Bubble */}
+              {/* Tooltip Hover Bubble * /}
               <span className="absolute left-16 px-2.5 py-1 bg-slate-900 text-slate-100 text-xs font-semibold rounded-md shadow-xl border border-slate-700 whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
                 {item.label}
               </span>
@@ -100,9 +101,9 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* Bottom Controls: Settings, Help, and Single User Avatar */}
+      {/* Bottom Controls: Settings, Help, and Single User Avatar * /}
       <div className="flex flex-col space-y-3 items-center pt-3 border-t border-slate-800/80 w-full">
-        {/* Help Button */}
+        {/* Help Button * /}
         <button
           onClick={() => setIsHelpOpen(true)}
           title="Help & Documentation"
@@ -116,7 +117,7 @@ export default function Sidebar() {
           </span>
         </button>
 
-        {/* Settings Button */}
+        {/* Settings Button * /}
         <button
           onClick={() => setIsSettingsOpen(true)}
           title="Backend & Endpoint Settings"
@@ -131,7 +132,7 @@ export default function Sidebar() {
           </span>
         </button>
 
-        {/* SINGLE AVATAR AT BOTTOM OF SIDEBAR ONLY */}
+        {/* SINGLE AVATAR AT BOTTOM OF SIDEBAR ONLY * /}
         <button
           onClick={() => setIsUserMenuOpen(true)}
           title={`User: ${name} (Click for Menu)`}
@@ -143,6 +144,7 @@ export default function Sidebar() {
     </aside>
   );
 }
+*/
 
 // src/components/Layout/Sidebar.jsx - Fixed Left Navigation Bar
 import React from "react";

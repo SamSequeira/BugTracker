@@ -139,8 +139,6 @@ Regression Suite: Control Flow, Branches, Loops & Break Targeting
 ==================================================================
 Validates control-flow analysis and guard tracking.
 """
-from __future__ import annotations
-
 import pathlib
 import sys
 

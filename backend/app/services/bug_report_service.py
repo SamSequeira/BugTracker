@@ -218,8 +218,6 @@ enriched bug reports, computing summary metrics, and formatting output
 for API endpoints and frontend dashboards.
 """
 
-from __future__ import annotations
-
 import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union

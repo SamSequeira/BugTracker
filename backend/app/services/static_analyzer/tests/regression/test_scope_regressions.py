@@ -89,8 +89,6 @@ Regression Suite: Lexical Scope Isolation & Closures
 =====================================================
 Validates scope-isolation guarantees.
 """
-from __future__ import annotations
-
 import pathlib
 import sys
 

@@ -1,3 +1,4 @@
+/*
 // src/App.jsx - Main Application Container & Route Guard
 import React from "react";
 import { BugTrackerProvider, useBugTracker } from "./useBugTracker.jsx";
@@ -26,15 +27,15 @@ function AppContent() {
   // 2. Authenticated Protected Dashboard
   return (
     <div className="flex min-h-screen bg-[#0B0F17] text-slate-200 antialiased font-sans select-text">
-      {/* Fixed Left Navigation Bar */}
+      {/* Fixed Left Navigation Bar * /}
       <Sidebar />
 
-      {/* Main App Container */}
+      {/* Main App Container * /}
       <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
-        {/* Sticky Header */}
+        {/* Sticky Header * /}
         <Header />
 
-        {/* Dynamic Viewport Content */}
+        {/* Dynamic Viewport Content * /}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
           {activeTab === "scanner" && <TabRepositoryScanner />}
           {activeTab === "ai" && <TabAiArchitecture />}
@@ -43,7 +44,7 @@ function AppContent() {
         </main>
       </div>
 
-      {/* Global Application Modals & Drawers */}
+      {/* Global Application Modals & Drawers * /}
       <SettingsModal />
       <HelpModal />
       <GlobalSearchModal />
@@ -64,6 +65,7 @@ export default function App() {
     </BugTrackerProvider>
   );
 }
+*/
 
 // src/App.jsx - Main Application Container & Route Guard
 import React from "react";

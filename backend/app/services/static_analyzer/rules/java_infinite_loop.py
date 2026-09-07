@@ -496,8 +496,6 @@ A labeled break `break outer;` terminates the loop iff `outer` matches an
 enclosing ancestor label of the loop being analyzed.
 """
 
-from __future__ import annotations
-
 from typing import Iterator, List, Optional, Set
 
 from ..base_rule import BaseRule
