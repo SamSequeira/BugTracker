@@ -1,4 +1,4 @@
-﻿// src/api.js - Central Data Access Layer for BugTracker
+// src/api.js - Central Data Access Layer for BugTracker
 // Manages backend requests, 4s AbortController timeout, live/demo state, caching, and graceful fallbacks.
 
 import { DEFAULT_STATS, DEFAULT_BUGS, DEFAULT_AI_SUMMARY } from "./mockData.js";
@@ -292,18 +292,24 @@ class ApiService {
     }
   }
 
-  // =========================================================================
-  // 4. BUGS MANAGEMENT
-  // =========================================================================
-
-  // GET /api/bugs
-  async getBugs() {
+  // GET /api/v1/repositories/{repositoryId}/candidate-issues
+  // Returns real backend candidate issues for a specific repository.
+  // Falls back to an empty array (not DEFAULT_BUGS) so the UI correctly
+  // shows no "Inspect Bug" cards when the backend is unreachable.
+  async getBugs(params = {}) {
+    const { repository_id } = params;
+    if (!repository_id) return { live: false, data: [] };
     try {
-      const data = await this.request("/bugs");
-      this.cache["bugs"] = data;
-      return { live: true, data };
+      const data = await this.request(`/v1/repositories/${repository_id}/candidate-issues`);
+      const items = data.items || [];
+      this.cache[`bugs_${repository_id}`] = items;
+      return { live: true, data: items, total: data.total || items.length };
     } catch (err) {
-      return { live: false, data: this.cache["bugs"] || DEFAULT_BUGS };
+      return {
+        live: false,
+        data: this.cache[`bugs_${repository_id}`] || [],
+        error: err.message,
+      };
     }
   }
 
@@ -382,9 +388,9 @@ class ApiService {
 
   // GET /api/v1/repositories/{repositoryId}/analysis-status
   // Returns the status of the latest AnalysisRun for this repository.
-  // READ-ONLY â€” never triggers a new analysis.
+  // READ-ONLY — never triggers a new analysis.
   // Returns { live, data: { repository_id, latest_run_id, status, total_files,
-  //   supported_files, candidate_issues_count, started_at, completed_at,
+  //   supported_files, candidate_issues_count, high_open_issues, started_at, completed_at,
   //   duration_seconds } }
   // status is one of: "none" | "running" | "completed" | "failed"
   // "none" means no run exists yet (background task may not have started);

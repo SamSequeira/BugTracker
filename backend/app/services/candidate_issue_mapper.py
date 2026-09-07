@@ -21,7 +21,7 @@ class CandidateIssueMapper:
     @staticmethod
     def _compute_urgency(severity: str) -> str:
         sev = severity.lower()
-        if sev in ("critical", "high"):
+        if sev == "high":
             return "high"
         elif sev == "low":
             return "low"
@@ -277,7 +277,7 @@ class CandidateIssueMapper:
     @staticmethod
     def _compute_urgency(severity: str) -> str:
         sev = severity.lower()
-        if sev in ("critical", "high"):
+        if sev == "high":
             return "high"
         elif sev == "low":
             return "low"
@@ -360,7 +360,7 @@ class CandidateIssueMapper:
             code_snippet=code_snippet,
             evidence=evidence,
             language=language,
-            severity=severity,  # Preserved original detector severity
+            severity=severity,  # Scanner taxonomy: critical is folded to high
             urgency=urgency,
             verified_severity=None,  # Not verified yet; ground truth assigned separately
             verified_priority=None,  # Not verified yet; ground truth assigned separately

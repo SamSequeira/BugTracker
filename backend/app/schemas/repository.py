@@ -49,6 +49,7 @@ class AnalysisStatusResponse(BaseModel):
     total_files: int = 0
     supported_files: int = 0
     candidate_issues_count: int = 0
+    high_open_issues: int = 0
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     duration_seconds: Optional[float] = None

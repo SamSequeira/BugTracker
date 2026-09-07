@@ -18,6 +18,7 @@ from abc import ABC, abstractmethod
 from typing import Iterator, List
 
 from .models import CandidateIssue
+from .severity import normalize_scanner_severity
 
 
 class BaseRule(ABC):
@@ -40,7 +41,7 @@ class BaseRule(ABC):
     @property
     @abstractmethod
     def severity(self) -> str:
-        """'critical' | 'high' | 'medium' | 'low'"""
+        """'high' | 'medium' | 'low'"""
 
     @abstractmethod
     def analyze(
@@ -112,7 +113,7 @@ class BaseRule(ABC):
             column=col_num,
             code_snippet=self._snippet(node, source_lines),
             evidence=evidence,
-            severity=self.severity,
+            severity=normalize_scanner_severity(self.severity),
         )
 
 """
@@ -136,6 +137,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, Iterator, List, Optional, Set, Union
 
 from .models import CandidateIssue
+from .severity import normalize_scanner_severity
 
 
 class BaseRule(ABC):
@@ -199,7 +201,7 @@ class BaseRule(ABC):
     @property
     @abstractmethod
     def severity(self) -> str:
-        """'critical' | 'high' | 'medium' | 'low'"""
+        """'high' | 'medium' | 'low'"""
 
     @abstractmethod
     def analyze(
@@ -396,7 +398,7 @@ class BaseRule(ABC):
             column=col_num,
             code_snippet=self._snippet(node, source_lines),
             evidence=evidence,
-            severity=self.severity,
+            severity=normalize_scanner_severity(self.severity),
             confidence=conf,
         )
 

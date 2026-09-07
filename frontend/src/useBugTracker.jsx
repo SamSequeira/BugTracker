@@ -1,4 +1,4 @@
-﻿// src/useBugTracker.jsx - Unified Shared Application State Provider
+// src/useBugTracker.jsx - Unified Shared Application State Provider
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { apiService } from "./api.js";
 import { authService } from "./auth.js";
@@ -195,6 +195,67 @@ function generateBugsFromFileSummaries(fileSummaries, repoMeta) {
   return bugs;
 }
 
+// =========================================================================
+// Map a backend CandidateIssue object into the frontend UI bug shape.
+// Called after getBugs() returns real candidate issues from the backend.
+// =========================================================================
+function mapBackendCandidateIssueToUiBug(issue, index) {
+  const lineNum = issue.line_number || 1;
+  const rawSev = (issue.severity || "medium").toLowerCase();
+  const normalizedSev =
+    rawSev === "critical" ? "Critical" :
+    rawSev === "high" ? "High" :
+    rawSev === "low" ? "Low" : "Medium";
+
+  const rawPrio = (issue.urgency || "p2").toLowerCase();
+  const priorityLabel =
+    rawPrio === "high" || rawPrio === "p1"
+      ? "P1 \u2022 Fix now"
+      : rawPrio === "low" || rawPrio === "p3" || rawPrio === "p4"
+      ? "P3 \u2022 Backlog"
+      : "P2 \u2022 Fix this week";
+
+  const rawStatus = (issue.status || "open").toLowerCase();
+  const normalizedStatus =
+    rawStatus === "resolved" ? "Resolved" :
+    rawStatus === "in progress" ? "In Progress" : "Open";
+
+  // Build a minimal code snippet from raw string or fallback to title
+  const rawSnippet = issue.code_snippet || "";
+  let codeSnippet = [];
+  if (rawSnippet && rawSnippet.trim()) {
+    codeSnippet = rawSnippet.split("\n").map((text, offset) => ({
+      num: lineNum + offset,
+      text,
+      isErr: offset === 0,
+    }));
+  } else {
+    codeSnippet = [{ num: lineNum, text: issue.title || issue.message || "Issue detected", isErr: true }];
+  }
+
+  const engineers = ["Alex Mercer", "Sarah Chen", "David Kumar", "Elena Rostova", "Marcus Vance"];
+
+  return {
+    id: issue.id,
+    file: issue.file_path || "unknown_file",   // ← critical: must match fileItem.file
+    line: lineNum,
+    title: issue.title || issue.message || `Issue in ${issue.file_path}`,
+    severity: normalizedSev,
+    priority: priorityLabel,
+    status: normalizedStatus,
+    engineer: engineers[index % engineers.length],
+    createdAt: issue.created_at ? new Date(issue.created_at).toLocaleString() : "Recently detected",
+    similarCount: null,
+    engineerNotes: issue.engineer_notes || "",
+    wrong: issue.description || issue.message || "",
+    matter: issue.security_impact || issue.description || "Could lead to exploitation or data integrity failure.",
+    codeSnippet,
+    suggestedFix: issue.suggested_fix || null,
+    ruleId: issue.rule_id || "",
+    language: issue.language || "Unknown",
+  };
+}
+
 export function BugTrackerProvider({ children }) {
   // 1. Authentication & Session State
   const [sessionUser, setSessionUser] = useState(() => authService.getSavedSession());
@@ -324,19 +385,19 @@ export function BugTrackerProvider({ children }) {
           return;
         }
 
-        const { status: runStatus, total_files, supported_files, candidate_issues_count, duration_seconds } = res.data;
+        const { status: runStatus, total_files, supported_files, candidate_issues_count, high_open_issues, duration_seconds } = res.data;
 
         if (runStatus === "none" || runStatus === "running") {
           // Not done yet â€” update the stage label and keep polling.
           if (runStatus === "running") {
             // Gently advance progress from 30 â†’ 90 while we wait.
             setScanProgress((prev) => Math.min(prev + 2, 90));
-            setScanStage("âœ“ Analyzing codebase...");
+            setScanStage("✓ Analyzing codebase...");
           }
           return; // continue polling
         }
 
-        // Terminal states â€” stop polling regardless.
+        // Terminal states — stop polling regardless.
         stopPolling();
 
         if (runStatus === "completed") {
@@ -348,14 +409,25 @@ export function BugTrackerProvider({ children }) {
             totalBugs: candidate_issues_count ?? prev.totalBugs,
             totalFiles: total_files ?? prev.totalFiles,
             scanTime: duration_seconds != null ? `${duration_seconds.toFixed(1)}s` : prev.scanTime,
-            linesOfCode: null, // cleared â€” real line count not available from analysis-status
+            linesOfCode: null, // cleared — real line count not available from analysis-status
             critical: 0,       // reset to 0; no backend issue fetch here
+            openHigh: high_open_issues ?? 0,
           }));
           setIsLive(true);
           setScanProgress(100);
 
+          // Fetch real candidate issues for this repository and populate bugs state
+          // so TabAiArchitecture can match file cards against real issue file paths.
+          apiService.getBugs({ repository_id: repositoryId }).then((bugsRes) => {
+            if (bugsRes.live && Array.isArray(bugsRes.data)) {
+              setBugs(bugsRes.data.map((issue, idx) => mapBackendCandidateIssueToUiBug(issue, idx)));
+            } else {
+              setBugs([]);
+            }
+          });
+
           // Update the matching recent scan preset status so it no longer
-          // shows "Analyzingâ€¦" now that analysis is complete.
+          // shows "Analyzing…" now that analysis is complete.
           setRecentScans((prev) =>
             prev.map((item) =>
               item.repository_id === repositoryId
@@ -368,7 +440,7 @@ export function BugTrackerProvider({ children }) {
             )
           );
 
-          setScanStage("âœ“ Analysis complete");
+          setScanStage("✓ Analysis complete");
           setIsScanning(false);
           setScanCompleted(true);
         } else if (runStatus === "failed") {
@@ -540,7 +612,10 @@ export function BugTrackerProvider({ children }) {
     // Reset stale repository-specific data so the previous repository's
     // metrics don't remain visible while the new scan runs.
     setCurrentRepositoryId(null);
-    setStats(DEFAULT_STATS);
+    setStats({
+      ...DEFAULT_STATS,
+      openHigh: 0,
+    });
     setBugs(DEFAULT_BUGS);
 
     const targetUrl = typeof targetInput === "string" ? targetInput.trim() : repoUrl;
@@ -779,7 +854,7 @@ export function BugTrackerProvider({ children }) {
       stopPolling();
       setCurrentRepositoryId(recentItem.repository_id);
       setStats(DEFAULT_STATS);
-      setBugs(DEFAULT_BUGS);
+      setBugs([]);
       setScanCompleted(false);
       setScanError(null);
       if (recentItem.repo_url) setRepoUrl(recentItem.repo_url);
@@ -788,45 +863,55 @@ export function BugTrackerProvider({ children }) {
       (async () => {
         const res = await apiService.getRepositoryAnalysisStatus(recentItem.repository_id);
         if (res.live && res.data && res.data.status === "completed") {
-          const { total_files, candidate_issues_count, duration_seconds } = res.data;
+          const { total_files, candidate_issues_count, high_open_issues, duration_seconds } = res.data;
           setStats((prev) => ({
             ...prev,
             totalBugs: candidate_issues_count ?? 0,
             totalFiles: total_files ?? prev.totalFiles,
             scanTime: duration_seconds != null ? `${duration_seconds.toFixed(1)}s` : prev.scanTime,
             linesOfCode: null, // cleared to prevent stale DEFAULT_STATS value
-            critical: 0,       // reset; no backend issue fetch here
+            critical: 0,
+            openHigh: high_open_issues ?? 0,
           }));
           setIsLive(true);
           setScanCompleted(true);
+          // Fetch real candidate issues so TabAiArchitecture can show "Inspect Bug" cards.
+          const bugsRes = await apiService.getBugs({ repository_id: recentItem.repository_id });
+          if (bugsRes.live && Array.isArray(bugsRes.data)) {
+            setBugs(bugsRes.data.map((issue, idx) => mapBackendCandidateIssueToUiBug(issue, idx)));
+          } else {
+            setBugs([]);
+          }
         } else if (res.live && res.data && res.data.status === "running") {
-          // Analysis still in progress â€” resume polling.
+          // Analysis still in progress — resume polling.
           setScanCompleted(false);
           setIsScanning(true);
           setScanProgress(30);
-          setScanStage("âœ“ Resuming analysis monitoring...");
+          setScanStage("✓ Resuming analysis monitoring...");
           startAnalysisPolling(recentItem.repository_id);
         } else if (res.live && res.data && res.data.status === "none") {
-          // No analysis run yet â€” show neutral zero state, not DEFAULT_STATS.
+          // No analysis run yet — show neutral zero state, not DEFAULT_STATS.
           setStats((prev) => ({
             ...prev,
             totalBugs: 0,
             totalFiles: 0,
-            scanTime: "â€”",
+            scanTime: "—",
             linesOfCode: null,
             critical: 0,
+            openHigh: 0,
           }));
           setBugs([]);
           setScanCompleted(false);
         } else if (res.live && res.data && res.data.status === "failed") {
-          // Analysis failed â€” show zero state.
+          // Analysis failed — show zero state.
           setStats((prev) => ({
             ...prev,
             totalBugs: 0,
             totalFiles: 0,
-            scanTime: "â€”",
+            scanTime: "—",
             linesOfCode: null,
             critical: 0,
+            openHigh: 0,
           }));
           setBugs([]);
           setScanCompleted(false);

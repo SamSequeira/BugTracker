@@ -1,11 +1,11 @@
-﻿// src/components/Tabs/TabAiArchitecture.jsx - Tab 2: AI Codebase Architecture & Dynamic File Cards
+// src/components/Tabs/TabAiArchitecture.jsx - Tab 2: AI Codebase Architecture & Dynamic File Cards
 import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useBugTracker } from "../../useBugTracker.jsx";
 import { apiService } from "../../api.js";
 
 // ---------------------------------------------------------------------------
-// Map a backend ArchitectureTopologyResponse â†’ the shape the existing UI uses
+// Map a backend ArchitectureTopologyResponse → the shape the existing UI uses
 // ---------------------------------------------------------------------------
 function mapBackendToUiSummary(data) {
   // Tech stack: primary technologies shown prominently as badge strings
@@ -19,7 +19,7 @@ function mapBackendToUiSummary(data) {
     description: c.description || c.root_path || "",
   }));
 
-  // Risks derived from health_assessment (single block â†’ one risk item)
+  // Risks derived from health_assessment (single block → one risk item)
   const potentialRisks = data.summary?.health_assessment
     ? [{ title: "Health Assessment", severity: "Info", description: data.summary.health_assessment }]
     : [];
@@ -110,7 +110,7 @@ export default function TabAiArchitecture() {
     setArchError(null);
 
     if (currentRepositoryId) {
-      // Case 1: a repository is active â€” fetch its architecture.
+      // Case 1: a repository is active — fetch its architecture.
       fetchArchitecture(currentRepositoryId);
     } else {
       // Case 2 (temporary fallback): no frontend scan yet.
@@ -120,7 +120,7 @@ export default function TabAiArchitecture() {
         const listRes = await apiService.getRepositories();
         const repos = listRes.data; // already guaranteed to be an array
         if (repos.length === 0) {
-          // No repositories at all â€” stay on demo data.
+          // No repositories at all — stay on demo data.
           return;
         }
         // list_all() orders by created_at DESC, so index 0 is the latest.
@@ -133,20 +133,20 @@ export default function TabAiArchitecture() {
   // Retry effect: when analysis completes (scanCompleted flips to true) and we
   // still don't have valid archData for the current repository, re-fetch.
   // This handles the case where the user opened Tab 2 while analysis was still
-  // in progress â€” the first fetch got a 404, and now that analysis is done we
+  // in progress — the first fetch got a 404, and now that analysis is done we
   // need to try again.
   useEffect(() => {
     if (!scanCompleted || !currentRepositoryId) return;
-    if (archData) return;          // already have good data â€” no need to retry
+    if (archData) return;          // already have good data — no need to retry
     if (archLoading) return;       // fetch already in flight
     fetchArchitecture(currentRepositoryId);
   }, [scanCompleted, currentRepositoryId, archData, archLoading, fetchArchitecture]);
 
   // Determine what to display:
-  // - When a real repository is active AND we have real DB architecture â†’ show it.
-  // - When a real repository is active but no DB data yet â†’ show loading/error only
+  // - When a real repository is active AND we have real DB architecture → show it.
+  // - When a real repository is active but no DB data yet → show loading/error only
   //   (do NOT bleed GitHub-heuristic aiSummary as if it were DB architecture).
-  // - When no real repository is active (demo mode) â†’ fall back to aiSummary.
+  // - When no real repository is active (demo mode) → fall back to aiSummary.
   const displaySummary = archData || (currentRepositoryId ? null : aiSummary);
 
   // Dynamic filter for file cards
@@ -195,7 +195,11 @@ export default function TabAiArchitecture() {
 
   const handleCardClick = (fileItem) => {
     // Check if there is an associated bug for this file
-    const matchedBug = bugs.find((b) => fileItem.file.includes(b.file) || b.file.includes(fileItem.file));
+    const f1 = (fileItem.file || "").replace(/\\/g, "/").toLowerCase();
+    const matchedBug = bugs.find((b) => {
+      const f2 = (b.file || "").replace(/\\/g, "/").toLowerCase();
+      return f1 && f2 && (f1.includes(f2) || f2.includes(f1));
+    });
     if (matchedBug) {
       setActiveTab("bugs");
       setActiveDrawerBug(matchedBug);
@@ -206,14 +210,14 @@ export default function TabAiArchitecture() {
 
   return (
     <>
-      {/* â”€â”€ Page content (inside the animated wrapper) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── Page content (inside the animated wrapper) ─────────────────── */}
       <div className="space-y-6 animate-fade-in max-w-7xl mx-auto">
       {/* Header Overview Card */}
       <div className="bg-[#131B2E] border border-slate-800 rounded-2xl p-6 sm:p-8 space-y-6 shadow-xl relative">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
           <div>
             <span className="text-[11px] font-mono uppercase tracking-wider text-cyan-400 font-semibold bg-cyan-500/10 px-2.5 py-1 rounded-full border border-cyan-500/20">
-              Tab 2 â€¢ Code Intelligence
+              Tab 2 • Code Intelligence
             </span>
             <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight mt-2">
               AI Codebase Architecture & Topology
@@ -233,7 +237,7 @@ export default function TabAiArchitecture() {
         {archLoading && (
           <div className="flex items-center gap-2 text-xs text-cyan-400 bg-cyan-500/5 border border-cyan-500/20 rounded-xl px-4 py-2.5">
             <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
-            Loading architecture data for this repositoryâ€¦
+            Loading architecture data for this repository…
           </div>
         )}
 
@@ -282,7 +286,7 @@ export default function TabAiArchitecture() {
         {/* Main Subsystems */}
         <div className="bg-[#131B2E] border border-slate-800 rounded-2xl p-6 space-y-4 shadow-lg">
           <h3 className="text-sm font-bold text-white flex items-center gap-2">
-            <span>ðŸ§©</span> Main Architecture Components
+            <span>🧩</span> Main Architecture Components
           </h3>
           <div className="space-y-2.5">
             {(displaySummary?.mainComponents || []).map((comp, idx) => (
@@ -304,7 +308,7 @@ export default function TabAiArchitecture() {
         <div className="bg-[#131B2E] border border-slate-800 rounded-2xl p-6 space-y-4 shadow-lg flex flex-col justify-between">
           <div className="space-y-4">
             <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <span>âš ï¸</span> Potential Risks & Hotspots
+              <span>⚠️</span> Potential Risks & Hotspots
             </h3>
             <div className="space-y-2.5">
               {(displaySummary?.potentialRisks || []).map((risk, idx) => (
@@ -327,7 +331,7 @@ export default function TabAiArchitecture() {
           {/* Recommendations Banner */}
           <div className="bg-[#0B0F17] border border-cyan-500/20 rounded-xl p-4 space-y-2 mt-4">
             <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider block">
-              ðŸ’¡ Primary AI Remediation Strategy
+              💡 Primary AI Remediation Strategy
             </span>
             <ul className="text-xs text-slate-300 space-y-1.5 list-disc pl-4">
               {(displaySummary?.recommendations || []).slice(0, 3).map((rec, idx) => (
@@ -391,7 +395,7 @@ export default function TabAiArchitecture() {
               onClick={() => setAiSearchQuery("")}
               className="absolute right-3 top-2.5 text-slate-400 hover:text-white text-xs"
             >
-              âœ•
+              ✕
             </button>
           )}
         </div>
@@ -405,7 +409,11 @@ export default function TabAiArchitecture() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {filteredFiles.map((fileItem) => {
-              const hasBug = bugs.some((b) => fileItem.file.includes(b.file) || b.file.includes(fileItem.file));
+              const f1 = (fileItem.file || "").replace(/\\/g, "/").toLowerCase();
+              const hasBug = bugs.some((b) => {
+                const f2 = (b.file || "").replace(/\\/g, "/").toLowerCase();
+                return f1 && f2 && (f1.includes(f2) || f2.includes(f1));
+              });
               return (
                 <div
                   key={fileItem.id || fileItem.file}
@@ -438,10 +446,10 @@ export default function TabAiArchitecture() {
 
                   <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500">
                     <span className="font-mono bg-slate-900 px-2 py-0.5 rounded border border-slate-800 text-slate-400">
-                      {fileItem.language} â€¢ {fileItem.lines} lines
+                      {fileItem.language} • {fileItem.lines} lines
                     </span>
                     <span className="text-cyan-400 group-hover:translate-x-0.5 transition-transform font-medium">
-                      {hasBug ? "Inspect Bug â†’" : "View Info â†’"}
+                      {hasBug ? "Inspect Bug →" : "View Info →"}
                     </span>
                   </div>
                 </div>
@@ -450,10 +458,10 @@ export default function TabAiArchitecture() {
           </div>
         )}
       </div>
-      {/* â”€â”€ End of page content wrapper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── End of page content wrapper ───────────────────────────────── */}
       </div>
 
-      {/* File Info Modal â€” rendered via a portal into document.body so that
+      {/* File Info Modal — rendered via a portal into document.body so that
           the fixed overlay is never trapped inside an ancestor with a CSS
           transform (the animate-fade-in wrapper uses transform: translateY,
           which would otherwise create a new containing block and break
@@ -463,14 +471,14 @@ export default function TabAiArchitecture() {
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
           onClick={() => setSelectedFileModal(null)}
         >
-          {/* Modal panel â€” max-height keeps it within the viewport; the inner
+          {/* Modal panel — max-height keeps it within the viewport; the inner
               content area scrolls independently if the content is taller. */}
           <div
             className="bg-[#131B2E] border border-slate-800 rounded-2xl max-w-lg w-full shadow-2xl relative flex flex-col"
             style={{ maxHeight: "calc(100vh - 2rem)" }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Sticky header â€” never scrolls away */}
+            {/* Sticky header — never scrolls away */}
             <div className="flex items-start justify-between border-b border-slate-800 p-6 pb-4 shrink-0">
               <div className="flex-1 min-w-0 pr-3">
                 {/* break-all prevents long Windows paths from overflowing */}
@@ -478,14 +486,14 @@ export default function TabAiArchitecture() {
                   {selectedFileModal.file}
                 </h3>
                 <span className="text-xs text-slate-400">
-                  {selectedFileModal.language} â€¢ {selectedFileModal.lines} lines
+                  {selectedFileModal.language} • {selectedFileModal.lines} lines
                 </span>
               </div>
               <button
                 onClick={() => setSelectedFileModal(null)}
                 className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 shrink-0"
               >
-                âœ•
+                ✕
               </button>
             </div>
 
