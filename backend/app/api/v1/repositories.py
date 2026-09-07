@@ -23,6 +23,8 @@ from app.services.repository_analysis_service import repository_analysis_service
 from app.services.s3_service import S3UploadError
 from app.utils.git import GitCloneError
 from app.models.analysis_run import AnalysisRun
+from app.models.candidate_issues import CandidateIssue
+from app.models.issue_status import IssueStatus
 from app.models.repository import Repository
 from app.models.candidate_issues import CandidateIssue
 from app.repositories.repository_repo import repository_repository
@@ -32,7 +34,8 @@ from app.services.repository_upload_service import (
     RepositoryUploadError,
     repository_upload_service,
 )
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
+from sqlalchemy.orm import selectinload
 from app.repositories.architecture_component_repo import architecture_component_repository
 from app.repositories.architecture_summary_repo import architecture_summary_repository
 from app.repositories.source_file_repo import source_file_repository
@@ -537,6 +540,7 @@ async def get_repository_analysis_status(
             total_files=0,
             supported_files=0,
             candidate_issues_count=0,
+            high_open_issues=0,
             started_at=None,
             completed_at=None,
             duration_seconds=None,
@@ -550,6 +554,23 @@ async def get_repository_analysis_status(
         # Still running — show elapsed time so far
         duration = (datetime.now(timezone.utc) - latest_run.started_at).total_seconds()
 
+    high_open_issues_count = 0
+    if latest_run.status == "completed":
+        high_stmt = (
+            select(func.count(CandidateIssue.id))
+            .outerjoin(IssueStatus, CandidateIssue.id == IssueStatus.candidate_issue_id)
+            .where(
+                CandidateIssue.analysis_run_id == latest_run.id,
+                func.lower(CandidateIssue.severity) == "high",
+                or_(
+                    IssueStatus.id.is_(None),
+                    func.lower(IssueStatus.status) == "open",
+                ),
+            )
+        )
+        high_result = await db.execute(high_stmt)
+        high_open_issues_count = high_result.scalar() or 0
+
     return AnalysisStatusResponse(
         repository_id=repository_id,
         latest_run_id=latest_run.id,
@@ -557,6 +578,7 @@ async def get_repository_analysis_status(
         total_files=latest_run.total_files or 0,
         supported_files=latest_run.supported_files or 0,
         candidate_issues_count=latest_run.candidate_issues_count or 0,
+        high_open_issues=high_open_issues_count,
         started_at=latest_run.started_at,
         completed_at=latest_run.completed_at,
         duration_seconds=round(duration, 2) if duration is not None else None,
@@ -698,6 +720,90 @@ async def get_analysis_run_architecture(
         )
 
     return await _build_architecture_topology_response(db, analysis_run)
+
+
+@router.get(
+    "/{repository_id}/candidate-issues",
+    status_code=status.HTTP_200_OK,
+)
+async def list_repository_candidate_issues(
+    repository_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """
+    Return all candidate issues for the latest completed AnalysisRun belonging
+    to this repository.  Returns an empty list when no completed run exists.
+    """
+    repo = await repository_repository.get_by_id(db, repository_id)
+    if repo is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Repository not found.",
+        )
+
+    # Find the latest COMPLETED analysis run for this repository
+    stmt = (
+        select(AnalysisRun)
+        .where(
+            AnalysisRun.repository_id == repository_id,
+            AnalysisRun.status == "completed",
+        )
+        .order_by(AnalysisRun.created_at.desc())
+    )
+    result = await db.execute(stmt)
+    latest_run = result.scalars().first()
+
+    if latest_run is None:
+        return {"items": [], "total": 0}
+
+    # Fetch all candidate issues for this run with eager loaded status & recommendations
+    issues_stmt = (
+        select(CandidateIssue)
+        .options(
+            selectinload(CandidateIssue.status),
+            selectinload(CandidateIssue.recommendations),
+        )
+        .where(CandidateIssue.analysis_run_id == latest_run.id)
+        .order_by(CandidateIssue.created_at.asc())
+    )
+    issues_result = await db.execute(issues_stmt)
+    issues = list(issues_result.scalars().all())
+
+    items = []
+    for issue in issues:
+        rec = issue.recommendations[0] if issue.recommendations else None
+        suggested_fix = None
+        if rec and (rec.diff_remove or rec.diff_add or rec.recommendation):
+            suggested_fix = {
+                "remove": rec.diff_remove or "",
+                "add": rec.diff_add or "",
+                "note": rec.recommendation or "",
+            }
+
+        items.append({
+            "id": issue.id,
+            "analysis_run_id": issue.analysis_run_id,
+            "repository_id": repository_id,
+            "title": issue.title,
+            "description": issue.description or "",
+            "message": issue.description or issue.title or "",
+            "file_path": issue.file_path,
+            "line_number": issue.line_number,
+            "column": getattr(issue, "column", None),
+            "rule_id": issue.rule_id or "",
+            "issue_type": getattr(issue, "issue_type", "") or "",
+            "code_snippet": issue.code_snippet or "",
+            "severity": issue.severity,
+            "urgency": issue.urgency,
+            "status": issue.status.status if issue.status else "open",
+            "security_impact": issue.security_impact or "",
+            "engineer_notes": issue.status.remarks if issue.status and issue.status.remarks else "",
+            "suggested_fix": suggested_fix,
+            "language": getattr(issue, "language", None) or "Unknown",
+            "created_at": issue.created_at.isoformat() if issue.created_at else None,
+        })
+
+    return {"items": items, "total": len(items)}
 
 
 @router.get(

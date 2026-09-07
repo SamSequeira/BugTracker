@@ -11,6 +11,9 @@ from typing import Dict, Any, List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.analysis_run import AnalysisRun
+from app.models.candidate_issues import CandidateIssue
+from app.models.issue_recommendation import IssueRecommendation
+from app.models.issue_status import IssueStatus
 from app.models.source_file import SourceFile
 from app.repositories.architecture_component_repo import architecture_component_repository
 from app.repositories.architecture_summary_repo import architecture_summary_repository
@@ -55,9 +58,14 @@ class RepositoryAnalysisService:
         Returns:
             Comprehensive analysis results with AST metrics and candidate issues
         """
+        from app.services.bug_report_service import bug_report_service
+        from app.services.static_analyzer.analyzer import static_analyzer
+
         repo_path = Path(repo_path)
         if not repo_path.exists():
             raise ValueError(f"Repository path not found: {repo_path}")
+
+        rep_id = repository_id or repo_path.name
 
         # Run analysis in thread pool to avoid blocking
         # Step 1: Generate AST for all files in repository
@@ -66,56 +74,53 @@ class RepositoryAnalysisService:
             str(repo_path),
         )
 
-        # Step 2: Run Static Analysis on the complete AST result
+        # Step 2: Run Static Analysis on the complete AST result (with similarity if configured)
+        static_analysis_result = await asyncio.to_thread(
+            static_analyzer.analyze_repository,
+            ast_result,
+            rep_id,
+            self.similarity_service,
+        )
+
+        # Step 3: Run Candidate Issue generation on AST
         candidate_result = await asyncio.to_thread(
             candidate_issue_service.generate_from_repository,
             ast_result,
         )
 
-        formatted_ast = self._format_analysis_result(ast_result)
-        files_summary = [
-            {k: v for k, v in f.items() if k != "ast"}
-            for f in ast_result.get("files_analyzed", [])
-        ]
-
-        # Step 3: Run static analyzer to obtain structured results and similarity
-        from app.services.static_analyzer.analyzer import static_analyzer
-        from app.services.bug_report_service import bug_report_service
-
-        rep_id = repository_id or repo_path.name
-        static_analysis_result = await asyncio.to_thread(
-            static_analyzer.analyze_repository,
-            ast_result,
-            repository_id=rep_id,
-            similarity_service=self.similarity_service,
-        )
-
-        # Step 4: Generate enriched bug reports via bug_report_service
+        # Step 4: Generate Enriched Bug Reports
         reports_result = await asyncio.to_thread(
             bug_report_service.generate_repository_reports,
             ast_result=ast_result,
             candidate_result=candidate_result,
             repository_id=rep_id,
             repository_path=str(repo_path),
-            similarity_service=self.similarity_service,
         )
 
-        # Step 5: Return clean response without dumping massive AST hierarchies
-        return {
-            "repository_id": repository_id,
+        # Step 5: Format AST summary without dumping raw AST trees
+        formatted_ast = self._format_analysis_result(ast_result)
+        files_summary = [
+            {k: v for k, v in f.items() if k != "ast"}
+            for f in ast_result.get("files_analyzed", [])
+        ]
+
+        response_dict: Dict[str, Any] = {
+            "repository_id": rep_id,
             "repository_path": str(repo_path),
             "summary": formatted_ast["summary"],
             "files": files_summary,
             "ast_analysis": formatted_ast,
             "static_analysis": static_analysis_result,
             "candidate_issues": candidate_result.get("candidate_issues", []),
-            "total_candidate_issues": candidate_result.get("total_candidate_issues", len(candidate_result.get("candidate_issues", []))),
+            "total_candidate_issues": candidate_result.get("total_candidate_issues", 0),
             "bug_reports": reports_result.get("bug_reports", []),
-            "total_reports": reports_result.get("total_reports", len(reports_result.get("bug_reports", []))),
+            "total_reports": reports_result.get("total_reports", 0),
             "summary_stats": reports_result.get("summary_stats", {}),
             "_files_analyzed": ast_result.get("files_analyzed", []),
             "_ast_result": ast_result,
         }
+
+        return response_dict
 
     def _format_analysis_result(self, result: Dict[str, Any]) -> Dict[str, Any]:
         """Format AST generation summary for API response without raw AST file trees."""
@@ -284,11 +289,89 @@ class RepositoryAnalysisService:
             # ----------------------------------------------------
             raw_findings = analysis_result.get("candidate_issues", [])
 
-            issues, statuses, recommendations = candidate_issue_mapper.to_orm_bulk_with_relations(
-                raw_findings,
-                analysis_run_id,
-                source_file_map=source_file_map,
-            )
+            if hasattr(candidate_issue_mapper, "to_orm_bulk_with_relations"):
+                issues, statuses, recommendations = candidate_issue_mapper.to_orm_bulk_with_relations(
+                    raw_findings,
+                    analysis_run_id,
+                    source_file_map=source_file_map,
+                )
+            else:
+                issues = []
+                statuses = []
+                recommendations = []
+                for finding in raw_findings:
+                    fpath = finding.file_path if hasattr(finding, "file_path") else finding.get("file_path", "")
+                    sf_id = None
+                    if source_file_map and fpath:
+                        sf_id = (
+                            source_file_map.get(fpath)
+                            or source_file_map.get(Path(fpath).as_posix())
+                            or source_file_map.get(fpath.replace("\\", "/"))
+                        )
+                    issue_id = str(uuid.uuid4())
+                    rule_id = getattr(finding, "rule_id", None) or (finding.get("rule_id") if isinstance(finding, dict) else None)
+                    issue_type = getattr(finding, "issue_type", "unknown_issue") if hasattr(finding, "issue_type") else (finding.get("issue_type", "unknown_issue") if isinstance(finding, dict) else "unknown_issue")
+                    message = getattr(finding, "message", "") if hasattr(finding, "message") else (finding.get("message", "") if isinstance(finding, dict) else "")
+                    code_snippet = getattr(finding, "code_snippet", None) if hasattr(finding, "code_snippet") else (finding.get("code_snippet") if isinstance(finding, dict) else None)
+                    sev = (getattr(finding, "severity", "medium") or "medium").lower() if hasattr(finding, "severity") else ((finding.get("severity", "medium") or "medium").lower() if isinstance(finding, dict) else "medium")
+                    urgency = "high" if sev == "high" else ("low" if sev == "low" else "medium")
+                    title = f"{issue_type.replace('_', ' ').title()} ({rule_id})" if rule_id else issue_type.replace('_', ' ').title()
+                    desc = f"{message}\n\nCode Snippet:\n{code_snippet}" if code_snippet else message
+
+                    issue_orm = CandidateIssue(
+                        id=issue_id,
+                        analysis_run_id=analysis_run_id,
+                        source_file_id=sf_id,
+                        rule_id=rule_id,
+                        title=title,
+                        description=desc,
+                        code_snippet=code_snippet,
+                        file_path=fpath,
+                        line_number=getattr(finding, "line_number", None) if hasattr(finding, "line_number") else (finding.get("line_number") if isinstance(finding, dict) else None),
+                        severity=sev,
+                        urgency=urgency,
+                    )
+                    status_orm = IssueStatus(
+                        id=str(uuid.uuid4()),
+                        candidate_issue_id=issue_id,
+                        status="open",
+                    )
+                    issues.append(issue_orm)
+                    statuses.append(status_orm)
+
+                    # Extract recommendations if present
+                    recs_data = finding.get("recommendations", []) if isinstance(finding, dict) else getattr(finding, "recommendations", [])
+                    if recs_data:
+                        for idx, r in enumerate(recs_data, 1):
+                            r_text = r.get("recommendation") if isinstance(r, dict) else str(r)
+                            diff_rem = r.get("diff_remove") if isinstance(r, dict) else None
+                            diff_ad = r.get("diff_add") if isinstance(r, dict) else None
+                            fix_tp = r.get("fix_type", "code_patch" if diff_ad else "suggestion") if isinstance(r, dict) else "suggestion"
+                            p_order = r.get("priority_order", idx) if isinstance(r, dict) else idx
+                            recommendations.append(
+                                IssueRecommendation(
+                                    id=str(uuid.uuid4()),
+                                    candidate_issue_id=issue_id,
+                                    recommendation=r_text,
+                                    diff_remove=diff_rem,
+                                    diff_add=diff_ad,
+                                    priority_order=p_order,
+                                    fix_type=fix_tp,
+                                )
+                            )
+                    elif isinstance(finding, dict) and (finding.get("recommendation") or finding.get("diff_add") or finding.get("suggested_fix")):
+                        rec_text = str(finding.get("recommendation") or finding.get("suggested_fix") or "Apply code patch")
+                        recommendations.append(
+                            IssueRecommendation(
+                                id=str(uuid.uuid4()),
+                                candidate_issue_id=issue_id,
+                                recommendation=rec_text,
+                                diff_remove=finding.get("diff_remove"),
+                                diff_add=finding.get("diff_add"),
+                                priority_order=1,
+                                fix_type=finding.get("fix_type", "code_patch" if finding.get("diff_add") else "suggestion"),
+                            )
+                        )
 
             # Flush CandidateIssue rows
             if issues:

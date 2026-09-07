@@ -17,6 +17,7 @@ from app.models.analysis_run import AnalysisRun
 from app.models.analysis_technology import AnalysisTechnology
 from app.models.architecture_component import ArchitectureComponent
 from app.models.architecture_summary import ArchitectureSummary
+from app.models.candidate_issues import CandidateIssue
 from app.models.repository import Repository
 from app.models.source_file import SourceFile
 from app.schemas.architecture import ArchitectureTopologyResponse
@@ -219,3 +220,78 @@ async def test_get_repository_architecture_no_completed_run(test_client):
         response = await client.get(f"/api/v1/repositories/{repo_id}/architecture")
         assert response.status_code == 404
         assert "No completed analysis run found" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_list_repository_candidate_issues_success(test_client):
+    client, mock_db = test_client
+    repo_id = str(uuid.uuid4())
+    run_id = str(uuid.uuid4())
+    issue_id = str(uuid.uuid4())
+
+    repo = Repository(id=repo_id, name="sample-repo", s3_key="repos/sample.zip")
+    latest_run = AnalysisRun(id=run_id, repository_id=repo_id, status="completed")
+    issue = CandidateIssue(
+        id=issue_id,
+        analysis_run_id=run_id,
+        title="Division By Zero (PY_DIV_001)",
+        description="Division by zero found",
+        file_path="src/calc.py",
+        line_number=10,
+        severity="high",
+        urgency="high",
+        security_impact="Potential denial of service",
+        code_snippet="return a / b",
+    )
+    issue.status = None
+    issue.recommendations = []
+
+    with patch("app.api.v1.repositories.repository_repository.get_by_id", new=AsyncMock(return_value=repo)):
+        exec_run = MagicMock()
+        exec_run.scalars.return_value.first.return_value = latest_run
+
+        exec_issues = MagicMock()
+        exec_issues.scalars.return_value.all.return_value = [issue]
+
+        mock_db.execute.side_effect = [exec_run, exec_issues]
+
+        response = await client.get(f"/api/v1/repositories/{repo_id}/candidate-issues")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 1
+        assert len(data["items"]) == 1
+        item = data["items"][0]
+        assert item["id"] == issue_id
+        assert item["file_path"] == "src/calc.py"
+        assert item["severity"] == "high"
+        assert item["security_impact"] == "Potential denial of service"
+        assert item["status"] == "open"
+
+
+@pytest.mark.asyncio
+async def test_list_repository_candidate_issues_repo_not_found(test_client):
+    client, mock_db = test_client
+    repo_id = str(uuid.uuid4())
+
+    with patch("app.api.v1.repositories.repository_repository.get_by_id", new=AsyncMock(return_value=None)):
+        response = await client.get(f"/api/v1/repositories/{repo_id}/candidate-issues")
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Repository not found."
+
+
+@pytest.mark.asyncio
+async def test_list_repository_candidate_issues_no_completed_run(test_client):
+    client, mock_db = test_client
+    repo_id = str(uuid.uuid4())
+    repo = Repository(id=repo_id, name="sample-repo", s3_key="repos/sample.zip")
+
+    with patch("app.api.v1.repositories.repository_repository.get_by_id", new=AsyncMock(return_value=repo)):
+        exec_mock = MagicMock()
+        exec_mock.scalars.return_value.first.return_value = None
+        mock_db.execute.return_value = exec_mock
+
+        response = await client.get(f"/api/v1/repositories/{repo_id}/candidate-issues")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 0
+        assert data["items"] == []

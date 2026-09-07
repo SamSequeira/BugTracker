@@ -9,7 +9,9 @@ from .services.preprocessor import preprocess_code
 
 from app.api.v1.repositories import router as repositories_router
 from app.api.v1.candidate_issues import router as candidate_issues_router
+from app.api.v1.candidate_issues import router as candidate_issues_router
 from app.api.v1.auth import router as auth_router
+
 
 app = FastAPI(
     title="AI Bug Tracking System",
@@ -30,11 +32,16 @@ static_dir = Path(__file__).resolve().parent / "static"
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
+app.include_router(
+    repositories_router,
+    prefix="/api/v1",
+    tags=["Repositories"]
+)
 # Mount API v1 Routers
 app.include_router(
-    auth_router,
+    candidate_issues_router,
     prefix="/api/v1",
-    tags=["Authentication"],
+    tags=["Candidate Issues"],
 )
 
 app.include_router(
@@ -90,6 +97,7 @@ async def detect_file_language(file: UploadFile = File(...)):
         "language": language,
         "processed_code": processed_code,
     }
+
 
 
 if __name__ == "__main__":

@@ -44,34 +44,107 @@ function mapBackendCandidateIssueToUiBug(issue, index = 0) {
 
   const engineers = ["Alex Mercer", "Sarah Chen", "David Kumar", "Elena Rostova", "Marcus Vance"];
 
-  const issueStatus = issue.status?.status
-    ? issue.status.status.charAt(0).toUpperCase() + issue.status.status.slice(1)
-    : "Open";
+  const bugs = [];
+  let bugCounter = 1;
+
+  for (const file of fileSummaries) {
+    // Find matching rule template(s)
+    const matchedTemplates = RULE_TEMPLATES.filter((t) => t.match(file));
+    if (matchedTemplates.length === 0) continue;
+
+    // Use the first matching template (avoid flooding with too many bugs per file)
+    const template = matchedTemplates[0];
+    const issue = template.makeIssue(file, bugCounter, repoMeta);
+    const lineNum = issue.line;
+
+    bugs.push({
+      id: `BUG-${now.getFullYear()}-${String(bugCounter).padStart(4, "0")}`,
+      file: file.file,  // â† REAL file path from the scanned repo
+      line: lineNum,
+      title: issue.title,
+      severity: issue.severity,
+      priority: issue.priority,
+      status: "Open",
+      engineer: engineers[bugCounter % engineers.length],
+      createdAt: dateStr,
+      similarCount: null,
+      engineerNotes: "",
+      wrong: issue.wrong,
+      matter: issue.matter,
+      codeSnippet: issue.snippet.map((s) => ({
+        num: lineNum + (s.offset || 0),
+        text: s.text,
+        isErr: s.isErr || false,
+      })),
+      suggestedFix: issue.fix,
+      ruleId: issue.rule,
+      language: file.language,
+    });
+
+    bugCounter++;
+  }
+
+  return bugs;
+}
+
+// =========================================================================
+// Map a backend CandidateIssue object into the frontend UI bug shape.
+// Called after getBugs() returns real candidate issues from the backend.
+// =========================================================================
+function mapBackendCandidateIssueToUiBug(issue, index) {
+  const lineNum = issue.line_number || 1;
+  const rawSev = (issue.severity || "medium").toLowerCase();
+  const normalizedSev =
+    rawSev === "critical" ? "Critical" :
+    rawSev === "high" ? "High" :
+    rawSev === "low" ? "Low" : "Medium";
+
+  const rawPrio = (issue.urgency || "p2").toLowerCase();
+  const priorityLabel =
+    rawPrio === "high" || rawPrio === "p1"
+      ? "P1 \u2022 Fix now"
+      : rawPrio === "low" || rawPrio === "p3" || rawPrio === "p4"
+      ? "P3 \u2022 Backlog"
+      : "P2 \u2022 Fix this week";
+
+  const rawStatus = (issue.status || "open").toLowerCase();
+  const normalizedStatus =
+    rawStatus === "resolved" ? "Resolved" :
+    rawStatus === "in progress" ? "In Progress" : "Open";
+
+  // Build a minimal code snippet from raw string or fallback to title
+  const rawSnippet = issue.code_snippet || "";
+  let codeSnippet = [];
+  if (rawSnippet && rawSnippet.trim()) {
+    codeSnippet = rawSnippet.split("\n").map((text, offset) => ({
+      num: lineNum + offset,
+      text,
+      isErr: offset === 0,
+    }));
+  } else {
+    codeSnippet = [{ num: lineNum, text: issue.title || issue.message || "Issue detected", isErr: true }];
+  }
+
+  const engineers = ["Alex Mercer", "Sarah Chen", "David Kumar", "Elena Rostova", "Marcus Vance"];
 
   return {
     id: issue.id,
-    file: issue.file_path || "unknown_file",
+    file: issue.file_path || "unknown_file",   // ← critical: must match fileItem.file
     line: lineNum,
-    column: issue.column || null,
     title: issue.title || issue.message || `Issue in ${issue.file_path}`,
     severity: normalizedSev,
     priority: priorityLabel,
-    status: issueStatus,
-    engineer: issue.assigned_to?.name || engineers[index % engineers.length],
+    status: normalizedStatus,
+    engineer: engineers[index % engineers.length],
     createdAt: issue.created_at ? new Date(issue.created_at).toLocaleString() : "Recently detected",
     similarCount: null,
-    engineerNotes: issue.verification_notes || issue.status?.remarks || "",
-    wrong: issue.description || issue.message || "Static analysis vulnerability finding.",
-    matter: issue.security_impact || "Potential logic or security flaw detected during AST analysis.",
-    rawSnippet: typeof rawSnippet === "string" ? rawSnippet : "",
+    engineerNotes: issue.engineer_notes || "",
+    wrong: issue.description || issue.message || "",
+    matter: issue.security_impact || issue.description || "Could lead to exploitation or data integrity failure.",
     codeSnippet,
-    suggestedFix: {
-      remove: `- ${codeSnippet[0]?.text || rawSnippet || ""}`,
-      add: `+ # Review and remediate ${issue.rule_id || "vulnerability"}`,
-      note: `Detected by rule ${issue.rule_id || "AST analyzer"}. Follow defensive coding practices.`,
-    },
-    ruleId: issue.rule_id,
-    language: issue.language,
+    suggestedFix: issue.suggested_fix || null,
+    ruleId: issue.rule_id || "",
+    language: issue.language || "Unknown",
   };
 }
 
@@ -193,16 +266,18 @@ export function BugTrackerProvider({ children }) {
           return;
         }
 
-        const { status: runStatus, total_files, candidate_issues_count, duration_seconds } = res.data;
+        const { status: runStatus, total_files, supported_files, candidate_issues_count, high_open_issues, duration_seconds } = res.data;
 
         if (runStatus === "none" || runStatus === "running") {
           if (runStatus === "running") {
-            setScanProgress((prev) => Math.min(prev + 3, 90));
-            setScanStage("✓ Analyzing codebase AST and detecting vulnerabilities...");
+            // Gently advance progress from 30 â†’ 90 while we wait.
+            setScanProgress((prev) => Math.min(prev + 2, 90));
+            setScanStage("✓ Analyzing codebase...");
           }
           return;
         }
 
+        // Terminal states — stop polling regardless.
         stopPolling();
 
         if (runStatus === "completed") {
@@ -222,12 +297,25 @@ export function BugTrackerProvider({ children }) {
             totalBugs: candidate_issues_count ?? realBugs.length,
             totalFiles: total_files ?? prev.totalFiles,
             scanTime: duration_seconds != null ? `${duration_seconds.toFixed(1)}s` : prev.scanTime,
-            linesOfCode: null,
-            high: realBugs.filter((b) => b.severity === "High").length,
-            medium: realBugs.filter((b) => b.severity === "Medium").length,
-            low: realBugs.filter((b) => b.severity === "Low").length,
+            linesOfCode: null, // cleared — real line count not available from analysis-status
+            critical: 0,       // reset to 0; no backend issue fetch here
+            openHigh: high_open_issues ?? 0,
           }));
+          setIsLive(true);
+          setScanProgress(100);
 
+          // Fetch real candidate issues for this repository and populate bugs state
+          // so TabAiArchitecture can match file cards against real issue file paths.
+          apiService.getBugs({ repository_id: repositoryId }).then((bugsRes) => {
+            if (bugsRes.live && Array.isArray(bugsRes.data)) {
+              setBugs(bugsRes.data.map((issue, idx) => mapBackendCandidateIssueToUiBug(issue, idx)));
+            } else {
+              setBugs([]);
+            }
+          });
+
+          // Update the matching recent scan preset status so it no longer
+          // shows "Analyzing…" now that analysis is complete.
           setRecentScans((prev) =>
             prev.map((item) =>
               item.repository_id === repositoryId
@@ -404,8 +492,11 @@ export function BugTrackerProvider({ children }) {
     setScanCompleted(false);
     stopPolling();
     setCurrentRepositoryId(null);
-    setStats(DEFAULT_STATS);
-    setBugs([]);
+    setStats({
+      ...DEFAULT_STATS,
+      openHigh: 0,
+    });
+    setBugs(DEFAULT_BUGS);
 
     const targetUrl = typeof targetInput === "string" ? targetInput.trim() : repoUrl;
     if (!isFile && typeof targetInput === "string") {
@@ -612,35 +703,63 @@ export function BugTrackerProvider({ children }) {
       if (recentItem.repo_url) setRepoUrl(recentItem.repo_url);
 
       (async () => {
-        const [statusRes, bugsRes] = await Promise.all([
-          apiService.getRepositoryAnalysisStatus(recentItem.repository_id),
-          apiService.getBugs({ repository_id: recentItem.repository_id }),
-        ]);
-
-        if (bugsRes.live && Array.isArray(bugsRes.data)) {
-          const mapped = bugsRes.data.map((b, idx) => mapBackendCandidateIssueToUiBug(b, idx));
-          setBugs(mapped);
-        }
-
-        if (statusRes.live && statusRes.data && statusRes.data.status === "completed") {
-          const { total_files, candidate_issues_count, duration_seconds } = statusRes.data;
+        const res = await apiService.getRepositoryAnalysisStatus(recentItem.repository_id);
+        if (res.live && res.data && res.data.status === "completed") {
+          const { total_files, candidate_issues_count, high_open_issues, duration_seconds } = res.data;
           setStats((prev) => ({
             ...prev,
             totalBugs: candidate_issues_count ?? 0,
             totalFiles: total_files ?? prev.totalFiles,
             scanTime: duration_seconds != null ? `${duration_seconds.toFixed(1)}s` : prev.scanTime,
-            linesOfCode: null,
+            linesOfCode: null, // cleared to prevent stale DEFAULT_STATS value
             critical: 0,
+            openHigh: high_open_issues ?? 0,
           }));
           setIsLive(true);
           setScanCompleted(true);
-        } else if (statusRes.live && statusRes.data && statusRes.data.status === "running") {
+          // Fetch real candidate issues so TabAiArchitecture can show "Inspect Bug" cards.
+          const bugsRes = await apiService.getBugs({ repository_id: recentItem.repository_id });
+          if (bugsRes.live && Array.isArray(bugsRes.data)) {
+            setBugs(bugsRes.data.map((issue, idx) => mapBackendCandidateIssueToUiBug(issue, idx)));
+          } else {
+            setBugs([]);
+          }
+        } else if (res.live && res.data && res.data.status === "running") {
+          // Analysis still in progress — resume polling.
           setScanCompleted(false);
           setIsScanning(true);
           setScanProgress(30);
           setScanStage("✓ Resuming analysis monitoring...");
           startAnalysisPolling(recentItem.repository_id);
+        } else if (res.live && res.data && res.data.status === "none") {
+          // No analysis run yet — show neutral zero state, not DEFAULT_STATS.
+          setStats((prev) => ({
+            ...prev,
+            totalBugs: 0,
+            totalFiles: 0,
+            scanTime: "—",
+            linesOfCode: null,
+            critical: 0,
+            openHigh: 0,
+          }));
+          setBugs([]);
+          setScanCompleted(false);
+        } else if (res.live && res.data && res.data.status === "failed") {
+          // Analysis failed — show zero state.
+          setStats((prev) => ({
+            ...prev,
+            totalBugs: 0,
+            totalFiles: 0,
+            scanTime: "—",
+            linesOfCode: null,
+            critical: 0,
+            openHigh: 0,
+          }));
+          setBugs([]);
+          setScanCompleted(false);
         }
+        // If res.live is false (backend unreachable), stats stay as DEFAULT_STATS
+        // which is the correct demo/fallback behavior.
       })();
       return;
     }

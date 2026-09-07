@@ -7,6 +7,8 @@ Standardized data structures for static analysis output.
 from dataclasses import dataclass, field
 from typing import Optional
 
+from .severity import normalize_scanner_severity
+
 
 @dataclass
 class CandidateIssue:
@@ -27,8 +29,7 @@ class CandidateIssue:
     evidence      : Machine-readable detail dict that explains how the rule
                     reached this conclusion.  Keyed by rule-specific fields
                     (e.g. {"operator": "/", "right_operand": "b"}).
-    severity      : "high" | "medium" | "low"
-    confidence    : "high" | "medium" | "low"
+    severity      : "high" | "medium" | "low"  (High is the highest scanner severity)
     """
 
     rule_id: str
@@ -41,6 +42,9 @@ class CandidateIssue:
     evidence: dict = field(default_factory=dict)
     severity: str = "medium"
     confidence: str = "medium"  # "high" | "medium" | "low"
+
+    def __post_init__(self) -> None:
+        self.severity = normalize_scanner_severity(self.severity)
 
     def to_dict(self) -> dict:
         return {
@@ -55,4 +59,3 @@ class CandidateIssue:
             "severity": self.severity,
             "confidence": self.confidence,
         }
-

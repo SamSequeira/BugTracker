@@ -32,7 +32,7 @@ def test_mapper_from_dataclass():
     assert "Code Snippet:\nres = a / 0" in issue_orm.description
     assert issue_orm.file_path == "src/math.py"
     assert issue_orm.line_number == 42
-    assert issue_orm.severity == "critical"
+    assert issue_orm.severity == "high"
     assert issue_orm.urgency == "high"
 
     assert status_orm.candidate_issue_id == issue_orm.id

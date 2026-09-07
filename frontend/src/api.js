@@ -315,21 +315,23 @@ class ApiService {
     }
   }
 
-  // GET /api/v1/candidate-issues/{id}
-  async getCandidateIssue(issueId) {
-    return await this.request(`/candidate-issues/${issueId}`);
-  }
-
-  // GET /api/v1/candidate-issues/{id}/context
-  async getSourceContext(issueId, contextLines = 15) {
+  // GET /api/v1/repositories/{repositoryId}/candidate-issues
+  // Returns real backend candidate issues for a specific repository.
+  // Falls back to an empty array (not DEFAULT_BUGS) so the UI correctly
+  // shows no "Inspect Bug" cards when the backend is unreachable.
+  async getBugs(params = {}) {
+    const { repository_id } = params;
+    if (!repository_id) return { live: false, data: [] };
     try {
-      return await this.request(`/candidate-issues/${issueId}/context?context_lines=${contextLines}`);
+      const data = await this.request(`/v1/repositories/${repository_id}/candidate-issues`);
+      const items = data.items || [];
+      this.cache[`bugs_${repository_id}`] = items;
+      return { live: true, data: items, total: data.total || items.length };
     } catch (err) {
       return {
-        found: false,
-        message: `Source context error: ${err.message}`,
-        formatted_text: "[Notice] Source context unavailable.",
-        lines: [],
+        live: false,
+        data: this.cache[`bugs_${repository_id}`] || [],
+        error: err.message,
       };
     }
   }
@@ -423,9 +425,29 @@ class ApiService {
     }
   }
 
-  // GET /api/v1/ai-summary
-  async getAiSummary() {
-    return { live: false, data: this.cache["ai-summary"] || DEFAULT_AI_SUMMARY };
+  // GET /api/v1/repositories/{repositoryId}/analysis-status
+  // Returns the status of the latest AnalysisRun for this repository.
+  // READ-ONLY — never triggers a new analysis.
+  // Returns { live, data: { repository_id, latest_run_id, status, total_files,
+  //   supported_files, candidate_issues_count, high_open_issues, started_at, completed_at,
+  //   duration_seconds } }
+  // status is one of: "none" | "running" | "completed" | "failed"
+  // "none" means no run exists yet (background task may not have started);
+  // the frontend should keep polling rather than treating this as a failure.
+  async getRepositoryAnalysisStatus(repositoryId) {
+    if (!repositoryId) return { live: false, data: null, error: "No repository ID" };
+    try {
+      const data = await this.request(`/v1/repositories/${repositoryId}/analysis-status`);
+      return { live: true, data };
+    } catch (err) {
+      const httpStatus = err.message?.match(/HTTP Error (\d+)/)?.[1];
+      return {
+        live: false,
+        data: null,
+        error: err.message,
+        status: httpStatus ? parseInt(httpStatus) : null,
+      };
+    }
   }
 }
 
