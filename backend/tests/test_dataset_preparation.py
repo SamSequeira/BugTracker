@@ -182,12 +182,11 @@ def test_dataset_validator_label_and_missingness_checks():
     # Check distributions
     assert report["severity_distribution"]["high"]["count"] == 1
     assert report["severity_distribution"]["medium"]["count"] == 1
-    assert report["severity_distribution"]["critical"]["count"] == 0
+    assert report["severity_distribution"]["low"]["count"] == 0
     assert report["priority_distribution"]["p1"]["count"] == 1
 
     # Check warnings for sparse classes (< 2)
     sparse_sev_labels = [w["label"] for w in report["warnings"] if w["target"] == "severity"]
-    assert "critical" in sparse_sev_labels
     assert "low" in sparse_sev_labels
 
 
@@ -299,7 +298,7 @@ def test_exporter_creates_versioned_files_and_metadata():
             "language": "Python",
             "file_path": "a.py",
             "code_snippet": "x / 0",
-            "verified_severity": "critical",
+            "verified_severity": "high",
             "verified_priority": "p1",
             "severity": "high",  # detector prediction
             "group_id": "grp_1",
@@ -311,7 +310,7 @@ def test_exporter_creates_versioned_files_and_metadata():
             "language": "Python",
             "file_path": "b.py",
             "code_snippet": "except:",
-            "verified_severity": "high",
+            "verified_severity": "medium",
             "verified_priority": "p2",
             "severity": "medium",
             "group_id": "grp_2",
@@ -324,7 +323,7 @@ def test_exporter_creates_versioned_files_and_metadata():
             "file_path": "c.py",
             "code_snippet": "def f(x=[]):",
             "verified_severity": "low",
-            "verified_priority": "p4",
+            "verified_priority": "p3",
             "severity": "low",
             "group_id": "grp_3",
         }]
@@ -371,8 +370,8 @@ def test_exporter_creates_versioned_files_and_metadata():
         with open(out_path / "train.jsonl", "r", encoding="utf-8") as f:
             train_line = json.loads(f.readline())
             assert train_line["id"] == "t1"
-            assert train_line["severity"] == "critical"
-            assert train_line["severity_label"] == 0  # critical -> 0
+            assert train_line["severity"] == "high"
+            assert train_line["severity_label"] == 0  # high -> 0
             assert train_line["priority"] == "p1"
             assert train_line["priority_label"] == 0  # p1 -> 0
             assert train_line["detector_severity"] == "high"
@@ -454,8 +453,8 @@ async def seed_prep_data(prep_db: AsyncSession):
             language="Python",
             severity="high",  # detector prediction
             urgency="high",
-            verified_severity=["critical", "high", "medium", "low"][i % 4],
-            verified_priority=["p1", "p2", "p3", "p4"][i % 4],
+            verified_severity=["high", "medium", "low", "high"][i % 4],
+            verified_priority=["p1", "p2", "p3", "p1"][i % 4],
         )
         for i in range(8)
     ]
@@ -546,4 +545,4 @@ async def test_prepare_dataset_api_workflow(prep_client: AsyncClient, seed_prep_
         verified_db = await prep_db.get(CandidateIssue, "prep_issue_0")
         assert verified_db is not None
         assert verified_db.severity == "high"  # Detector severity unchanged!
-        assert verified_db.verified_severity == "critical"  # Ground truth unchanged!
+        assert verified_db.verified_severity == "high"  # Ground truth unchanged!

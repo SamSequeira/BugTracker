@@ -275,7 +275,7 @@ def test_architecture_summary_generator_deterministic():
     assert "2 analyzed source files" in summary.architecture_overview
     assert "API & Endpoints Layer (1 files)" in summary.architecture_overview
     assert "2 candidate issues" in summary.health_assessment
-    assert "1 critical" in summary.health_assessment
+    assert "1 high-severity" in summary.health_assessment
     assert summary.parser_version == PARSER_VERSION
 
 

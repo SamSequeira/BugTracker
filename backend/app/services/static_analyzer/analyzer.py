@@ -24,6 +24,7 @@ from typing import Dict, Any, List, Optional
 
 from .models import CandidateIssue
 from .rules import ALL_RULES
+from .severity import normalize_scanner_severity
 
 
 logger = logging.getLogger(__name__)
@@ -105,6 +106,9 @@ class StaticAnalyzer:
             similarity_result_factory = BugSimilarityService
         for issue in issues:
             serialized_issue = issue.to_dict()
+            serialized_issue["severity"] = normalize_scanner_severity(
+                serialized_issue.get("severity")
+            )
             if repository_id is not None:
                 if similarity_service is None:
                     serialized_issue["similarity"] = similarity_result_factory.unavailable_result()
@@ -215,6 +219,7 @@ from typing import Dict, Any, List, Optional
 
 from .models import CandidateIssue
 from .rules import ALL_RULES
+from .severity import normalize_scanner_severity
 
 
 logger = logging.getLogger(__name__)
@@ -296,6 +301,9 @@ class StaticAnalyzer:
             similarity_result_factory = BugSimilarityService
         for issue in issues:
             serialized_issue = issue.to_dict()
+            serialized_issue["severity"] = normalize_scanner_severity(
+                serialized_issue.get("severity")
+            )
             if repository_id is not None:
                 if similarity_service is None:
                     serialized_issue["similarity"] = similarity_result_factory.unavailable_result()

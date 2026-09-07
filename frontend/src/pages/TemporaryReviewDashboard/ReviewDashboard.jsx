@@ -13,17 +13,15 @@ import { getRuleExplanation } from "../../utils/ruleExplanations.js";
 import "./ReviewDashboard.css";
 
 const SEVERITY_OPTIONS = [
-  { id: "critical", label: "Critical", color: "from-red-600 to-rose-700", border: "border-red-500", text: "text-red-400" },
-  { id: "high", label: "High", color: "from-orange-600 to-amber-700", border: "border-orange-500", text: "text-orange-400" },
+  { id: "high", label: "High", color: "from-red-600 to-rose-700", border: "border-red-500", text: "text-red-400" },
   { id: "medium", label: "Medium", color: "from-amber-600 to-yellow-700", border: "border-amber-500", text: "text-amber-400" },
-  { id: "low", label: "Low", color: "from-emerald-600 to-teal-700", border: "border-emerald-500", text: "text-emerald-400" },
+  { id: "low", label: "Low", color: "from-blue-600 to-teal-700", border: "border-blue-500", text: "text-blue-400" },
 ];
 
 const PRIORITY_OPTIONS = [
-  { id: "p1", label: "P1 — Blocker", color: "from-red-600 to-rose-700", border: "border-red-500", text: "text-red-400" },
-  { id: "p2", label: "P2 — Critical", color: "from-orange-600 to-amber-700", border: "border-orange-500", text: "text-orange-400" },
-  { id: "p3", label: "P3 — Normal", color: "from-amber-600 to-yellow-700", border: "border-amber-500", text: "text-amber-400" },
-  { id: "p4", label: "P4 — Low", color: "from-blue-600 to-slate-700", border: "border-blue-500", text: "text-blue-400" },
+  { id: "p1", label: "P1 — High / Blocker", color: "from-red-600 to-rose-700", border: "border-red-500", text: "text-red-400" },
+  { id: "p2", label: "P2 — Medium / Normal", color: "from-amber-600 to-yellow-700", border: "border-amber-500", text: "text-amber-400" },
+  { id: "p3", label: "P3 — Low / Backlog", color: "from-blue-600 to-slate-700", border: "border-blue-500", text: "text-blue-400" },
 ];
 
 export default function ReviewDashboard() {

@@ -13,6 +13,7 @@ import logging
 import shutil
 import uuid
 import zipfile
+from typing import Any, Dict, List, Optional, Tuple
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -38,11 +39,18 @@ class RepositoryCloneService:
     # ------------------------------------------------------------------
 
     async def clone_repository(
-        self, repository_url: str, db: AsyncSession
+        self,
+        repository_url: str,
+        db: AsyncSession,
+        user_id: Optional[str] = None,
     ) -> dict:
         repository_id = str(uuid.uuid4())
+        parsed_url = urlparse(repository_url)
+        if not parsed_url.scheme or not parsed_url.netloc:
+            raise ValueError("Invalid repository URL format.")
+
         repository_name = self._get_repository_name(repository_url)
-        # Folder: repositories/<uuid>-<repo-name>/
+        repository_id = str(uuid.uuid4())
         repository_path = self.workspace / f"{repository_id}-{repository_name}"
 
         try:
@@ -52,8 +60,7 @@ class RepositoryCloneService:
                 repository_path,
             )
         except GitCloneError:
-            if repository_path.exists():
-                shutil.rmtree(repository_path, ignore_errors=True)
+            self._cleanup(repository_path)
             raise
 
         # ------------------------------------------------------------------
@@ -66,20 +73,22 @@ class RepositoryCloneService:
             raise S3UploadError("S3 uploads are not configured.")
 
         if s3_service.enabled:
-            zip_path = repository_path.parent / f"{repository_id}-{repository_name}.zip"
             try:
+                zip_path = repository_path.parent / f"{repository_id}-{repository_name}.zip"
                 await asyncio.to_thread(
                     self._zip_directory, repository_path, zip_path
                 )
                 s3_key = f"{s3_config.prefix}/{repository_id}-{repository_name}.zip"
                 s3_uri = s3_service.upload_file(zip_path, s3_key)
-            finally:
                 zip_path.unlink(missing_ok=True)
+            except S3UploadError:
+                raise
         else:
             logger.debug("S3 uploads disabled — skipping for %s", repository_name)
 
         repository = Repository(
             id=repository_id,
+            user_id=user_id,
             name=repository_name,
             source_url=repository_url,
             s3_key=s3_key,

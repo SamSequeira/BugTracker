@@ -1,6 +1,7 @@
 {
   "message": "Repository downloaded successfully.",
-  "repository_id": "9f0fa1c1-181e-491d-801d-0595bf8784d6",
+  "repository_id": "86d2bcb9-b9dc-4a9f-9261-101ce80976e9",
   "repository_name": "Hello-World",
-  "repository_path": "repositories\\9f0fa1c1-181e-491d-801d-0595bf8784d6-Hello-World"
+  "s3_uri": "s3://bugtracker-repositories-577702170996-ap-south-1-an/repositories/86d2bcb9-b9dc-4a9f-9261-101ce80976e9-Hello-World.zip",
+  "s3_key": "repositories/86d2bcb9-b9dc-4a9f-9261-101ce80976e9-Hello-World.zip"
 }

@@ -14,6 +14,7 @@ from app.models.architecture_component import ArchitectureComponent
 from app.models.architecture_summary import ArchitectureSummary
 from app.models.candidate_issues import CandidateIssue
 from app.models.source_file import SourceFile
+from app.services.static_analyzer.severity import normalize_scanner_severity
 
 PARSER_VERSION = "Tree-Sitter 0.22 / BugTracker AST Engine v1.0.0"
 
@@ -91,9 +92,9 @@ class ArchitectureSummaryGenerator:
 
         # 3. Synthesize Health Assessment
         total_issues = len(candidate_issues)
-        severity_counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+        severity_counts = {"high": 0, "medium": 0, "low": 0}
         for issue in candidate_issues:
-            sev = (issue.severity or "medium").lower()
+            sev = normalize_scanner_severity(issue.severity)
             if sev in severity_counts:
                 severity_counts[sev] += 1
             else:
@@ -103,8 +104,6 @@ class ArchitectureSummaryGenerator:
             health_assessment = "No static analysis issues or critical vulnerabilities were detected. The codebase exhibits strong architectural hygiene."
         else:
             sev_details = []
-            if severity_counts["critical"] > 0:
-                sev_details.append(f"{severity_counts['critical']} critical")
             if severity_counts["high"] > 0:
                 sev_details.append(f"{severity_counts['high']} high-severity")
             if severity_counts["medium"] > 0:

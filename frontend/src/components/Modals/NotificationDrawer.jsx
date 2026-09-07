@@ -108,7 +108,7 @@ export default function NotificationDrawer() {
                   <div className="flex items-center space-x-2">
                     <span
                       className={`w-2 h-2 rounded-full shrink-0 ${
-                        notif.severity === "Critical" ? "bg-red-500 animate-pulse" : "bg-amber-400"
+                        notif.severity === "High" ? "bg-red-500 animate-pulse" : notif.severity === "Medium" ? "bg-amber-400" : "bg-blue-400"
                       }`}
                     ></span>
                     <span className="text-xs font-semibold text-white leading-tight line-clamp-1">

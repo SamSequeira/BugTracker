@@ -18,6 +18,7 @@ from abc import ABC, abstractmethod
 from typing import Iterator, List
 
 from .models import CandidateIssue
+from .severity import normalize_scanner_severity
 
 
 class BaseRule(ABC):
@@ -40,7 +41,7 @@ class BaseRule(ABC):
     @property
     @abstractmethod
     def severity(self) -> str:
-        """'critical' | 'high' | 'medium' | 'low'"""
+        """'high' | 'medium' | 'low'"""
 
     @abstractmethod
     def analyze(
@@ -112,7 +113,7 @@ class BaseRule(ABC):
             column=col_num,
             code_snippet=self._snippet(node, source_lines),
             evidence=evidence,
-            severity=self.severity,
+            severity=normalize_scanner_severity(self.severity),
         )
 
 """
@@ -136,12 +137,13 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, Iterator, List, Optional, Set, Union
 
 from .models import CandidateIssue
+from .severity import normalize_scanner_severity
 
 
 class BaseRule(ABC):
     """Abstract base for all static analysis rules."""
 
-    # Languages this rule applies to.  Use the same strings as ASTGenerator:
+    # Languages this rule applies to. Use the same strings as ASTGenerator:
     # "Python", "JavaScript", "Java"
     LANGUAGES: List[str] = []
 
@@ -199,7 +201,7 @@ class BaseRule(ABC):
     @property
     @abstractmethod
     def severity(self) -> str:
-        """'critical' | 'high' | 'medium' | 'low'"""
+        """'high' | 'medium' | 'low'"""
 
     @abstractmethod
     def analyze(
@@ -300,7 +302,7 @@ class BaseRule(ABC):
             return text.lower() == "true"
 
         # Parenthesized expression: (expr)
-        if ntype in ("parenthesized_expression", "parenthesized_expression"):
+        if ntype in ("parenthesized_expression",):
             children = [c for c in node.get("children", []) if c.get("text", "") not in ("(", ")")]
             if len(children) == 1:
                 return self._evaluate_constant_expr(children[0])
@@ -318,7 +320,7 @@ class BaseRule(ABC):
                         return -val
 
         # Binary expression: left OP right
-        if ntype in ("binary_expression", "binary_op"):
+        if ntype in ("binary_expression", "binary_op", "binary_operator"):
             children = node.get("children", [])
             if len(children) >= 3:
                 left_val = self._evaluate_constant_expr(children[0])
@@ -396,7 +398,6 @@ class BaseRule(ABC):
             column=col_num,
             code_snippet=self._snippet(node, source_lines),
             evidence=evidence,
-            severity=self.severity,
+            severity=normalize_scanner_severity(self.severity),
             confidence=conf,
         )
-

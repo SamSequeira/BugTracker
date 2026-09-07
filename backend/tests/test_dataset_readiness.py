@@ -66,7 +66,7 @@ def test_readiness_scorecard_insufficient_data():
             "rule_id": "PY_DIV_001",
             "issue_type": "division_by_zero",
             "language": "Python",
-            "verified_severity": "critical",
+            "verified_severity": "high",
             "verified_priority": "p1",
             "repository_id": "repo_1",
         }
@@ -92,14 +92,14 @@ def test_readiness_scorecard_insufficient_data():
 
 def test_readiness_scorecard_sufficient_diverse_data():
     """Verify readiness gate passes when dataset has >=150 records, >=5 repos, >=3 langs, >=10 rules, and balanced classes."""
-    severities = ["critical", "high", "medium", "low"]
-    priorities = ["p1", "p2", "p3", "p4"]
+    severities = ["high", "medium", "low"]
+    priorities = ["p1", "p2", "p3"]
     languages = ["Python", "Java", "JavaScript"]
 
     diverse_records = []
     for i in range(160):
-        sev = severities[i % 4]
-        prio = priorities[i % 4]
+        sev = severities[i % 3]
+        prio = priorities[(i // 2) % 3]
         lang = languages[i % 3]
         rule = f"RULE_{lang[:2].upper()}_{i % 12:02d}"
         repo = f"repo_project_{i % 6}"
@@ -182,8 +182,8 @@ async def test_readiness_and_enhanced_stats_api(readiness_client: AsyncClient, r
             language="Python",
             severity="high",
             urgency="high",
-            verified_severity=["critical", "high", "medium", "low"][i],
-            verified_priority=["p1", "p2", "p3", "p4"][i],
+            verified_severity=["high", "medium", "low", "high"][i],
+            verified_priority=["p1", "p2", "p3", "p1"][i],
         )
         readiness_db.add(iss)
 

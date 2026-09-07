@@ -130,7 +130,7 @@ async def test_full_pipeline_collection_to_export(test_db_e2e: AsyncSession, cli
         res_label = await client_e2e.patch(
             f"/candidate-issues/{issue_id}/labels",
             json={
-                "verified_severity": "critical",
+                "verified_severity": "high",
                 "verified_priority": "p1",
                 "verification_notes": "Confirmed division by zero in core mathematical routine",
             },
@@ -138,7 +138,7 @@ async def test_full_pipeline_collection_to_export(test_db_e2e: AsyncSession, cli
         assert res_label.status_code == 200
         labeled = res_label.json()
         assert labeled["severity"] == "high"  # Detector baseline remains unchanged!
-        assert labeled["verified_severity"] == "critical"  # Ground truth
+        assert labeled["verified_severity"] == "high"  # Ground truth
         assert labeled["verified_priority"] == "p1"  # Ground truth
         assert labeled["verified_at"] is not None
 
@@ -147,7 +147,7 @@ async def test_full_pipeline_collection_to_export(test_db_e2e: AsyncSession, cli
         assert res_stats.status_code == 200
         stats = res_stats.json()
         assert stats["fully_verified"] >= 1
-        assert stats["severity_distribution"]["critical"] >= 1
+        assert stats["severity_distribution"]["high"] >= 1
         assert stats["priority_distribution"]["p1"] >= 1
 
         # 8. Export verified training dataset
@@ -157,7 +157,7 @@ async def test_full_pipeline_collection_to_export(test_db_e2e: AsyncSession, cli
         assert dataset["total"] >= 1
 
         exported_rec = next(r for r in dataset["records"] if r["id"] == issue_id)
-        assert exported_rec["severity"] == "critical"  # Ground truth target
+        assert exported_rec["severity"] == "high"  # Ground truth target
         assert exported_rec["priority"] == "p1"  # Ground truth target
         assert exported_rec["detector_severity"] == "high"  # Preserved detector prediction
         assert exported_rec["rule_id"] == "PY_DIV_001"

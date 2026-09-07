@@ -147,10 +147,10 @@ async def test_multi_repository_and_multi_run_accumulation(multi_repo_db: AsyncS
     # A1: Partially verify with severity only
     res_part_sev = await client_multi.patch(
         f"/candidate-issues/{issue_a1['id']}/labels",
-        json={"verified_severity": "critical"}
+        json={"verified_severity": "low"}
     )
     assert res_part_sev.status_code == 200
-    assert res_part_sev.json()["verified_severity"] == "critical"
+    assert res_part_sev.json()["verified_severity"] == "low"
     assert res_part_sev.json()["verified_priority"] is None
     assert res_part_sev.json()["severity"] == issue_a1["severity"]  # Detector severity preserved!
 
@@ -204,7 +204,7 @@ async def test_multi_repository_and_multi_run_accumulation(multi_repo_db: AsyncS
     assert stats["fully_verified"] == 1
     # Only A2 is fully verified: verified_severity="high", verified_priority="p1"
     assert stats["severity_distribution"]["high"] == 1
-    assert stats["severity_distribution"]["critical"] == 0
+    assert "critical" not in stats["severity_distribution"]
     assert stats["priority_distribution"]["p1"] == 1
     assert stats["priority_distribution"]["p3"] == 0
 

@@ -209,12 +209,12 @@ async def test_update_verified_labels_partial_and_full(client: AsyncClient, seed
     # 1. Partial update: severity only
     res1 = await client.patch(
         "/candidate-issues/api-issue-1/labels",
-        json={"verified_severity": "critical"},
+        json={"verified_severity": "low"},
     )
     assert res1.status_code == 200
     d1 = res1.json()
     assert d1["severity"] == "high"  # detector severity preserved!
-    assert d1["verified_severity"] == "critical"
+    assert d1["verified_severity"] == "low"
     assert d1["verified_priority"] is None
 
     # 2. Partial update: priority only
@@ -225,7 +225,7 @@ async def test_update_verified_labels_partial_and_full(client: AsyncClient, seed
     assert res2.status_code == 200
     d2 = res2.json()
     assert d2["severity"] == "high"  # detector severity preserved!
-    assert d2["verified_severity"] == "critical"
+    assert d2["verified_severity"] == "low"
     assert d2["verified_priority"] == "p1"
     assert d2["verified_at"] is not None
     assert "lead reviewer" in d2["verification_notes"]
@@ -233,13 +233,20 @@ async def test_update_verified_labels_partial_and_full(client: AsyncClient, seed
 
 @pytest.mark.asyncio
 async def test_reject_invalid_verified_labels_via_api(client: AsyncClient, seed_data):
-    """Test API rejects invalid verified severity ('extreme') and priority ('p0')."""
-    # Invalid severity
+    """Test API rejects invalid verified severity ('extreme', 'critical') and priority ('p0')."""
+    # Invalid severity: extreme
     res_bad_sev = await client.patch(
         "/candidate-issues/api-issue-1/labels",
         json={"verified_severity": "extreme"},
     )
     assert res_bad_sev.status_code == 422
+
+    # Invalid severity: critical (not supported in 3-tier system)
+    res_critical = await client.patch(
+        "/candidate-issues/api-issue-1/labels",
+        json={"verified_severity": "critical"},
+    )
+    assert res_critical.status_code == 422
 
     # Invalid priority
     res_bad_prio = await client.patch(
@@ -263,7 +270,8 @@ async def test_get_dataset_statistics_endpoint(client: AsyncClient, seed_data):
 
     # In seed_data, issue 2 is fully verified: verified_severity="high", verified_priority="p2"
     assert data["severity_distribution"]["high"] == 1
-    assert data["severity_distribution"]["critical"] == 0
+    assert data["severity_distribution"]["medium"] == 0
+    assert "critical" not in data["severity_distribution"]
     assert data["priority_distribution"]["p2"] == 1
     assert data["priority_distribution"]["p1"] == 0
 

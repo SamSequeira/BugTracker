@@ -414,7 +414,7 @@ class CandidateIssueRepository:
             .group_by(CandidateIssue.verified_severity)
         )
         sev_rows = (await db.execute(sev_dist_stmt)).all()
-        sev_dist = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+        sev_dist = {"high": 0, "medium": 0, "low": 0}
         for sev, count in sev_rows:
             if sev in sev_dist:
                 sev_dist[sev] = count
@@ -426,7 +426,7 @@ class CandidateIssueRepository:
             .group_by(CandidateIssue.verified_priority)
         )
         prio_rows = (await db.execute(prio_dist_stmt)).all()
-        prio_dist = {"p1": 0, "p2": 0, "p3": 0, "p4": 0}
+        prio_dist = {"p1": 0, "p2": 0, "p3": 0}
         for prio, count in prio_rows:
             if prio in prio_dist:
                 prio_dist[prio] = count

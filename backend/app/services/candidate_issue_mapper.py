@@ -21,7 +21,7 @@ class CandidateIssueMapper:
     @staticmethod
     def _compute_urgency(severity: str) -> str:
         sev = severity.lower()
-        if sev in ("critical", "high"):
+        if sev == "high":
             return "high"
         elif sev == "low":
             return "low"
@@ -127,6 +127,21 @@ class CandidateIssueMapper:
                 )
             )
 
+        # 3. Fallback: generate default recommendation from evidence or message
+        if not recommendations:
+            msg = finding.get("message") or "Remediate static analysis finding"
+            ev = finding.get("evidence") if isinstance(finding.get("evidence"), dict) else {}
+            suggested = ev.get("suggested") or f"Review and fix {finding.get('rule_id', 'issue')}: {msg}"
+            recommendations.append(
+                IssueRecommendationORM(
+                    id=str(uuid.uuid4()),
+                    candidate_issue_id=candidate_issue_id,
+                    recommendation=suggested,
+                    priority_order=1,
+                    fix_type="suggestion",
+                )
+            )
+
         return recommendations
 
     def to_orm(
@@ -134,6 +149,7 @@ class CandidateIssueMapper:
         finding: Union[CandidateIssueDataclass, Dict[str, Any]],
         analysis_run_id: str,
         source_file_id: Optional[str] = None,
+        **kwargs: Any,
     ) -> Tuple[CandidateIssueORM, IssueStatusORM]:
         """
         Convert a single finding (dataclass or dict) into a pair of
@@ -145,24 +161,36 @@ class CandidateIssueMapper:
             message = finding.message
             file_path = finding.file_path
             line_number = finding.line_number
+            column = finding.column
             code_snippet = finding.code_snippet
+            evidence = finding.evidence
             severity = finding.severity
-            security_impact = None
-            issue_key = None
-            assigned_to_user_id = None
+            language = getattr(finding, "language", None)
         else:
             rule_id = finding.get("rule_id", "")
             issue_type = finding.get("issue_type", "unknown_issue")
             message = finding.get("message", "")
             file_path = finding.get("file_path", "")
             line_number = finding.get("line_number")
+            column = finding.get("column")
             code_snippet = finding.get("code_snippet")
+            evidence = finding.get("evidence")
             severity = finding.get("severity", "medium")
-            security_impact = finding.get("security_impact")
-            issue_key = finding.get("issue_key")
-            assigned_to_user_id = finding.get("assigned_to_user_id")
+            language = finding.get("language")
             if source_file_id is None:
                 source_file_id = finding.get("source_file_id")
+
+        if not language or language == "Unknown":
+            r_id = rule_id.upper() if rule_id else ""
+            f_p = file_path.lower() if file_path else ""
+            if r_id.startswith("PY_") or f_p.endswith(".py"):
+                language = "Python"
+            elif r_id.startswith("JS_") or f_p.endswith((".js", ".jsx", ".ts", ".tsx", ".mjs")):
+                language = "JavaScript"
+            elif r_id.startswith("JAVA_") or f_p.endswith(".java"):
+                language = "Java"
+            else:
+                language = "Unknown"
 
         issue_id = str(uuid.uuid4())
         title = self._format_title(issue_type, rule_id)
@@ -171,19 +199,25 @@ class CandidateIssueMapper:
 
         candidate_issue_orm = CandidateIssueORM(
             id=issue_id,
-            issue_key=issue_key,
-            rule_id=rule_id if rule_id else None,
             analysis_run_id=analysis_run_id,
             source_file_id=source_file_id,
-            assigned_to_user_id=assigned_to_user_id,
             title=title,
             description=description,
-            security_impact=security_impact,
-            code_snippet=code_snippet,
             file_path=file_path,
             line_number=line_number,
-            severity=severity,
+            column=column,
+            rule_id=rule_id if rule_id else None,
+            issue_type=issue_type,
+            message=message,
+            code_snippet=code_snippet,
+            evidence=evidence,
+            language=language,
+            severity=severity,  # Preserved original detector severity
             urgency=urgency,
+            verified_severity=None,
+            verified_priority=None,
+            verified_at=None,
+            verification_notes=None,
         )
 
         status_id = str(uuid.uuid4())
@@ -200,10 +234,11 @@ class CandidateIssueMapper:
         findings: List[Union[CandidateIssueDataclass, Dict[str, Any]]],
         analysis_run_id: str,
         source_file_map: Optional[Dict[str, str]] = None,
+        **kwargs: Any,
     ) -> Tuple[List[CandidateIssueORM], List[IssueStatusORM]]:
         """
         Convert a list of findings into lists of CandidateIssueORM and IssueStatusORM,
-        linking each candidate issue to source_file_id if source_file_map is provided.
+        resolving source_file_id from source_file_map if provided.
         """
         issues: List[CandidateIssueORM] = []
         statuses: List[IssueStatusORM] = []
@@ -227,10 +262,11 @@ class CandidateIssueMapper:
         findings: List[Union[CandidateIssueDataclass, Dict[str, Any]]],
         analysis_run_id: str,
         source_file_map: Optional[Dict[str, str]] = None,
+        **kwargs: Any,
     ) -> Tuple[List[CandidateIssueORM], List[IssueStatusORM], List[IssueRecommendationORM]]:
         """
         Convert a list of findings into CandidateIssueORM, IssueStatusORM, and
-        extracted IssueRecommendationORM lists, with full SourceFile linking.
+        extracted IssueRecommendationORM lists, with SourceFile linking.
         """
         issues: List[CandidateIssueORM] = []
         statuses: List[IssueStatusORM] = []
@@ -277,7 +313,7 @@ class CandidateIssueMapper:
     @staticmethod
     def _compute_urgency(severity: str) -> str:
         sev = severity.lower()
-        if sev in ("critical", "high"):
+        if sev == "high":
             return "high"
         elif sev == "low":
             return "low"
@@ -360,7 +396,7 @@ class CandidateIssueMapper:
             code_snippet=code_snippet,
             evidence=evidence,
             language=language,
-            severity=severity,  # Preserved original detector severity
+            severity=severity,  # Scanner taxonomy: critical is folded to high
             urgency=urgency,
             verified_severity=None,  # Not verified yet; ground truth assigned separately
             verified_priority=None,  # Not verified yet; ground truth assigned separately

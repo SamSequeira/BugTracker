@@ -1,18 +1,22 @@
 // src/components/Modals/BugDetailsDrawer.jsx - Deep Bug Inspector Drawer with Debounced Notes & Resolution Toggle
 import React, { useState, useEffect } from "react";
 import { useBugTracker } from "../../useBugTracker.jsx";
+import { apiService } from "../../api.js";
 
 export default function BugDetailsDrawer() {
   const {
     activeDrawerBug,
     setActiveDrawerBug,
     toggleResolveBug,
+    updateBugSeverity,
     updateBugNotes,
     bugs,
   } = useBugTracker();
 
   const [remarks, setRemarks] = useState("");
   const [saveStatus, setSaveStatus] = useState("Synced");
+  const [sourceContext, setSourceContext] = useState(null);
+  const [isLoadingContext, setIsLoadingContext] = useState(false);
 
   // Keep local remarks in sync with activeDrawerBug or shared bugs array
   useEffect(() => {
@@ -22,6 +26,40 @@ export default function BugDetailsDrawer() {
       setSaveStatus("Synced");
     }
   }, [activeDrawerBug, bugs]);
+
+  // Fetch rich surrounding source code context for active bug on demand
+  useEffect(() => {
+    if (!activeDrawerBug?.id) {
+      setSourceContext(null);
+      return;
+    }
+
+    let isCancelled = false;
+    setIsLoadingContext(true);
+
+    apiService
+      .getSourceContext(activeDrawerBug.id, 8)
+      .then((res) => {
+        if (!isCancelled) {
+          if (res && res.found && Array.isArray(res.lines) && res.lines.length > 0) {
+            setSourceContext(res);
+          } else {
+            setSourceContext(null);
+          }
+          setIsLoadingContext(false);
+        }
+      })
+      .catch(() => {
+        if (!isCancelled) {
+          setSourceContext(null);
+          setIsLoadingContext(false);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [activeDrawerBug?.id]);
 
   if (!activeDrawerBug) return null;
 
@@ -43,6 +81,35 @@ export default function BugDetailsDrawer() {
     toggleResolveBug(currentBug.id);
   };
 
+  const handleSeverityChange = (e) => {
+    updateBugSeverity(currentBug.id, e.target.value);
+  };
+
+  // Determine snippet lines to display: prefer full source file context when available on disk,
+  // otherwise fallback seamlessly to the persisted PostgreSQL code_snippet.
+  const hasContextLines = sourceContext && Array.isArray(sourceContext.lines) && sourceContext.lines.length > 0;
+  const displaySnippet = hasContextLines
+    ? sourceContext.lines.map((l) => ({
+        num: l.line_number,
+        text: l.content,
+        isErr: l.is_target,
+      }))
+    : currentBug.codeSnippet && currentBug.codeSnippet.length > 0
+    ? currentBug.codeSnippet
+    : currentBug.rawSnippet
+    ? currentBug.rawSnippet.split("\n").map((t, idx) => ({
+        num: currentBug.line + idx,
+        text: t,
+        isErr: idx === 0,
+      }))
+    : [
+        {
+          num: currentBug.line || 1,
+          text: currentBug.wrong || currentBug.title || "Vulnerability finding",
+          isErr: true,
+        },
+      ];
+
   return (
     <div
       className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs animate-fade-in"
@@ -59,17 +126,22 @@ export default function BugDetailsDrawer() {
               <span className="font-mono text-xs text-cyan-400 font-bold bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
                 {currentBug.id}
               </span>
-              <span
-                className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                  currentBug.severity === "Critical"
-                    ? "bg-red-500/20 text-red-400 border border-red-500/30"
-                    : currentBug.severity === "High"
-                    ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
-                    : "bg-blue-500/20 text-blue-400 border border-blue-500/30"
+              <select
+                value={currentBug.severity}
+                onChange={handleSeverityChange}
+                className={`text-[10px] font-bold px-2 py-0.5 rounded cursor-pointer border focus:outline-none transition-colors ${
+                  currentBug.severity === "High"
+                    ? "bg-red-500/20 text-red-400 border-red-500/40"
+                    : currentBug.severity === "Medium"
+                    ? "bg-amber-500/20 text-amber-400 border-amber-500/40"
+                    : "bg-blue-500/20 text-blue-400 border-blue-500/40"
                 }`}
+                title="Change issue severity"
               >
-                {currentBug.severity}
-              </span>
+                <option value="High" className="bg-[#131B2E] text-red-400">High</option>
+                <option value="Medium" className="bg-[#131B2E] text-amber-400">Medium</option>
+                <option value="Low" className="bg-[#131B2E] text-blue-400">Low</option>
+              </select>
               <span className="text-[10px] font-medium bg-slate-800 text-slate-300 px-2 py-0.5 rounded">
                 {currentBug.priority}
               </span>
@@ -88,6 +160,7 @@ export default function BugDetailsDrawer() {
             </h3>
             <p className="text-xs text-slate-400 font-mono">
               {currentBug.file}:{currentBug.line}
+              {currentBug.column != null ? `:${currentBug.column}` : ""}
             </p>
           </div>
 
@@ -108,7 +181,7 @@ export default function BugDetailsDrawer() {
             <div className="text-[11px] text-slate-400">
               {isResolved
                 ? "Issue is marked as Resolved and reflected across all tabs."
-                : "Issue is currently Open and counted in critical metrics."}
+                : "Issue is currently Open and prioritized for engineering remediation."}
             </div>
           </div>
           <button
@@ -153,33 +226,41 @@ export default function BugDetailsDrawer() {
           </div>
         </div>
 
-        {/* Code Snippet with Line Highlight */}
-        {currentBug.codeSnippet && (
-          <div className="space-y-1.5">
+        {/* Code Snippet with Line Highlight & Real Context */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-300 block">
               Vulnerable Code Snippet
             </span>
-            <div className="bg-[#0B0F17] border border-slate-800 rounded-xl overflow-hidden font-mono text-xs">
-              <div className="bg-[#0F1623] px-3.5 py-1.5 border-b border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
-                <span>{currentBug.file}</span>
-                <span className="text-red-400">Line {currentBug.line}</span>
-              </div>
-              <div className="p-3 overflow-x-auto">
-                {currentBug.codeSnippet.map((line, idx) => (
-                  <div
-                    key={idx}
-                    className={`flex items-center py-0.5 px-1 rounded ${
-                      line.isErr ? "bg-red-500/20 text-red-300 font-semibold border-l-2 border-red-500 pl-2" : "text-slate-400"
-                    }`}
-                  >
-                    <span className="w-8 text-slate-600 select-none text-[11px]">{line.num}</span>
-                    <span className="whitespace-pre">{line.text}</span>
-                  </div>
-                ))}
-              </div>
+            <span className="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
+              {hasContextLines ? "Source File Context" : "Database Analysis Snippet"}
+            </span>
+          </div>
+
+          <div className="bg-[#0B0F17] border border-slate-800 rounded-xl overflow-hidden font-mono text-xs">
+            <div className="bg-[#0F1623] px-3.5 py-1.5 border-b border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+              <span className="truncate max-w-[70%]">{currentBug.file}</span>
+              <span className="text-red-400 shrink-0">Line {currentBug.line}</span>
+            </div>
+            <div className="p-3 overflow-x-auto max-h-64 space-y-0.5">
+              {displaySnippet.map((line, idx) => (
+                <div
+                  key={idx}
+                  className={`flex items-center py-0.5 px-1 rounded transition-colors ${
+                    line.isErr
+                      ? "bg-red-500/20 text-red-300 font-semibold border-l-2 border-red-500 pl-2"
+                      : "text-slate-400"
+                  }`}
+                >
+                  <span className="w-10 text-slate-600 select-none text-[11px] shrink-0">
+                    {line.isErr ? "▶ " : "  "}{line.num}
+                  </span>
+                  <span className="whitespace-pre">{line.text}</span>
+                </div>
+              ))}
             </div>
           </div>
-        )}
+        </div>
 
         {/* Suggested Fix Code Diff */}
         {currentBug.suggestedFix && (

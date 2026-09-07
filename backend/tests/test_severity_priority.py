@@ -22,7 +22,7 @@ from app.services.ml.severity import (
 
 def test_canonical_rule_severity_mapping():
     """Canonical rules must map to expected base severities."""
-    assert predict_production_severity({"rule_id": "JAVA_INF_001", "code_snippet": "while(true){}"}) == "CRITICAL"
+    assert predict_production_severity({"rule_id": "JAVA_INF_001", "code_snippet": "while(true){}"}) == "HIGH"
     assert predict_production_severity({"rule_id": "JAVA_EQ_001", "code_snippet": "if(a == b)"}) == "HIGH"
     assert predict_production_severity({"rule_id": "PY_DIV_001", "code_snippet": "a / b"}) == "MEDIUM"
 
@@ -47,7 +47,6 @@ def test_severity_repository_invariance():
 
 def test_deterministic_priority_mapping():
     """Severity must map deterministically to priority levels."""
-    assert severity_to_priority("critical") == "p1"
-    assert severity_to_priority("high") == "p2"
-    assert severity_to_priority("medium") == "p3"
-    assert severity_to_priority("low") == "p4"
+    assert severity_to_priority("high") == "p1"
+    assert severity_to_priority("medium") == "p2"
+    assert severity_to_priority("low") == "p3"

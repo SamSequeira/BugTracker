@@ -16,25 +16,24 @@ def severity_to_priority(severity: Optional[str]) -> Optional[str]:
     if not severity:
         return None
     mapping = {
-        "critical": "p1",
-        "high": "p2",
-        "medium": "p3",
-        "low": "p4",
+        "high": "p1",
+        "medium": "p2",
+        "low": "p3",
     }
     return mapping.get(severity.lower())
 
 
 def consolidate_severity(severity: Optional[str]) -> Optional[str]:
     """
-    Consolidates 4-class severity into binary impact for Configuration B.
+    Consolidates 3-class severity into binary impact for Configuration B.
     
-    critical + high -> HIGH_IMPACT
-    medium + low    -> LOWER_IMPACT
+    high         -> HIGH_IMPACT
+    medium + low -> LOWER_IMPACT
     """
     if not severity:
         return None
     sev = severity.lower()
-    if sev in ("critical", "high"):
+    if sev == "high":
         return "HIGH_IMPACT"
     if sev in ("medium", "low"):
         return "LOWER_IMPACT"

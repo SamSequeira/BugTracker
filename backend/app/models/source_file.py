@@ -9,7 +9,6 @@ from data.dbconnection.base import Base
 if TYPE_CHECKING:
     from app.models.analysis_run import AnalysisRun
     from app.models.architecture_component import ArchitectureComponent
-    from app.models.candidate_issues import CandidateIssue
 
 
 class SourceFile(Base):
@@ -97,9 +96,4 @@ class SourceFile(Base):
     component: Mapped[Optional["ArchitectureComponent"]] = relationship(
         "ArchitectureComponent",
         back_populates="source_files",
-    )
-
-    candidate_issues: Mapped[List["CandidateIssue"]] = relationship(
-        "CandidateIssue",
-        back_populates="source_file",
     )

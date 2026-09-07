@@ -145,8 +145,8 @@ async def test_postgres_valid_verified_severities_and_priorities(pg_session: Asy
     pg_session.add(run)
     await pg_session.flush()
 
-    valid_severities = ["critical", "high", "medium", "low"]
-    valid_priorities = ["p1", "p2", "p3", "p4"]
+    valid_severities = ["high", "medium", "low"]
+    valid_priorities = ["p1", "p2", "p3"]
 
     for sev, prio in zip(valid_severities, valid_priorities):
         issue = CandidateIssue(
@@ -295,26 +295,26 @@ async def test_postgres_detector_severity_preserved_after_verification(pg_sessio
     assert initial.verified_severity is None
     assert initial.verified_priority is None
 
-    # Manually verify with intentional disagreement: critical + p1
+    # Manually verify with intentional disagreement: low + p3
     updated = await candidate_issue_repository.update_labels(
         pg_session,
         issue_id=issue_id,
-        verified_severity="critical",
-        verified_priority="p1",
-        verification_notes="Upgraded to critical because it is in payment flow",
+        verified_severity="low",
+        verified_priority="p3",
+        verification_notes="Downgraded to low because it is in test mock flow",
     )
 
     assert updated is not None
     assert updated.severity == "high"  # Original detector output is preserved!
-    assert updated.verified_severity == "critical"  # Ground truth
-    assert updated.verified_priority == "p1"  # Ground truth
+    assert updated.verified_severity == "low"  # Ground truth
+    assert updated.verified_priority == "p3"  # Ground truth
     assert updated.verified_at is not None
 
     # Retrieve again in fresh query to verify persistence
     refreshed = await candidate_issue_repository.get_by_id(pg_session, issue_id)
     assert refreshed.severity == "high"
-    assert refreshed.verified_severity == "critical"
-    assert refreshed.verified_priority == "p1"
+    assert refreshed.verified_severity == "low"
+    assert refreshed.verified_priority == "p3"
 
 
 # ===========================================================================
@@ -325,8 +325,8 @@ async def test_postgres_detector_severity_preserved_after_verification(pg_sessio
 async def test_postgres_ground_truth_isolation_and_training_dataset(pg_session: AsyncSession):
     """
     PG Test 7: Verify verified labels vs detector prediction isolation and dataset export on PostgreSQL.
-    DATABASE: severity=high, verified_severity=critical, verified_priority=p1
-    TRAINING DATASET OUTPUT: severity=critical, priority=p1, detector_severity=high
+    DATABASE: severity=high, verified_severity=low, verified_priority=p3
+    TRAINING DATASET OUTPUT: severity=low, priority=p3, detector_severity=high
     """
     repo = Repository(
         id=f"pg-repo-ds-{uuid.uuid4()}",
@@ -372,8 +372,8 @@ async def test_postgres_ground_truth_isolation_and_training_dataset(pg_session: 
         evidence={"operator": "/"},
         severity="high",  # Detector predicted 'high'
         urgency="high",
-        verified_severity="critical",  # Ground truth 'critical'
-        verified_priority="p1",  # Ground truth 'p1'
+        verified_severity="low",  # Ground truth 'low'
+        verified_priority="p3",  # Ground truth 'p3'
     )
 
     pg_session.add_all([issue_partial, issue_verified])
@@ -384,8 +384,8 @@ async def test_postgres_ground_truth_isolation_and_training_dataset(pg_session: 
 
     assert len(matching) == 1
     rec = matching[0]
-    assert rec["severity"] == "critical", "Target label MUST be verified_severity"
-    assert rec["priority"] == "p1", "Target label MUST be verified_priority"
+    assert rec["severity"] == "low", "Target label MUST be verified_severity"
+    assert rec["priority"] == "p3", "Target label MUST be verified_priority"
     assert rec["detector_severity"] == "high", "Detector prediction MUST be preserved separately"
     assert rec["severity"] != rec["detector_severity"]
     # Ensure partial record was excluded
@@ -446,7 +446,7 @@ async def test_postgres_review_queue_filtering_and_stats(pg_session: AsyncSessio
         file_path="q3.py",
         severity="high",
         urgency="high",
-        verified_severity="critical",
+        verified_severity="high",
         verified_priority="p1",
     )
 
@@ -478,7 +478,7 @@ async def test_postgres_review_queue_filtering_and_stats(pg_session: AsyncSessio
     stats = await candidate_issue_repository.get_dataset_stats(pg_session)
     assert stats["total_candidate_issues"] >= 3
     assert stats["fully_verified"] >= 1
-    assert "critical" in stats["severity_distribution"]
+    assert "high" in stats["severity_distribution"]
     assert "p1" in stats["priority_distribution"]
 
 
@@ -580,8 +580,8 @@ async def test_postgres_dataset_preparation_pipeline(pg_session: AsyncSession):
 
     # Seed 6 verified issues
     verified_issues = []
-    severities = ["critical", "high", "medium", "low", "critical", "high"]
-    priorities = ["p1", "p2", "p3", "p4", "p1", "p2"]
+    severities = ["high", "medium", "low", "high", "medium", "low"]
+    priorities = ["p1", "p2", "p3", "p1", "p2", "p3"]
 
     for i, (sev, prio) in enumerate(zip(severities, priorities)):
         iss = CandidateIssue(
@@ -652,5 +652,5 @@ async def test_postgres_dataset_preparation_pipeline(pg_session: AsyncSession):
         refreshed_ver = await candidate_issue_repository.get_by_id(pg_session, verified_issues[0].id)
         assert refreshed_ver is not None
         assert refreshed_ver.severity == "high"  # Detector prediction preserved!
-        assert refreshed_ver.verified_severity == "critical"  # Ground truth preserved!
+        assert refreshed_ver.verified_severity == "high"  # Ground truth preserved!
 

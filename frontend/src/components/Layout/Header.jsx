@@ -4,7 +4,7 @@ import { useBugTracker } from "../../useBugTracker.jsx";
 
 export default function Header() {
   const {
-    criticalUnresolvedCount,
+    highUnresolvedCount,
     isLive,
     setIsSearchOpen,
     setIsNotificationsOpen,
@@ -43,18 +43,18 @@ export default function Header() {
           <span>{isLive ? "Live data" : "Demo data"}</span>
         </button>
 
-        {/* Dynamic Critical Issues Pill */}
+        {/* Dynamic High Priority Issues Pill */}
         <span
           className={`border px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all ${
-            criticalUnresolvedCount > 0
+            highUnresolvedCount > 0
               ? "bg-red-500/15 text-red-400 border-red-500/30 shadow-xs"
               : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
           }`}
         >
-          {criticalUnresolvedCount > 0 && (
+          {highUnresolvedCount > 0 && (
             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
           )}
-          <span>{criticalUnresolvedCount} critical {criticalUnresolvedCount === 1 ? "issue" : "issues"}</span>
+          <span>{highUnresolvedCount} high priority {highUnresolvedCount === 1 ? "issue" : "issues"}</span>
         </span>
 
         {/* Global Search Button */}
