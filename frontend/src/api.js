@@ -9,15 +9,22 @@ const TIMEOUT_MS = 6000;
 
 class ApiService {
   constructor() {
-    this.baseUrl = sessionStorage.getItem("bugtracker_api_url") || DEFAULT_API_URL;
-    // Normalize legacy /api URL to /api/v1 if saved in sessionStorage
-    if (this.baseUrl.endsWith("/api")) {
-      this.baseUrl = this.baseUrl + "/v1";
-    }
+    this.baseUrl = this._normalizeUrl(sessionStorage.getItem("bugtracker_api_url") || DEFAULT_API_URL);
     this.isLive = false;
     this.token = sessionStorage.getItem("bugtracker_auth_token") || null;
     this.cache = {};
     this.statusListeners = new Set();
+  }
+
+  _normalizeUrl(url) {
+    if (!url) return DEFAULT_API_URL;
+    let clean = url.trim().replace(/\/+$/, "");
+    clean = clean.replace(/\/api\/v1\/v1$/, "/api/v1");
+    clean = clean.replace(/\/v1\/v1$/, "/v1");
+    if (clean.endsWith("/api")) {
+      clean += "/v1";
+    }
+    return clean;
   }
 
   // Register live/demo status change listener
@@ -37,11 +44,7 @@ class ApiService {
 
   setBaseUrl(url) {
     if (!url) return;
-    let cleanUrl = url.trim().replace(/\/+$/, "");
-    if (cleanUrl.endsWith("/api")) {
-      cleanUrl += "/v1";
-    }
-    this.baseUrl = cleanUrl;
+    this.baseUrl = this._normalizeUrl(url);
     sessionStorage.setItem("bugtracker_api_url", this.baseUrl);
     this.cache = {}; // Invalidate cache when changing backend target
   }
@@ -79,8 +82,16 @@ class ApiService {
       headers["Content-Type"] = "application/json";
     }
 
+    // Strip accidental leading /v1 or v1/ from endpoint to prevent duplicate /api/v1/v1/
+    let cleanEndpoint = endpoint;
+    if (cleanEndpoint.startsWith("/v1/")) {
+      cleanEndpoint = cleanEndpoint.substring(3);
+    } else if (cleanEndpoint.startsWith("v1/")) {
+      cleanEndpoint = "/" + cleanEndpoint.substring(3);
+    }
+
     try {
-      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      const response = await fetch(`${this.baseUrl}${cleanEndpoint}`, {
         ...options,
         headers,
         signal: controller.signal,
@@ -291,46 +302,52 @@ class ApiService {
   // 3. CANDIDATE ISSUES & BUGS MANAGEMENT
   // =========================================================================
 
-  // GET /api/v1/candidate-issues
+  // GET /api/v1/candidate-issues or /api/v1/repositories/{repositoryId}/candidate-issues
   async getBugs(params = {}) {
     try {
-      const query = new URLSearchParams();
-      if (params.repository_id) query.append("repository_id", params.repository_id);
-      if (params.analysis_run_id) query.append("analysis_run_id", params.analysis_run_id);
-      if (params.severity && params.severity !== "All") query.append("severity", params.severity.toLowerCase());
-      if (params.verification_status && params.verification_status !== "all") {
-        query.append("verification_status", params.verification_status);
+      let endpoint;
+      if (params.repository_id) {
+        endpoint = `/repositories/${params.repository_id}/candidate-issues`;
+      } else {
+        const query = new URLSearchParams();
+        if (params.analysis_run_id) query.append("analysis_run_id", params.analysis_run_id);
+        if (params.severity && params.severity !== "All") query.append("severity", params.severity.toLowerCase());
+        if (params.verification_status && params.verification_status !== "all") {
+          query.append("verification_status", params.verification_status);
+        }
+        query.append("limit", params.limit || "500");
+        const queryString = query.toString();
+        endpoint = `/candidate-issues${queryString ? `?${queryString}` : ""}`;
       }
-      query.append("limit", params.limit || "500");
 
-      const queryString = query.toString();
-      const endpoint = `/candidate-issues${queryString ? `?${queryString}` : ""}`;
       const data = await this.request(endpoint);
-
-      const items = data.items || [];
-      this.cache["bugs"] = items;
+      const items = Array.isArray(data) ? data : (data.items || []);
+      const cacheKey = params.repository_id ? `bugs_${params.repository_id}` : "bugs";
+      this.cache[cacheKey] = items;
       return { live: true, data: items, total: data.total || items.length };
     } catch (err) {
-      return { live: false, data: this.cache["bugs"] || [], total: (this.cache["bugs"] || []).length, error: err.message };
+      const cacheKey = params.repository_id ? `bugs_${params.repository_id}` : "bugs";
+      return {
+        live: false,
+        data: this.cache[cacheKey] || [],
+        total: (this.cache[cacheKey] || []).length,
+        error: err.message,
+      };
     }
   }
 
   // GET /api/v1/repositories/{repositoryId}/candidate-issues
-  // Returns real backend candidate issues for a specific repository.
-  // Falls back to an empty array (not DEFAULT_BUGS) so the UI correctly
-  // shows no "Inspect Bug" cards when the backend is unreachable.
-  async getBugs(params = {}) {
-    const { repository_id } = params;
-    if (!repository_id) return { live: false, data: [] };
+  async getRepositoryBugs(repositoryId) {
+    if (!repositoryId) return { live: false, data: [] };
     try {
-      const data = await this.request(`/v1/repositories/${repository_id}/candidate-issues`);
-      const items = data.items || [];
-      this.cache[`bugs_${repository_id}`] = items;
+      const data = await this.request(`/repositories/${repositoryId}/candidate-issues`);
+      const items = Array.isArray(data) ? data : (data.items || []);
+      this.cache[`bugs_${repositoryId}`] = items;
       return { live: true, data: items, total: data.total || items.length };
     } catch (err) {
       return {
         live: false,
-        data: this.cache[`bugs_${repository_id}`] || [],
+        data: this.cache[`bugs_${repositoryId}`] || [],
         error: err.message,
       };
     }
@@ -422,31 +439,6 @@ class ApiService {
       return { live: false, data: DEFAULT_STATS };
     } catch (err) {
       return { live: false, data: this.cache["stats"] || DEFAULT_STATS };
-    }
-  }
-
-  // GET /api/v1/repositories/{repositoryId}/analysis-status
-  // Returns the status of the latest AnalysisRun for this repository.
-  // READ-ONLY — never triggers a new analysis.
-  // Returns { live, data: { repository_id, latest_run_id, status, total_files,
-  //   supported_files, candidate_issues_count, high_open_issues, started_at, completed_at,
-  //   duration_seconds } }
-  // status is one of: "none" | "running" | "completed" | "failed"
-  // "none" means no run exists yet (background task may not have started);
-  // the frontend should keep polling rather than treating this as a failure.
-  async getRepositoryAnalysisStatus(repositoryId) {
-    if (!repositoryId) return { live: false, data: null, error: "No repository ID" };
-    try {
-      const data = await this.request(`/v1/repositories/${repositoryId}/analysis-status`);
-      return { live: true, data };
-    } catch (err) {
-      const httpStatus = err.message?.match(/HTTP Error (\d+)/)?.[1];
-      return {
-        live: false,
-        data: null,
-        error: err.message,
-        status: httpStatus ? parseInt(httpStatus) : null,
-      };
     }
   }
 }

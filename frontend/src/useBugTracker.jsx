@@ -7,33 +7,17 @@ import { parseGitHubUrl, fetchGitHubRepo } from "./github.js";
 
 const BugTrackerContext = createContext(null);
 
-// =========================================================================
+// // =========================================================================
 // Convert real PostgreSQL CandidateIssue to UI Bug Object
 // =========================================================================
 function mapBackendCandidateIssueToUiBug(issue, index = 0) {
   const lineNum = issue.line_number || 1;
   const rawSev = (issue.severity || "medium").toLowerCase();
-  const normalizedSev = rawSev === "low" ? "Low" : rawSev === "high" ? "High" : "Medium";
+  const normalizedSev =
+    rawSev === "critical" ? "Critical" :
+    rawSev === "high" ? "High" :
+    rawSev === "low" ? "Low" : "Medium";
 
-  // Parse code snippet from PostgreSQL candidate_issues.code_snippet
-  const rawSnippet = issue.code_snippet || issue.codeSnippet || "";
-  let codeSnippet = [];
-  if (rawSnippet && typeof rawSnippet === "string" && rawSnippet.trim()) {
-    const rawLines = rawSnippet.split("\n");
-    codeSnippet = rawLines.map((text, offset) => ({
-      num: lineNum + offset,
-      text: text,
-      isErr: offset === 0,
-    }));
-  } else if (Array.isArray(issue.codeSnippet) && issue.codeSnippet.length > 0) {
-    codeSnippet = issue.codeSnippet;
-  } else if (issue.message || issue.title) {
-    codeSnippet = [
-      { num: lineNum, text: issue.message || issue.title, isErr: true },
-    ];
-  }
-
-  // Priority mapping (P1: High, P2: Medium, P3: Low)
   const rawPrio = (issue.urgency || issue.verified_priority || "p2").toLowerCase();
   const priorityLabel =
     rawPrio === "high" || rawPrio === "p1"
@@ -42,85 +26,22 @@ function mapBackendCandidateIssueToUiBug(issue, index = 0) {
       ? "P3 • Backlog"
       : "P2 • Fix this week";
 
-  const engineers = ["Alex Mercer", "Sarah Chen", "David Kumar", "Elena Rostova", "Marcus Vance"];
-
-  const bugs = [];
-  let bugCounter = 1;
-
-  for (const file of fileSummaries) {
-    // Find matching rule template(s)
-    const matchedTemplates = RULE_TEMPLATES.filter((t) => t.match(file));
-    if (matchedTemplates.length === 0) continue;
-
-    // Use the first matching template (avoid flooding with too many bugs per file)
-    const template = matchedTemplates[0];
-    const issue = template.makeIssue(file, bugCounter, repoMeta);
-    const lineNum = issue.line;
-
-    bugs.push({
-      id: `BUG-${now.getFullYear()}-${String(bugCounter).padStart(4, "0")}`,
-      file: file.file,  // â† REAL file path from the scanned repo
-      line: lineNum,
-      title: issue.title,
-      severity: issue.severity,
-      priority: issue.priority,
-      status: "Open",
-      engineer: engineers[bugCounter % engineers.length],
-      createdAt: dateStr,
-      similarCount: null,
-      engineerNotes: "",
-      wrong: issue.wrong,
-      matter: issue.matter,
-      codeSnippet: issue.snippet.map((s) => ({
-        num: lineNum + (s.offset || 0),
-        text: s.text,
-        isErr: s.isErr || false,
-      })),
-      suggestedFix: issue.fix,
-      ruleId: issue.rule,
-      language: file.language,
-    });
-
-    bugCounter++;
-  }
-
-  return bugs;
-}
-
-// =========================================================================
-// Map a backend CandidateIssue object into the frontend UI bug shape.
-// Called after getBugs() returns real candidate issues from the backend.
-// =========================================================================
-function mapBackendCandidateIssueToUiBug(issue, index) {
-  const lineNum = issue.line_number || 1;
-  const rawSev = (issue.severity || "medium").toLowerCase();
-  const normalizedSev =
-    rawSev === "critical" ? "Critical" :
-    rawSev === "high" ? "High" :
-    rawSev === "low" ? "Low" : "Medium";
-
-  const rawPrio = (issue.urgency || "p2").toLowerCase();
-  const priorityLabel =
-    rawPrio === "high" || rawPrio === "p1"
-      ? "P1 \u2022 Fix now"
-      : rawPrio === "low" || rawPrio === "p3" || rawPrio === "p4"
-      ? "P3 \u2022 Backlog"
-      : "P2 \u2022 Fix this week";
-
   const rawStatus = (issue.status || "open").toLowerCase();
   const normalizedStatus =
     rawStatus === "resolved" ? "Resolved" :
     rawStatus === "in progress" ? "In Progress" : "Open";
 
-  // Build a minimal code snippet from raw string or fallback to title
-  const rawSnippet = issue.code_snippet || "";
+  // Parse code snippet from PostgreSQL candidate_issues.code_snippet
+  const rawSnippet = issue.code_snippet || issue.codeSnippet || "";
   let codeSnippet = [];
-  if (rawSnippet && rawSnippet.trim()) {
+  if (rawSnippet && typeof rawSnippet === "string" && rawSnippet.trim()) {
     codeSnippet = rawSnippet.split("\n").map((text, offset) => ({
       num: lineNum + offset,
       text,
       isErr: offset === 0,
     }));
+  } else if (Array.isArray(issue.codeSnippet) && issue.codeSnippet.length > 0) {
+    codeSnippet = issue.codeSnippet;
   } else {
     codeSnippet = [{ num: lineNum, text: issue.title || issue.message || "Issue detected", isErr: true }];
   }
@@ -496,7 +417,7 @@ export function BugTrackerProvider({ children }) {
       ...DEFAULT_STATS,
       openHigh: 0,
     });
-    setBugs(DEFAULT_BUGS);
+    setBugs([]);
 
     const targetUrl = typeof targetInput === "string" ? targetInput.trim() : repoUrl;
     if (!isFile && typeof targetInput === "string") {
