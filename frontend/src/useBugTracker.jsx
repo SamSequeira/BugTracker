@@ -7,7 +7,7 @@ import { parseGitHubUrl, fetchGitHubRepo } from "./github.js";
 
 const BugTrackerContext = createContext(null);
 
-// =========================================================================
+// // =========================================================================
 // Convert real PostgreSQL CandidateIssue to UI Bug Object
 // =========================================================================
 function mapBackendCandidateIssueToUiBug(issue, index = 0) {
@@ -413,6 +413,7 @@ export function BugTrackerProvider({ children }) {
       openHigh: 0,
       critical: 0,
     });
+    setBugs([]);
     setBugs([]);
 
     const targetUrl = typeof targetInput === "string" ? targetInput.trim() : repoUrl;

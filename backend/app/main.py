@@ -8,6 +8,7 @@ from .services.language_detector import detect_language
 from .services.preprocessor import preprocess_code
 
 from app.api.v1.auth import router as auth_router
+from app.api.v1.auth import router as auth_router
 from app.api.v1.repositories import router as repositories_router
 from app.api.v1.candidate_issues import router as candidate_issues_router
 from app.core.config import settings
@@ -35,7 +36,9 @@ if static_dir.exists():
 # Mount API v1 Routers
 app.include_router(
     auth_router,
+    auth_router,
     prefix="/api/v1",
+    tags=["Authentication"],
     tags=["Authentication"],
 )
 
@@ -64,6 +67,7 @@ app.include_router(
     include_in_schema=False,
 )
 
+# Legacy alias for candidate issues at root
 app.include_router(
     candidate_issues_router,
     tags=["Candidate Issues (Legacy)"],

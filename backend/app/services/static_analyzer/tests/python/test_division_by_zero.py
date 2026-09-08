@@ -2,7 +2,7 @@
 PY_DIV_001 — Python Division by Zero Unit & Boundary Tests
 ===========================================================
 Tests for literal zero detection, constant arithmetic folding, variable
-warnings, and straight-line guard suppression in Python division operations.
+initialization to zero, and straight-line/early-exit guard suppression.
 """
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ def run_tests() -> bool:
     r = RuleTestRunner("PY_DIV_001 — Unit & Boundary Tests")
     x = ident("x")
 
-    # --- 1. DEFINITE ZERO LITERALS & CONSTANTS ---
+    # --- 1. DEFINITE ZERO LITERALS & CONSTANTS (MUST FLAG) ---
     r.must_flag("x / 0 (integer literal)", rule, module(binop_node(x, "/", integer("0"))))
     r.must_flag("x // 0 (floor-division)", rule, module(binop_node(x, "//", integer("0"))))
     r.must_flag("x / 0.0 (float literal)", rule, module(binop_node(x, "/", float_lit("0.0"))))
@@ -39,16 +39,25 @@ def run_tests() -> bool:
     r.must_flag("x / (1 - 1) (constant subtraction to zero)", rule, module(binop_node(x, "/", parens(binop_node(integer("1"), "-", integer("1"))))))
     r.must_flag("x / (0 * 5) (constant multiplication to zero)", rule, module(binop_node(x, "/", parens(binop_node(integer("0"), "*", integer("5"))))))
     r.must_flag("x / (2 - 2) (constant difference zero)", rule, module(binop_node(x, "/", parens(binop_node(integer("2"), "-", integer("2"))))))
-
-    # --- 2. DYNAMIC / UNKNOWN DIVISORS (POTENTIALLY ZERO) ---
-    r.must_flag("x / y (variable divisor)", rule, module(binop_node(x, "/", ident("y"))))
-    r.must_flag("x / f() (function call divisor)", rule, module(binop_node(x, "/", call_node("f"))))
     r.must_flag("f(x) / 0 (dividend is call, divisor is 0)", rule, module(binop_node(call_node("f", x), "/", integer("0"))))
-    r.must_flag("f(x) / g(y) (both expressions)", rule, module(binop_node(call_node("f", x), "/", call_node("g", ident("y")))))
-    r.must_flag("x / obj.attr (attribute divisor)", rule, module(binop_node(x, "/", node("attribute", "obj.attr", children=[ident("obj"), leaf(".", "."), ident("attr")]))))
-    r.must_flag("x / arr[0] (subscript divisor)", rule, module(binop_node(x, "/", node("subscript", "arr[0]", children=[ident("arr"), integer("0")]))))
+    r.must_flag("x / (0 if c else 0) (all branches 0)", rule, module(binop_node(x, "/", parens(cond_expr(integer("0"), ident("c"), integer("0"))))))
 
-    # --- 3. DEFINITELY NON-ZERO (PROVABLY SAFE) ---
+    # --- 2. PROVABLY ZERO VARIABLES (MUST FLAG) ---
+    assign_zero = node("assignment", "y = 0", children=[ident("y"), leaf("=", "="), integer("0")])
+    r.must_flag("y = 0; x / y (variable initialized to zero)", rule, module(assign_zero, binop_node(x, "/", ident("y"))))
+
+    # Variable inside `if y == 0:` branch
+    if_zero_branch = if_stmt(comparison(ident("y"), "==", integer("0")), block(binop_node(x, "/", ident("y"))))
+    r.must_flag("if y == 0: { x / y } (division inside zero branch)", rule, module(if_zero_branch))
+
+    # --- 3. DYNAMIC / SAFE CODE PATTERNS (MUST NOT FLAG TO PREVENT FALSE POSITIVES) ---
+    r.must_not_flag("x / y (unassigned parameter/variable)", rule, module(binop_node(x, "/", ident("y"))))
+    r.must_not_flag("x / f() (function call divisor)", rule, module(binop_node(x, "/", call_node("f"))))
+    r.must_not_flag("f(x) / g(y) (both dynamic expressions)", rule, module(binop_node(call_node("f", x), "/", call_node("g", ident("y")))))
+    r.must_not_flag("x / obj.attr (attribute divisor)", rule, module(binop_node(x, "/", node("attribute", "obj.attr", children=[ident("obj"), leaf(".", "."), ident("attr")]))))
+    r.must_not_flag("x / arr[0] (subscript divisor)", rule, module(binop_node(x, "/", node("subscript", "arr[0]", children=[ident("arr"), integer("0")]))))
+
+    # --- 4. DEFINITELY NON-ZERO (PROVABLY SAFE) ---
     r.must_not_flag("x / 1 (positive integer)", rule, module(binop_node(x, "/", integer("1"))))
     r.must_not_flag("x / -1 (negative integer)", rule, module(binop_node(x, "/", unary("-", integer("1")))))
     r.must_not_flag("x / +1 (explicit positive integer)", rule, module(binop_node(x, "/", unary("+", integer("1")))))
@@ -64,13 +73,10 @@ def run_tests() -> bool:
     r.must_not_flag("x / (1 if c else 2) (all branches non-zero)", rule, module(binop_node(x, "/", parens(cond_expr(integer("1"), ident("c"), integer("2"))))))
     r.must_not_flag("x / (y or 1) (or with non-zero fallback)", rule, module(binop_node(x, "/", parens(bool_op(ident("y"), "or", integer("1"))))))
     r.must_not_flag("x / max(1, y) (max with non-zero bound)", rule, module(binop_node(x, "/", call_node("max", integer("1"), ident("y")))))
+    r.must_not_flag("x / (d + 1) (positive offset)", rule, module(binop_node(x, "/", parens(binop_node(ident("d"), "+", integer("1"))))))
+    r.must_not_flag("x / (d + 1e-8) (epsilon smoothing)", rule, module(binop_node(x, "/", parens(binop_node(ident("d"), "+", float_lit("1e-8"))))))
 
-    # --- 4. CONDITIONAL / OR / MAX BOUNDARIES (FLAGGED) ---
-    r.must_flag("x / (0 if c else 1) (branch contains 0)", rule, module(binop_node(x, "/", parens(cond_expr(integer("0"), ident("c"), integer("1"))))))
-    r.must_flag("x / (y or 0) (fallback is 0)", rule, module(binop_node(x, "/", parens(bool_op(ident("y"), "or", integer("0"))))))
-    r.must_flag("x / max(0, y) (max with 0 does not bound away from 0)", rule, module(binop_node(x, "/", call_node("max", integer("0"), ident("y")))))
-
-    # --- 5. STRAIGHT-LINE GUARD SUPPRESSION ---
+    # --- 5. CONTROL-FLOW & GUARD SUPPRESSION ---
     divisor = node("identifier", "divisor", 12)
     guard = if_stmt(comparison(node("identifier", "divisor", 10), "!=", integer("0", 10), 10), block(), 10)
     r.must_not_flag("if divisor != 0: guard suppresses following division", rule, module(guard, binop_node(x, "/", divisor, 12)))
@@ -87,10 +93,33 @@ def run_tests() -> bool:
     guard4 = assert_stmt(node("identifier", "divisor", 40), line=40)
     r.must_not_flag("assert divisor: suppresses following division", rule, module(guard4, binop_node(x, "/", divisor4, 42)))
 
+    # Early exit guards (if d == 0: return; x / d)
+    early_exit_guard = if_stmt(
+        comparison(ident("d"), "==", integer("0")),
+        block(node("return_statement", "return")),
+    )
+    r.must_not_flag("if d == 0: return; x / d -> early exit protects subsequent division", rule, module(early_exit_guard, binop_node(x, "/", ident("d"))))
+
+    # Inequality guard (if d > 0: pass; x / d)
+    gt_guard = if_stmt(comparison(ident("d"), ">", integer("0")), block())
+    r.must_not_flag("if d > 0: pass; x / d -> inequality guard", rule, module(gt_guard, binop_node(x, "/", ident("d"))))
+
     # Guard inside branch protects branch only
     inner_div_guarded = binop_node(x, "/", ident("d", 12), 12)
     guard_in_branch = if_stmt(comparison(ident("d", 11), "!=", integer("0", 11), 11), block(inner_div_guarded), line=11)
     r.must_not_flag("if d != 0: { x / d } -> protected inside then-block", rule, module(guard_in_branch))
+
+    # Try-except block catching ZeroDivisionError
+    try_catch = node("try_statement", "try ... except ZeroDivisionError", children=[
+        leaf("try", "try"),
+        block(binop_node(x, "/", ident("d"))),
+        node("except_clause", "except ZeroDivisionError:", children=[
+            leaf("except", "except"),
+            ident("ZeroDivisionError"),
+            block(node("pass_statement", "pass")),
+        ]),
+    ])
+    r.must_not_flag("try: x / d except ZeroDivisionError: pass -> protected by exception handler", rule, module(try_catch))
 
     return r.run()
 

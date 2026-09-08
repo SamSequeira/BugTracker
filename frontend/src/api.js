@@ -9,15 +9,22 @@ const TIMEOUT_MS = 6000;
 
 class ApiService {
   constructor() {
-    this.baseUrl = sessionStorage.getItem("bugtracker_api_url") || DEFAULT_API_URL;
-    // Normalize legacy /api URL to /api/v1 if saved in sessionStorage
-    if (this.baseUrl.endsWith("/api")) {
-      this.baseUrl = this.baseUrl + "/v1";
-    }
+    this.baseUrl = this._normalizeUrl(sessionStorage.getItem("bugtracker_api_url") || DEFAULT_API_URL);
     this.isLive = false;
     this.token = sessionStorage.getItem("bugtracker_auth_token") || null;
     this.cache = {};
     this.statusListeners = new Set();
+  }
+
+  _normalizeUrl(url) {
+    if (!url) return DEFAULT_API_URL;
+    let clean = url.trim().replace(/\/+$/, "");
+    clean = clean.replace(/\/api\/v1\/v1$/, "/api/v1");
+    clean = clean.replace(/\/v1\/v1$/, "/v1");
+    if (clean.endsWith("/api")) {
+      clean += "/v1";
+    }
+    return clean;
   }
 
   // Register live/demo status change listener
@@ -37,11 +44,7 @@ class ApiService {
 
   setBaseUrl(url) {
     if (!url) return;
-    let cleanUrl = url.trim().replace(/\/+$/, "");
-    if (cleanUrl.endsWith("/api")) {
-      cleanUrl += "/v1";
-    }
-    this.baseUrl = cleanUrl;
+    this.baseUrl = this._normalizeUrl(url);
     sessionStorage.setItem("bugtracker_api_url", this.baseUrl);
     this.cache = {}; // Invalidate cache when changing backend target
   }
@@ -79,8 +82,16 @@ class ApiService {
       headers["Content-Type"] = "application/json";
     }
 
+    // Strip accidental leading /v1 or v1/ from endpoint to prevent duplicate /api/v1/v1/
+    let cleanEndpoint = endpoint;
+    if (cleanEndpoint.startsWith("/v1/")) {
+      cleanEndpoint = cleanEndpoint.substring(3);
+    } else if (cleanEndpoint.startsWith("v1/")) {
+      cleanEndpoint = "/" + cleanEndpoint.substring(3);
+    }
+
     try {
-      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      const response = await fetch(`${this.baseUrl}${cleanEndpoint}`, {
         ...options,
         headers,
         signal: controller.signal,
@@ -291,6 +302,7 @@ class ApiService {
   // 3. CANDIDATE ISSUES & BUGS MANAGEMENT
   // =========================================================================
 
+  // GET /api/v1/candidate-issues or /api/v1/repositories/{repositoryId}/candidate-issues
   // GET /api/v1/candidate-issues or /api/v1/repositories/{repositoryId}/candidate-issues
   async getBugs(params = {}) {
     try {
