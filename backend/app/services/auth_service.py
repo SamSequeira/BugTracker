@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Optional, Tuple
 from uuid import uuid4
 
 from sqlalchemy import select
@@ -19,7 +19,6 @@ async def signup_user(
     email: str,
     password: str,
 ) -> User:
-
     normalized_name = name.strip()
     normalized_email = email.lower().strip()
 
@@ -58,16 +57,6 @@ async def authenticate_user(
     db: AsyncSession,
     email: str,
     password: str,
-) -> Tuple[str, User]:
-
-    user = await authenticate_user(db, email, password)
-    return create_access_token(user.id)
-
-
-async def authenticate_user(
-    db: AsyncSession,
-    email: str,
-    password: str,
 ) -> User:
     result = await db.execute(
         select(User).where(
@@ -89,17 +78,16 @@ async def authenticate_user(
     return user
 
 
-async def get_user_by_id(db: AsyncSession, user_id: str) -> User | None:
+async def get_user_by_id(db: AsyncSession, user_id: str) -> Optional[User]:
     result = await db.execute(select(User).where(User.id == user_id))
     return result.scalar_one_or_none()
-    token = create_access_token(user.id)
-    return token, user
 
 
 async def login_user(
     db: AsyncSession,
     email: str,
     password: str,
-) -> str:
-    token, _ = await authenticate_user(db, email, password)
-    return token
+) -> Tuple[str, User]:
+    user = await authenticate_user(db, email, password)
+    token = create_access_token(user.id)
+    return token, user

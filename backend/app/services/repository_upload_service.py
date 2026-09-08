@@ -5,6 +5,7 @@ Handles ZIP / single-file uploads:
   1. Save to local disk under repositories/<uuid>-<name>/
   2. Extract ZIP contents locally (for analysis)
   3. Upload the original ZIP to S3 (if S3 is enabled)
+  4. Persist repository metadata to PostgreSQL
 """
 
 import logging
@@ -80,35 +81,29 @@ class RepositoryUploadService:
             ) from error
 
         # ------------------------------------------------------------------
-        # S3 upload (non-fatal — local files remain available for analysis)
+        # S3 upload (if configured/enabled)
         # ------------------------------------------------------------------
         s3_uri: str | None = None
         s3_key: str | None = None
 
-        if not s3_service.enabled:
-            raise S3UploadError("S3 uploads are not configured.")
-
         if s3_service.enabled:
             try:
                 if zip_local_path and zip_local_path.exists():
-                    # Use the original ZIP that was saved temporarily
                     s3_key = f"{s3_config.prefix}/{repository_id}-{repository_name}.zip"
                     s3_uri = s3_service.upload_file(zip_local_path, s3_key)
-                    # Clean up temp ZIP now that it's in S3
                     zip_local_path.unlink(missing_ok=True)
                 else:
-                    # Single code file — zip it before uploading
                     zip_local_path = repository_path / f"{repository_name}.zip"
                     self._zip_directory(repository_path, zip_local_path)
                     s3_key = f"{s3_config.prefix}/{repository_id}-{repository_name}.zip"
                     s3_uri = s3_service.upload_file(zip_local_path, s3_key)
                     zip_local_path.unlink(missing_ok=True)
 
-            except S3UploadError:
+            except S3UploadError as err:
+                logger.error("S3 upload failed for repository %s: %s", repository_name, err)
                 raise
-                # Log but don't fail the request — local copy is still usable
         else:
-            logger.debug("S3 uploads disabled — skipping for %s", repository_name)
+            logger.info("S3 uploads disabled or unconfigured — storing repository locally for %s", repository_name)
 
         repository = Repository(
             id=repository_id,

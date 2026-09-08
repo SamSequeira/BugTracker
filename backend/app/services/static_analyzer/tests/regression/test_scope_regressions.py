@@ -1,4 +1,4 @@
-﻿"""
+"""
 Regression Suite: Lexical Scope Isolation & Closures
 =====================================================
 Validates FN-1, W02, W14, and Phase 5.7 scope-isolation guarantees.

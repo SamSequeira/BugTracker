@@ -1,4 +1,4 @@
-﻿"""
+"""
 Regression Suite: Mutable Alias Propagation & Invalidation
 ===========================================================
 Validates W08 and Phase 5.7 alias-tracking guarantees in PY_MUT_001.

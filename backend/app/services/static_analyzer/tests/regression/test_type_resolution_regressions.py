@@ -1,4 +1,4 @@
-﻿"""
+"""
 Regression Suite: Java Declared-Type Resolution & Shadowing
 ============================================================
 Validates FN-3, W04, and Phase 5.7 hierarchical scoping in JAVA_EQ_001.

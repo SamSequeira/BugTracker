@@ -1119,11 +1119,6 @@ class PythonDivisionByZero(BaseRule):
             confidence=confidence,
         )
 
-                "confidence": "medium",
-            },
-            confidence="medium",
-        )
-
     def _classify_assignment_rhs(self, rhs: Optional[dict]) -> _Z:
         if rhs is None:
             return _Z.POTENTIALLY_ZERO

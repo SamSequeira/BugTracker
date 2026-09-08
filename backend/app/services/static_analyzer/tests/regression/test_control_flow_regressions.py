@@ -1,4 +1,4 @@
-﻿"""
+"""
 Regression Suite: Control Flow, Branches, Loops & Break Targeting
 ==================================================================
 Validates FN-2, FN-4, FN-5, W03, W06, W07, and Phase 5.7 control-flow fixes.

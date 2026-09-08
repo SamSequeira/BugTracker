@@ -1,9 +1,8 @@
-/*
 // src/useBugTracker.jsx - Unified Shared Application State Provider
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { apiService } from "./api.js";
 import { authService } from "./auth.js";
-import { DEFAULT_STATS, DEFAULT_AI_SUMMARY, RECENT_SCANS } from "./mockData.js";
+import { DEFAULT_STATS, DEFAULT_BUGS, DEFAULT_AI_SUMMARY, RECENT_SCANS } from "./mockData.js";
 import { parseGitHubUrl, fetchGitHubRepo } from "./github.js";
 
 const BugTrackerContext = createContext(null);
@@ -13,10 +12,10 @@ const BugTrackerContext = createContext(null);
 // =========================================================================
 function mapBackendCandidateIssueToUiBug(issue, index = 0) {
   const lineNum = issue.line_number || 1;
-  const rawSev = (issue.severity || "medium").toLowerCase();
-  const normalizedSev = rawSev === "low" ? "Low" : rawSev === "high" ? "High" : "Medium";
+  const rawSev = (issue.verified_severity || issue.severity || "medium").toLowerCase();
+  const normalizedSev = rawSev === "low" ? "Low" : rawSev === "high" || rawSev === "critical" ? "High" : "Medium";
 
-  // Parse code snippet from PostgreSQL candidate_issues.code_snippet
+  // Parse code snippet
   const rawSnippet = issue.code_snippet || issue.codeSnippet || "";
   let codeSnippet = [];
   if (rawSnippet && typeof rawSnippet === "string" && rawSnippet.trim()) {
@@ -34,8 +33,8 @@ function mapBackendCandidateIssueToUiBug(issue, index = 0) {
     ];
   }
 
-  // Priority mapping (P1: High, P2: Medium, P3: Low)
-  const rawPrio = (issue.urgency || issue.verified_priority || "p2").toLowerCase();
+  // Priority mapping
+  const rawPrio = (issue.verified_priority || issue.urgency || "p2").toLowerCase();
   const priorityLabel =
     rawPrio === "high" || rawPrio === "p1"
       ? "P1 • Fix now"
@@ -45,786 +44,29 @@ function mapBackendCandidateIssueToUiBug(issue, index = 0) {
 
   const engineers = ["Alex Mercer", "Sarah Chen", "David Kumar", "Elena Rostova", "Marcus Vance"];
 
-  const bugs = [];
-  let bugCounter = 1;
-
-  for (const file of fileSummaries) {
-    // Find matching rule template(s)
-    const matchedTemplates = RULE_TEMPLATES.filter((t) => t.match(file));
-    if (matchedTemplates.length === 0) continue;
-
-    // Use the first matching template (avoid flooding with too many bugs per file)
-    const template = matchedTemplates[0];
-    const issue = template.makeIssue(file, bugCounter, repoMeta);
-    const lineNum = issue.line;
-
-    bugs.push({
-      id: `BUG-${now.getFullYear()}-${String(bugCounter).padStart(4, "0")}`,
-      file: file.file,  // â† REAL file path from the scanned repo
-      line: lineNum,
-      title: issue.title,
-      severity: issue.severity,
-      priority: issue.priority,
-      status: "Open",
-      engineer: engineers[bugCounter % engineers.length],
-      createdAt: dateStr,
-      similarCount: null,
-      engineerNotes: "",
-      wrong: issue.wrong,
-      matter: issue.matter,
-      codeSnippet: issue.snippet.map((s) => ({
-        num: lineNum + (s.offset || 0),
-        text: s.text,
-        isErr: s.isErr || false,
-      })),
-      suggestedFix: issue.fix,
-      ruleId: issue.rule,
-      language: file.language,
-    });
-
-    bugCounter++;
-  }
-
-  return bugs;
-}
-
-// =========================================================================
-// Map a backend CandidateIssue object into the frontend UI bug shape.
-// Called after getBugs() returns real candidate issues from the backend.
-// =========================================================================
-function mapBackendCandidateIssueToUiBug(issue, index) {
-  const lineNum = issue.line_number || 1;
-  const rawSev = (issue.severity || "medium").toLowerCase();
-  const normalizedSev =
-    rawSev === "critical" ? "Critical" :
-    rawSev === "high" ? "High" :
-    rawSev === "low" ? "Low" : "Medium";
-
-  const rawPrio = (issue.urgency || "p2").toLowerCase();
-  const priorityLabel =
-    rawPrio === "high" || rawPrio === "p1"
-      ? "P1 \u2022 Fix now"
-      : rawPrio === "low" || rawPrio === "p3" || rawPrio === "p4"
-      ? "P3 \u2022 Backlog"
-      : "P2 \u2022 Fix this week";
-
-  const rawStatus = (issue.status || "open").toLowerCase();
-  const normalizedStatus =
-    rawStatus === "resolved" ? "Resolved" :
-    rawStatus === "in progress" ? "In Progress" : "Open";
-
-  // Build a minimal code snippet from raw string or fallback to title
-  const rawSnippet = issue.code_snippet || "";
-  let codeSnippet = [];
-  if (rawSnippet && rawSnippet.trim()) {
-    codeSnippet = rawSnippet.split("\n").map((text, offset) => ({
-      num: lineNum + offset,
-      text,
-      isErr: offset === 0,
-    }));
-  } else {
-    codeSnippet = [{ num: lineNum, text: issue.title || issue.message || "Issue detected", isErr: true }];
-  }
-
-  const engineers = ["Alex Mercer", "Sarah Chen", "David Kumar", "Elena Rostova", "Marcus Vance"];
+  const rawStatus = typeof issue.status === "string" ? issue.status : issue.status?.status || "open";
+  const normalizedStatus = rawStatus.toLowerCase() === "resolved" ? "Resolved" : rawStatus.toLowerCase() === "in_review" || rawStatus.toLowerCase() === "in review" ? "In Review" : "Open";
 
   return {
-    id: issue.id,
-    file: issue.file_path || "unknown_file",   // ← critical: must match fileItem.file
+    id: issue.id || `BUG-${index + 1}`,
+    file: issue.file_path || issue.file || "unknown",
     line: lineNum,
-    title: issue.title || issue.message || `Issue in ${issue.file_path}`,
+    title: issue.title || issue.message || "Detected Issue",
     severity: normalizedSev,
     priority: priorityLabel,
     status: normalizedStatus,
-    engineer: engineers[index % engineers.length],
-    createdAt: issue.created_at ? new Date(issue.created_at).toLocaleString() : "Recently detected",
-    similarCount: null,
-    engineerNotes: issue.engineer_notes || "",
-    wrong: issue.description || issue.message || "",
-    matter: issue.security_impact || issue.description || "Could lead to exploitation or data integrity failure.",
-    codeSnippet,
+    engineer: issue.engineer || engineers[index % engineers.length],
+    createdAt: issue.created_at ? new Date(issue.created_at).toLocaleDateString() : "Recently",
+    similarCount: issue.similar_count || null,
+    engineerNotes: issue.engineer_notes || issue.verification_notes || issue.remarks || "",
+    wrong: issue.description || issue.message || "Vulnerability or defect detected during static analysis.",
+    matter: issue.security_impact || "Could lead to runtime failure or security compromise.",
+    codeSnippet: codeSnippet,
     suggestedFix: issue.suggested_fix || null,
-    ruleId: issue.rule_id || "",
+    ruleId: issue.rule_id || issue.ruleId || "",
     language: issue.language || "Unknown",
+    rawIssue: issue,
   };
-}
-
-export function BugTrackerProvider({ children }) {
-  // 1. Authentication & Session State
-  const [sessionUser, setSessionUser] = useState(null);
-  const isAuthenticated = Boolean(sessionUser);
-
-  // 2. Active Tab View
-  const [activeTab, setActiveTab] = useState("scanner");
-
-  // 3. Modals & Drawers Visibility
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isHelpOpen, setIsHelpOpen] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [activeDrawerBug, setActiveDrawerBug] = useState(null);
-
-  // 4. Data Layer & Connection State
-  const [apiUrl, setApiUrlState] = useState(apiService.getBaseUrl());
-  const [isLive, setIsLive] = useState(apiService.isLive);
-
-  // 5. Shared Data Objects - initialized empty, populated strictly from DB/API
-  const [stats, setStats] = useState(DEFAULT_STATS);
-  const [bugs, setBugs] = useState([]);
-  const [aiSummary, setAiSummary] = useState(DEFAULT_AI_SUMMARY);
-  const [recentScans, setRecentScans] = useState(RECENT_SCANS);
-  const [repoMeta, setRepoMeta] = useState(null);
-
-  // 6. Repository & Scanner State
-  const [repoUrl, setRepoUrl] = useState("");
-  const [isScanning, setIsScanning] = useState(false);
-  const [scanProgress, setScanProgress] = useState(0);
-  const [scanStage, setScanStage] = useState("");
-  const [scanCompleted, setScanCompleted] = useState(false);
-  const [scanError, setScanError] = useState(null); // null | { message, type }
-  const [githubToken, setGithubTokenState] = useState(() => apiService.getGitHubToken() || "");
-  const [currentRepositoryId, setCurrentRepositoryId] = useState(null);
-
-  // 7. Filters and Search Queries
-  const [bugSearchQuery, setBugSearchQuery] = useState("");
-  const [selectedSeverity, setSelectedSeverity] = useState("All");
-  const [selectedStatus, setSelectedStatus] = useState("All");
-  const [aiSearchQuery, setAiSearchQuery] = useState("");
-  const [selectedFileFilter, setSelectedFileFilter] = useState("All");
-
-  // 8. Notification Read States
-  const [readNotificationIds, setReadNotificationIds] = useState(new Set());
-
-  const notesTimerRef = useRef({});
-  const pollingRef = useRef(null);
-
-  // Listen to API Live/Demo status changes
-  useEffect(() => {
-    const unsub = apiService.onStatusChange((live) => setIsLive(live));
-    return unsub;
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const restoreSession = async () => {
-      if (!apiService.getToken()) {
-        authService.saveSession(null);
-        return;
-      }
-
-      const res = await apiService.getCurrentUser();
-      if (cancelled) return;
-      if (res.success && res.user) {
-        authService.saveSession(res.user);
-        setSessionUser(res.user);
-      } else {
-        apiService.setToken(null);
-        authService.saveSession(null);
-      }
-    };
-
-    restoreSession();
-    return () => { cancelled = true; };
-  }, []);
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setIsSearchOpen((prev) => !prev);
-      } else if (e.key === "Escape") {
-        setIsSettingsOpen(false);
-        setIsHelpOpen(false);
-        setIsSearchOpen(false);
-        setIsNotificationsOpen(false);
-        setIsUserMenuOpen(false);
-        setActiveDrawerBug(null);
-        setScanError(null);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
-
-  // =========================================================================
-  // Analysis status polling
-  // =========================================================================
-
-  const stopPolling = useCallback(() => {
-    if (pollingRef.current !== null) {
-      clearInterval(pollingRef.current);
-      pollingRef.current = null;
-    }
-  }, []);
-
-  const startAnalysisPolling = useCallback(
-    (repositoryId) => {
-      stopPolling();
-
-      const POLL_INTERVAL_MS = 2500;
-      const POLL_TIMEOUT_MS = 5 * 60 * 1000;
-      const startedAt = Date.now();
-
-      pollingRef.current = setInterval(async () => {
-        if (pollingRef.current === null) return;
-
-        if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
-          stopPolling();
-          setIsScanning(false);
-          setScanProgress(0);
-          setScanStage("");
-          setScanError({
-            message:
-              "Analysis timed out after 5 minutes. The repository may be too large. " +
-              "You can still view partial results in the Architecture tab.",
-            type: "unknown",
-          });
-          return;
-        }
-
-        const res = await apiService.getRepositoryAnalysisStatus(repositoryId);
-
-        if (!res.live || !res.data) {
-          return;
-        }
-
-        const { status: runStatus, total_files, supported_files, candidate_issues_count, high_open_issues, duration_seconds } = res.data;
-
-        if (runStatus === "none" || runStatus === "running") {
-          if (runStatus === "running") {
-            // Gently advance progress from 30 â†’ 90 while we wait.
-            setScanProgress((prev) => Math.min(prev + 2, 90));
-            setScanStage("✓ Analyzing codebase...");
-          }
-          return;
-        }
-
-        // Terminal states — stop polling regardless.
-        stopPolling();
-
-        if (runStatus === "completed") {
-          setIsLive(true);
-          setScanProgress(100);
-
-          // Retrieve live candidate issues from PostgreSQL
-          const bugsRes = await apiService.getBugs({ repository_id: repositoryId });
-          let realBugs = [];
-          if (bugsRes.live && Array.isArray(bugsRes.data)) {
-            realBugs = bugsRes.data.map((b, idx) => mapBackendCandidateIssueToUiBug(b, idx));
-            setBugs(realBugs);
-          }
-
-          setStats((prev) => ({
-            ...prev,
-            totalFiles: summary.total_files ?? prev.totalFiles,
-          }));
-        }
-
-        setIsLive(true);
-
-        const cleanName = cloneData.repository_name;
-        const critical = githubResult?.stats?.critical || 0;
-        setRecentScans((prev) => [
-          {
-            name: cleanName,
-            repo_url: targetUrl,
-            date: "Just now",
-            status: critical > 0 ? `${critical} Critical` : "Clean",
-            badgeColor: critical > 0 ? "bg-red-500" : "bg-emerald-500",
-            totalBugs: githubResult?.stats?.totalBugs || 0,
-          },
-          ...prev.filter((item) => item.repo_url !== targetUrl).slice(0, 4),
-        ]);
-
-      } else {
-        // ── ZIP upload path: send to backend ────────────────────────────────
-        setScanStage("Uploading archive to scan engine...");
-        setScanProgress(20);
-
-        let uploadData;
-        try {
-          const uploadRes = await fetch("http://localhost:8000/api/v1/repositories/upload", {
-            method: "POST",
-            body: targetInput, // FormData
-            signal: AbortSignal.timeout(120000),
-          });
-
-          if (!uploadRes.ok) {
-            const err = await uploadRes.json().catch(() => ({}));
-            throw Object.assign(
-              new Error(`Upload failed (${uploadRes.status}): ${err.detail || uploadRes.statusText}`),
-              { type: "unknown" }
-            );
-          }
-
-          uploadData = await uploadRes.json();
-        } catch (err) {
-          if (err.type) throw err;
-          throw Object.assign(
-            new Error("Backend server is not reachable. Please start it with: uvicorn app.main:app --port 8000"),
-            { type: "no_backend" }
-          );
-        }
-
-        setScanStage(`✓ Uploaded ${uploadData.repository_name} — analyzing...`);
-        setScanProgress(50);
-
-        // Analyze the uploaded repo
-        let analysisData = null;
-        try {
-          const analyzeRes = await fetch(
-            `http://localhost:8000/api/v1/repositories/analyze/${uploadData.repository_id}?repository_path=${encodeURIComponent(uploadData.repository_path)}`,
-            { method: "POST", signal: AbortSignal.timeout(60000) }
-          );
-          if (analyzeRes.ok) {
-            analysisData = await analyzeRes.json();
-          }
-        } catch (_) { /* non-fatal * / }
-
-        setScanProgress(90);
-        setScanStage("✓ Building report...");
-        await new Promise((r) => setTimeout(r, 400));
-        setScanProgress(100);
-        setScanStage("✓ Archive scan complete");
-
-        if (analysisData?.analysis) {
-          const summary = analysisData.analysis.summary || {};
-          const files = analysisData.analysis.files || [];
-          setStats((prev) => ({
-            ...prev,
-            totalFiles: summary.total_files ?? prev.totalFiles,
-            totalBugs: files.length * 2,
-          }));
-          setRepoMeta({
-            fullName: uploadData.repository_name,
-            description: `Uploaded archive: ${uploadData.repository_name}`,
-            stars: 0, forks: 0,
-            totalFiles: summary.total_files || 0,
-            defaultBranch: "—",
-          });
-        }
-
-        // Store the backend repository_id so the Architecture tab can fetch topology data
-        if (uploadData?.repository_id) {
-          setCurrentRepositoryId(uploadData.repository_id);
-        }
-
-        setIsLive(true);
-
-        setRecentScans((prev) => [
-          {
-            name: uploadData.repository_name,
-            repo_url: null,
-            date: "Just now",
-            status: "Uploaded",
-            badgeColor: "bg-blue-500",
-            totalBugs: 0,
-          },
-          ...prev.slice(0, 4),
-        ]);
-      }
-
-      setScanCompleted(true);
-
-    } catch (err) {
-      setScanProgress(0);
-      setScanStage("");
-      setScanCompleted(false);
-      setScanError({
-        message: err.message || "An unexpected error occurred during the scan.",
-        type: err.type || "unknown",
-      });
-    } finally {
-      setIsScanning(false);
-    }
-  };
-
-  const loadRecentScan = (recentItem) => {
-    setRepoUrl(recentItem.repo_url);
-    runScan(recentItem.repo_url, false);
-  };
-
-  const saveGithubToken = (token) => {
-    apiService.setGitHubToken(token);
-    setGithubTokenState(token);
-  };
-
-  const clearScanError = () => setScanError(null);
-            totalBugs: candidate_issues_count ?? realBugs.length,
-            totalFiles: total_files ?? prev.totalFiles,
-            scanTime: duration_seconds != null ? `${duration_seconds.toFixed(1)}s` : prev.scanTime,
-            linesOfCode: null, // cleared — real line count not available from analysis-status
-            critical: 0,       // reset to 0; no backend issue fetch here
-            openHigh: high_open_issues ?? 0,
-          }));
-          setIsLive(true);
-          setScanProgress(100);
-
-          // Fetch real candidate issues for this repository and populate bugs state
-          // so TabAiArchitecture can match file cards against real issue file paths.
-          apiService.getBugs({ repository_id: repositoryId }).then((bugsRes) => {
-            if (bugsRes.live && Array.isArray(bugsRes.data)) {
-              setBugs(bugsRes.data.map((issue, idx) => mapBackendCandidateIssueToUiBug(issue, idx)));
-            } else {
-              setBugs([]);
-            }
-          });
-
-          // Update the matching recent scan preset status so it no longer
-          // shows "Analyzing…" now that analysis is complete.
-          setRecentScans((prev) =>
-            prev.map((item) =>
-              item.repository_id === repositoryId
-                ? {
-                    ...item,
-                    status: `${candidate_issues_count ?? realBugs.length} issue${(candidate_issues_count ?? realBugs.length) === 1 ? "" : "s"}`,
-                    badgeColor: (candidate_issues_count ?? realBugs.length) > 0 ? "bg-amber-500" : "bg-emerald-500",
-                  }
-                : item
-            )
-          );
-
-          setScanStage("✓ Analysis complete");
-          setIsScanning(false);
-          setScanCompleted(true);
-        } else if (runStatus === "failed") {
-          setIsScanning(false);
-          setScanProgress(0);
-          setScanStage("");
-          setScanCompleted(false);
-          setScanError({
-            message:
-              "Backend analysis failed for this repository. Check server logs or try re-scanning.",
-            type: "unknown",
-          });
-        }
-      }, POLL_INTERVAL_MS);
-    },
-    [stopPolling]
-  );
-
-  useEffect(() => {
-    return () => stopPolling();
-  }, [stopPolling]);
-
-  // Backend data loader
-  const loadData = useCallback(async () => {
-    const [reposRes, bugsRes] = await Promise.all([
-      apiService.getRepositories(),
-      apiService.getBugs(),
-    ]);
-
-    setIsLive(reposRes.live || bugsRes.live);
-
-    if (bugsRes.live && Array.isArray(bugsRes.data)) {
-      const mapped = bugsRes.data.map((b, idx) => mapBackendCandidateIssueToUiBug(b, idx));
-      setBugs(mapped);
-      setStats((prev) => ({
-        ...prev,
-        totalBugs: mapped.length,
-        high: mapped.filter((b) => b.severity === "High").length,
-        medium: mapped.filter((b) => b.severity === "Medium").length,
-        low: mapped.filter((b) => b.severity === "Low").length,
-      }));
-    }
-    const res = await apiService.resolveBug(bugId, nextStatus);
-    setIsLive(res.live);
-  };
-
-  // Update Engineer Remarks
-  const updateBugNotes = (bugId, newNotes) => {
-    setBugs((prevBugs) =>
-      prevBugs.map((b) => (b.id === bugId ? { ...b, engineerNotes: newNotes } : b))
-    );
-    if (activeDrawerBug && activeDrawerBug.id === bugId) {
-      setActiveDrawerBug((prev) => ({ ...prev, engineerNotes: newNotes }));
-    }
-    if (notesTimerRef.current[bugId]) clearTimeout(notesTimerRef.current[bugId]);
-    notesTimerRef.current[bugId] = setTimeout(async () => {
-      const res = await apiService.updateBugNotes(bugId, newNotes);
-      setIsLive(res.live);
-    }, 500);
-  };
-
-  const markNotificationAsRead = (id) => {
-    setReadNotificationIds((prev) => new Set([...prev, id]));
-  };
-
-  const markAllNotificationsAsRead = () => {
-    const allIds = dynamicNotifications.map((n) => n.id);
-    setReadNotificationIds(new Set(allIds));
-  };
-
-  // Computed Values
-  const totalBugsCount = bugs.length;
-  const criticalUnresolvedCount = bugs.filter(
-    (b) => b.severity === "Critical" && b.status !== "Resolved"
-  ).length;
-  const highUnresolvedCount = bugs.filter(
-    (b) => b.severity === "High" && b.status !== "Resolved"
-  ).length;
-  const resolvedCount = bugs.filter((b) => b.status === "Resolved").length;
-  const openCount = bugs.filter((b) => b.status !== "Resolved").length;
-  const resolutionPercentage = Math.round((resolvedCount / (totalBugsCount || 1)) * 100);
-
-  const dynamicNotifications = bugs
-    .filter((b) => b.status !== "Resolved")
-    .map((bug, index) => {
-      const id = `notif-${bug.id}`;
-      return {
-        id,
-        bugId: bug.id,
-        severity: bug.severity,
-        title: `${bug.severity} Issue: ${bug.title}`,
-        message: `Detected at ${bug.file}:${bug.line} (${bug.priority})`,
-        time: index === 0 ? "Just now" : `${index * 15 + 5}m ago`,
-        isRead: readNotificationIds.has(id),
-      };
-    });
-
-  const unreadNotificationCount = dynamicNotifications.filter((n) => !n.isRead).length;
-
-  const value = {
-    isAuthenticated, sessionUser, login, signup, logout,
-    activeTab, setActiveTab,
-    isSettingsOpen, setIsSettingsOpen,
-    isHelpOpen, setIsHelpOpen,
-    isSearchOpen, setIsSearchOpen,
-    isNotificationsOpen, setIsNotificationsOpen,
-    isUserMenuOpen, setIsUserMenuOpen,
-    activeDrawerBug, setActiveDrawerBug,
-    apiUrl, updateApiUrl, isLive, loadData,
-    stats, bugs, aiSummary, recentScans, repoMeta,
-    repoUrl, setRepoUrl,
-    currentRepositoryId,
-    isScanning, scanProgress, scanStage, scanCompleted,
-    scanError, clearScanError,
-    githubToken, saveGithubToken,
-    runScan, loadRecentScan,
-    toggleResolveBug, updateBugNotes,
-    bugSearchQuery, setBugSearchQuery,
-    selectedSeverity, setSelectedSeverity,
-    selectedStatus, setSelectedStatus,
-    aiSearchQuery, setAiSearchQuery,
-    selectedFileFilter, setSelectedFileFilter,
-    totalBugsCount, criticalUnresolvedCount, highUnresolvedCount,
-    resolvedCount, openCount, resolutionPercentage,
-    dynamicNotifications, unreadNotificationCount,
-    markNotificationAsRead, markAllNotificationsAsRead,
-  };
-
-  return (
-    <BugTrackerContext.Provider value={value}>
-      {children}
-    </BugTrackerContext.Provider>
-  );
-}
-
-export function useBugTracker() {
-  const context = useContext(BugTrackerContext);
-  if (!context) throw new Error("useBugTracker must be used within a BugTrackerProvider");
-  return context;
-}
-*/
-
-// src/useBugTracker.jsx - Unified Shared Application State Provider
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
-import { apiService } from "./api.js";
-import { authService } from "./auth.js";
-import { DEFAULT_STATS, DEFAULT_BUGS, DEFAULT_AI_SUMMARY, RECENT_SCANS } from "./mockData.js";
-
-const BugTrackerContext = createContext(null);
-
-// =========================================================================
-// Generate real bugs from scanned file summaries
-// =========================================================================
-const RULE_TEMPLATES = [
-  {
-    match: (f) => f.status === "Security Risk" || f.file.toLowerCase().includes("query") || f.file.toLowerCase().includes("sql"),
-    makeIssue: (f, idx, repoMeta) => ({
-      rule: "SQL_INJECTION",
-      title: `SQL Injection risk in ${f.file.split("/").pop()}`,
-      severity: "Critical",
-      priority: "P1 • Fix now",
-      wrong: "User-controlled input may be concatenated directly into a SQL query string without sanitization.",
-      matter: "An attacker could execute arbitrary SQL commands, dump data, or destroy database records.",
-      line: Math.floor(Math.random() * (f.lines || 100)) + 10,
-      snippet: [
-        { offset: -2, text: `def get_record(user_id):` },
-        { offset: -1, text: `    conn = get_db_connection()` },
-        { offset: 0, text: `    query = "SELECT * FROM records WHERE id = " + user_id`, isErr: true },
-        { offset: 1, text: `    return conn.execute(query).fetchall()`, isErr: true },
-      ],
-      fix: {
-        remove: `- query = "SELECT * FROM records WHERE id = " + user_id`,
-        add: `+ query = "SELECT * FROM records WHERE id = %s"\n+ conn.execute(query, (user_id,))`,
-        note: "Use parameterized queries so the database driver treats input as data, not executable SQL.",
-      },
-    }),
-  },
-  {
-    match: (f) => f.status === "Credential Leak" || f.file.toLowerCase().includes("secret") || f.file.toLowerCase().includes("credential") || f.file.toLowerCase().includes(".env") || f.file.toLowerCase().includes("deploy"),
-    makeIssue: (f, idx, repoMeta) => ({
-      rule: "HARDCODED_SECRET",
-      title: `Hardcoded credentials detected in ${f.file.split("/").pop()}`,
-      severity: "Critical",
-      priority: "P1 • Fix now",
-      wrong: "API keys or passwords appear to be hardcoded directly in source code.",
-      matter: "Any developer or attacker with repository access can extract and misuse the credentials.",
-      line: Math.floor(Math.random() * (f.lines || 50)) + 5,
-      snippet: [
-        { offset: -1, text: `# Production credentials` },
-        { offset: 0, text: `SECRET_KEY = "sk-prod-xxxxxxxxxxxxxxxxxxxxxxxx"`, isErr: true },
-        { offset: 1, text: `API_TOKEN = "ghp_xxxxxxxxxxxxxxxxxxxx"`, isErr: true },
-      ],
-      fix: {
-        remove: `- SECRET_KEY = "sk-prod-..."`,
-        add: `+ SECRET_KEY = os.environ.get("SECRET_KEY")\n+ API_TOKEN = os.environ.get("API_TOKEN")`,
-        note: "Load secrets from environment variables or a secrets manager. Never commit credentials to version control.",
-      },
-    }),
-  },
-  {
-    match: (f) => f.status === "Security Review" || f.file.toLowerCase().includes("auth") || f.file.toLowerCase().includes("jwt") || f.file.toLowerCase().includes("login") || f.file.toLowerCase().includes("token"),
-    makeIssue: (f, idx, repoMeta) => ({
-      rule: "NULL_DEREFERENCE",
-      title: `Missing auth validation in ${f.file.split("/").pop()}`,
-      severity: "High",
-      priority: "P2 • Fix this week",
-      wrong: "Authentication state is not checked before accessing protected resources.",
-      matter: "An unauthenticated request could bypass access controls and access sensitive data.",
-      line: Math.floor(Math.random() * (f.lines || 80)) + 15,
-      snippet: [
-        { offset: -1, text: `async def protected_endpoint(request):` },
-        { offset: 0, text: `    user = get_user_from_token(request)`, isErr: false },
-        { offset: 1, text: `    return user.profile_data  # user may be None`, isErr: true },
-      ],
-      fix: {
-        remove: `- return user.profile_data`,
-        add: `+ if user is None:\n+     raise HTTPException(status_code=401, detail="Unauthorized")\n+ return user.profile_data`,
-        note: "Always validate that authentication returned a valid user before accessing user-specific data.",
-      },
-    }),
-  },
-  {
-    match: (f) => f.status === "Memory Leak" || f.file.toLowerCase().includes("handler") || f.file.toLowerCase().includes("socket") || f.file.toLowerCase().includes("ws"),
-    makeIssue: (f, idx, repoMeta) => ({
-      rule: "UNCLOSED_RESOURCE",
-      title: `Resource leak detected in ${f.file.split("/").pop()}`,
-      severity: "High",
-      priority: "P2 • Fix this week",
-      wrong: "Connection or file handle is opened but not guaranteed to be closed on all code paths.",
-      matter: "Leads to resource exhaustion and crashes under load as handles accumulate over time.",
-      line: Math.floor(Math.random() * (f.lines || 80)) + 20,
-      snippet: [
-        { offset: -1, text: `def handle_connection(conn):` },
-        { offset: 0, text: `    data = conn.read()`, isErr: false },
-        { offset: 1, text: `    process(data)  # conn.close() missing`, isErr: true },
-      ],
-      fix: {
-        remove: `- data = conn.read()\n- process(data)`,
-        add: `+ with contextlib.closing(conn):\n+     data = conn.read()\n+     process(data)`,
-        note: "Use context managers (with statement) to guarantee resources are closed even on exceptions.",
-      },
-    }),
-  },
-  {
-    match: (f) => f.status === "Needs Review" || f.status === "Data Ingestion Error" || f.file.toLowerCase().includes("upload") || f.file.toLowerCase().includes("parse") || f.file.toLowerCase().includes("csv"),
-    makeIssue: (f, idx, repoMeta) => ({
-      rule: "UNHANDLED_IO",
-      title: `Unhandled exception in ${f.file.split("/").pop()}`,
-      severity: "Medium",
-      priority: "P3 • Backlog",
-      wrong: "File or network I/O is performed without exception handling, which will crash on unexpected input.",
-      matter: "Malformed input or network failures cause unhandled 500 errors and silent data loss.",
-      line: Math.floor(Math.random() * (f.lines || 60)) + 10,
-      snippet: [
-        { offset: -1, text: `def parse_file(path):` },
-        { offset: 0, text: `    with open(path) as f:`, isErr: false },
-        { offset: 1, text: `        return f.read().decode("utf-8")  # no error handling`, isErr: true },
-      ],
-      fix: {
-        remove: `- return f.read().decode("utf-8")`,
-        add: `+ try:\n+     return f.read().decode("utf-8", errors="replace")\n+ except (IOError, OSError) as e:\n+     logger.error(f"Failed to read {path}: {e}")\n+     return None`,
-        note: "Wrap I/O in try/except and use error-tolerant decoding to handle unexpected file content.",
-      },
-    }),
-  },
-  {
-    match: (f) => f.status === "Needs Optimization" || f.file.toLowerCase().includes("loop") || f.file.toLowerCase().includes("worker") || f.file.toLowerCase().includes("task"),
-    makeIssue: (f, idx, repoMeta) => ({
-      rule: "INFINITE_LOOP",
-      title: `Infinite loop risk in ${f.file.split("/").pop()}`,
-      severity: "Medium",
-      priority: "P3 • Backlog",
-      wrong: "A while loop or polling loop lacks a break condition and could run indefinitely.",
-      matter: "Will hang the process under certain conditions, consuming 100% CPU and blocking other tasks.",
-      line: Math.floor(Math.random() * (f.lines || 60)) + 10,
-      snippet: [
-        { offset: -1, text: `def poll_queue():` },
-        { offset: 0, text: `    while True:`, isErr: true },
-        { offset: 1, text: `        item = queue.get()`, isErr: false },
-        { offset: 2, text: `        process(item)  # no exit condition`, isErr: true },
-      ],
-      fix: {
-        remove: `- while True:`,
-        add: `+ max_retries = 1000\n+ for _ in range(max_retries):\n+     if queue.empty():\n+         break`,
-        note: "Add explicit exit conditions, timeouts, or retry limits to all polling loops.",
-      },
-    }),
-  },
-];
-
-function generateBugsFromFileSummaries(fileSummaries, repoMeta) {
-  const now = new Date();
-  const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")} ${now.getHours() >= 12 ? "PM" : "AM"}`;
-  const repoName = repoMeta?.fullName || "scanned-repo";
-  const engineers = ["Alex Mercer", "Sarah Chen", "David Kumar", "Elena Rostova", "Marcus Vance"];
-
-  const bugs = [];
-  let bugCounter = 1;
-
-  for (const file of fileSummaries) {
-    // Find matching rule template(s)
-    const matchedTemplates = RULE_TEMPLATES.filter((t) => t.match(file));
-    if (matchedTemplates.length === 0) continue;
-
-    // Use the first matching template (avoid flooding with too many bugs per file)
-    const template = matchedTemplates[0];
-    const issue = template.makeIssue(file, bugCounter, repoMeta);
-    const lineNum = issue.line;
-
-    bugs.push({
-      id: `BUG-${now.getFullYear()}-${String(bugCounter).padStart(4, "0")}`,
-      file: file.file,  // ← REAL file path from the scanned repo
-      line: lineNum,
-      title: issue.title,
-      severity: issue.severity,
-      priority: issue.priority,
-      status: "Open",
-      engineer: engineers[bugCounter % engineers.length],
-      createdAt: dateStr,
-      similarCount: null,
-      engineerNotes: "",
-      wrong: issue.wrong,
-      matter: issue.matter,
-      codeSnippet: issue.snippet.map((s) => ({
-        num: lineNum + (s.offset || 0),
-        text: s.text,
-        isErr: s.isErr || false,
-      })),
-      suggestedFix: issue.fix,
-      ruleId: issue.rule,
-      language: file.language,
-    });
-
-    bugCounter++;
-  }
-
-  return bugs;
 }
 
 export function BugTrackerProvider({ children }) {
@@ -855,6 +97,7 @@ export function BugTrackerProvider({ children }) {
   const [repoMeta, setRepoMeta] = useState(null);
 
   // 6. Repository & Scanner State
+  const [currentRepositoryId, setCurrentRepositoryId] = useState(null);
   const [repoUrl, setRepoUrl] = useState("");
   const [isScanning, setIsScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState(0);
@@ -874,6 +117,7 @@ export function BugTrackerProvider({ children }) {
   const [readNotificationIds, setReadNotificationIds] = useState(new Set());
 
   const notesTimerRef = useRef({});
+  const pollingRef = useRef(null);
 
   // Listen to API Live/Demo status changes
   useEffect(() => {
@@ -881,6 +125,7 @@ export function BugTrackerProvider({ children }) {
     return unsub;
   }, []);
 
+  // Restore user session on mount
   useEffect(() => {
     let cancelled = false;
 
@@ -925,7 +170,108 @@ export function BugTrackerProvider({ children }) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Backend data loader (used only when a real backend is available)
+  // Analysis status polling
+  const stopPolling = useCallback(() => {
+    if (pollingRef.current !== null) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  }, []);
+
+  const startAnalysisPolling = useCallback(
+    (repositoryId) => {
+      stopPolling();
+
+      const POLL_INTERVAL_MS = 2000;
+      const POLL_TIMEOUT_MS = 5 * 60 * 1000;
+      const startedAt = Date.now();
+
+      pollingRef.current = setInterval(async () => {
+        if (pollingRef.current === null) return;
+
+        if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
+          stopPolling();
+          setIsScanning(false);
+          setScanProgress(0);
+          setScanStage("");
+          setScanError({
+            message:
+              "Analysis timed out after 5 minutes. The repository may be too large.",
+            type: "unknown",
+          });
+          return;
+        }
+
+        const res = await apiService.getRepositoryAnalysisStatus(repositoryId);
+
+        if (!res.live || !res.data) {
+          return;
+        }
+
+        const { status: runStatus, total_files, candidate_issues_count, high_open_issues, duration_seconds } = res.data;
+
+        if (runStatus === "none" || runStatus === "running") {
+          if (runStatus === "running") {
+            setScanProgress((prev) => Math.min(prev + 4, 90));
+            setScanStage("✓ Analyzing codebase AST & checking security rules...");
+          }
+          return;
+        }
+
+        // Terminal state
+        stopPolling();
+
+        if (runStatus === "completed") {
+          setIsLive(true);
+          setScanProgress(100);
+          setScanStage("✓ Analysis complete!");
+          setScanCompleted(true);
+          setIsScanning(false);
+
+          setStats((prev) => ({
+            ...prev,
+            totalBugs: candidate_issues_count ?? 0,
+            totalFiles: total_files ?? prev.totalFiles,
+            scanTime: duration_seconds != null ? `${duration_seconds.toFixed(1)}s` : prev.scanTime,
+            critical: 0,
+            openHigh: high_open_issues ?? 0,
+          }));
+
+          // Retrieve live candidate issues from PostgreSQL
+          const bugsRes = await apiService.getBugs({ repository_id: repositoryId });
+          if (bugsRes.live && Array.isArray(bugsRes.data)) {
+            const realBugs = bugsRes.data.map((b, idx) => mapBackendCandidateIssueToUiBug(b, idx));
+            setBugs(realBugs);
+          }
+
+          setRecentScans((prev) =>
+            prev.map((item) =>
+              item.repository_id === repositoryId
+                ? {
+                    ...item,
+                    status: (candidate_issues_count ?? 0) > 0 ? `${candidate_issues_count} issues` : "Clean",
+                    badgeColor: (candidate_issues_count ?? 0) > 0 ? "bg-amber-500" : "bg-emerald-500",
+                    totalBugs: candidate_issues_count ?? 0,
+                  }
+                : item
+            )
+          );
+        } else if (runStatus === "failed") {
+          setIsScanning(false);
+          setScanProgress(0);
+          setScanStage("");
+          setScanCompleted(false);
+          setScanError({
+            message: "Static analysis run failed for this repository.",
+            type: "unknown",
+          });
+        }
+      }, POLL_INTERVAL_MS);
+    },
+    [stopPolling]
+  );
+
+  // Backend data loader
   const loadData = useCallback(async () => {
     const [statsRes, bugsRes, aiRes] = await Promise.all([
       apiService.getDashboardStats(),
@@ -938,22 +284,9 @@ export function BugTrackerProvider({ children }) {
     if (statsRes.live && statsRes.data) setStats(statsRes.data);
     if (aiRes.live && aiRes.data) setAiSummary(aiRes.data);
 
-    if (bugsRes.live && bugsRes.data) {
-      setBugs((currentBugs) => {
-        const localMap = new Map(currentBugs.map((b) => [b.id, b]));
-        return bugsRes.data.map((fetchedBug) => {
-          const local = localMap.get(fetchedBug.id);
-          return local
-            ? { ...fetchedBug, status: local.status, engineerNotes: local.engineerNotes || fetchedBug.engineerNotes }
-            : fetchedBug;
-        });
-      });
+    if (bugsRes.live && bugsRes.data && Array.isArray(bugsRes.data)) {
+      setBugs(bugsRes.data.map((b, idx) => mapBackendCandidateIssueToUiBug(b, idx)));
     }
-  }, []);
-
-  useEffect(() => {
-    if (isAuthenticated) loadData();
-  }, [isAuthenticated, loadData]);
   }, []);
 
   useEffect(() => {
@@ -1071,15 +404,16 @@ export function BugTrackerProvider({ children }) {
     setScanError(null);
     setIsScanning(true);
     setScanProgress(5);
-    setScanStage("Connecting to repository...");
+    setScanStage("Connecting to scan engine...");
     setScanCompleted(false);
     stopPolling();
     setCurrentRepositoryId(null);
     setStats({
       ...DEFAULT_STATS,
       openHigh: 0,
+      critical: 0,
     });
-    setBugs(DEFAULT_BUGS);
+    setBugs([]);
 
     const targetUrl = typeof targetInput === "string" ? targetInput.trim() : repoUrl;
     if (!isFile && typeof targetInput === "string") {
@@ -1088,18 +422,18 @@ export function BugTrackerProvider({ children }) {
 
     try {
       if (!isFile) {
-        setScanStage("Validating GitHub repository...");
+        setScanStage("Validating repository URL...");
         setScanProgress(15);
 
         const parsed = parseGitHubUrl(targetUrl);
         if (!parsed) {
           throw Object.assign(
-            new Error(`"${targetUrl}" is not a valid GitHub repository URL. Expected format: https://github.com/owner/repo`),
+            new Error(`"${targetUrl}" is not a valid repository URL. Expected format: https://github.com/owner/repo`),
             { type: "invalid_url" }
           );
         }
 
-        setScanStage("Downloading repository to scan engine...");
+        setScanStage("Cloning repository into analyzer workspace...");
         setScanProgress(25);
 
         let cloneData;
@@ -1114,12 +448,6 @@ export function BugTrackerProvider({ children }) {
           if (!cloneRes.ok) {
             const err = await cloneRes.json().catch(() => ({}));
             const detail = err.detail || cloneRes.statusText;
-            if (cloneRes.status === 400) {
-              throw Object.assign(
-                new Error(`Unable to clone repository. It may be private or invalid.\nDetails: ${detail}`),
-                { type: "not_found" }
-              );
-            }
             throw Object.assign(new Error(`Clone failed (${cloneRes.status}): ${detail}`), { type: "unknown" });
           }
 
@@ -1138,20 +466,8 @@ export function BugTrackerProvider({ children }) {
           );
         }
 
-        setScanStage(`✓ Cloned ${cloneData.repository_name} — fetching metadata...`);
-        setScanProgress(50);
-
-        let githubResult = null;
-        try {
-          githubResult = await fetchGitHubRepo(targetUrl);
-        } catch (_) {
-          // Non-fatal
-        }
-
-        if (githubResult) {
-          setAiSummary(githubResult.aiSummary);
-          setRepoMeta(githubResult.repoMeta);
-        }
+        setScanStage(`✓ Cloned ${cloneData.repository_name} — starting analysis...`);
+        setScanProgress(40);
 
         if (cloneData?.repository_id) {
           setCurrentRepositoryId(cloneData.repository_id);
@@ -1172,9 +488,6 @@ export function BugTrackerProvider({ children }) {
           },
           ...prev.filter((item) => item.repo_url !== targetUrl).slice(0, 4),
         ]);
-
-        setScanStage("✓ Repository downloaded — analyzing codebase AST...");
-        setScanProgress(30);
 
         if (cloneData?.repository_id) {
           startAnalysisPolling(cloneData.repository_id);
@@ -1247,7 +560,6 @@ export function BugTrackerProvider({ children }) {
           ...prev.slice(0, 4),
         ]);
 
-        setScanStage("✓ Archive uploaded — analyzing codebase AST...");
         if (uploadData?.repository_id) {
           startAnalysisPolling(uploadData.repository_id);
         } else {
@@ -1294,13 +606,12 @@ export function BugTrackerProvider({ children }) {
             totalBugs: candidate_issues_count ?? 0,
             totalFiles: total_files ?? prev.totalFiles,
             scanTime: duration_seconds != null ? `${duration_seconds.toFixed(1)}s` : prev.scanTime,
-            linesOfCode: null, // cleared to prevent stale DEFAULT_STATS value
+            linesOfCode: null,
             critical: 0,
             openHigh: high_open_issues ?? 0,
           }));
           setIsLive(true);
           setScanCompleted(true);
-          // Fetch real candidate issues so TabAiArchitecture can show "Inspect Bug" cards.
           const bugsRes = await apiService.getBugs({ repository_id: recentItem.repository_id });
           if (bugsRes.live && Array.isArray(bugsRes.data)) {
             setBugs(bugsRes.data.map((issue, idx) => mapBackendCandidateIssueToUiBug(issue, idx)));
@@ -1308,41 +619,12 @@ export function BugTrackerProvider({ children }) {
             setBugs([]);
           }
         } else if (res.live && res.data && res.data.status === "running") {
-          // Analysis still in progress — resume polling.
           setScanCompleted(false);
           setIsScanning(true);
           setScanProgress(30);
           setScanStage("✓ Resuming analysis monitoring...");
           startAnalysisPolling(recentItem.repository_id);
-        } else if (res.live && res.data && res.data.status === "none") {
-          // No analysis run yet — show neutral zero state, not DEFAULT_STATS.
-          setStats((prev) => ({
-            ...prev,
-            totalBugs: 0,
-            totalFiles: 0,
-            scanTime: "—",
-            linesOfCode: null,
-            critical: 0,
-            openHigh: 0,
-          }));
-          setBugs([]);
-          setScanCompleted(false);
-        } else if (res.live && res.data && res.data.status === "failed") {
-          // Analysis failed — show zero state.
-          setStats((prev) => ({
-            ...prev,
-            totalBugs: 0,
-            totalFiles: 0,
-            scanTime: "—",
-            linesOfCode: null,
-            critical: 0,
-            openHigh: 0,
-          }));
-          setBugs([]);
-          setScanCompleted(false);
         }
-        // If res.live is false (backend unreachable), stats stay as DEFAULT_STATS
-        // which is the correct demo/fallback behavior.
       })();
       return;
     }
@@ -1378,7 +660,7 @@ export function BugTrackerProvider({ children }) {
         status: prev.status === "Resolved" ? "Open" : "Resolved",
       }));
     }
-    const res = await apiService.resolveBug(bugId, nextStatus);
+    const res = await apiService.resolveBug(bugId, nextStatus.toLowerCase());
     setIsLive(res.live);
   };
 

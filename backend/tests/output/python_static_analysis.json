@@ -1,12 +1,12 @@
 {
-  "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmproj4r352.py",
+  "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpq959egep.py",
   "language": "Python",
   "issues": [
     {
       "rule_id": "PY_DIV_001",
       "issue_type": "division_by_zero",
-      "message": "Division by potentially zero value: the divisor `b` may be zero at runtime.  Add a zero-guard before dividing.",
-      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmproj4r352.py",
+      "message": "Division by potentially zero value: divisor `b` is not guarded against zero.",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpq959egep.py",
       "line_number": 2,
       "column": 11,
       "code_snippet": "a / b",
@@ -15,7 +15,8 @@
         "right_operand": "b",
         "right_node_type": "identifier",
         "classification": "potentially_zero",
-        "confidence": "medium"
+        "confidence": "medium",
+        "reason": "Dynamic divisor `b` has no active zero guard in flow state."
       },
       "severity": "high",
       "confidence": "medium"
@@ -24,7 +25,7 @@
       "rule_id": "PY_RES_001",
       "issue_type": "unclosed_resource",
       "message": "`open()` called outside `with` statement and resource `f` is not guaranteed to be closed on error paths.",
-      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmproj4r352.py",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpq959egep.py",
       "line_number": 5,
       "column": 4,
       "code_snippet": "f = open(path, \"r\")",

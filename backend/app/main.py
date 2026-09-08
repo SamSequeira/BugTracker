@@ -7,10 +7,9 @@ from fastapi.staticfiles import StaticFiles
 from .services.language_detector import detect_language
 from .services.preprocessor import preprocess_code
 
+from app.api.v1.auth import router as auth_router
 from app.api.v1.repositories import router as repositories_router
 from app.api.v1.candidate_issues import router as candidate_issues_router
-from app.api.v1.candidate_issues import router as candidate_issues_router
-from app.api.v1.auth import router as auth_router
 from app.core.config import settings
 
 
@@ -33,17 +32,11 @@ static_dir = Path(__file__).resolve().parent / "static"
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
-app.include_router(
-    repositories_router,
-    prefix="/api/v1",
-    tags=["Repositories"]
-)
-app.include_router(candidate_issues_router)
 # Mount API v1 Routers
 app.include_router(
-    candidate_issues_router,
+    auth_router,
     prefix="/api/v1",
-    tags=["Candidate Issues"],
+    tags=["Authentication"],
 )
 
 app.include_router(
@@ -52,11 +45,23 @@ app.include_router(
     tags=["Repositories"],
 )
 
-# Mount Candidate Issues under /api/v1 and alias at root /candidate-issues
 app.include_router(
     candidate_issues_router,
     prefix="/api/v1",
     tags=["Candidate Issues"],
+)
+
+# Legacy root aliases without /api/v1 prefix for backwards compatibility
+app.include_router(
+    auth_router,
+    tags=["Authentication (Legacy)"],
+    include_in_schema=False,
+)
+
+app.include_router(
+    repositories_router,
+    tags=["Repositories (Legacy)"],
+    include_in_schema=False,
 )
 
 app.include_router(
@@ -99,7 +104,6 @@ async def detect_file_language(file: UploadFile = File(...)):
         "language": language,
         "processed_code": processed_code,
     }
-
 
 
 if __name__ == "__main__":

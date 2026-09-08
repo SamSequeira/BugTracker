@@ -199,10 +199,10 @@ class ReportExporter:
             f"| Metric | Count | Priority Breakdown | Count |",
             f"| :--- | :--- | :--- | :--- |",
             f"| **Total Bugs** | **{stats.get('total_bugs', len(reports))}** | **P1 (Fix now)** | {stats.get('priority_p1', 0)} |",
-            f"| **Critical** | {stats.get('critical', 0)} | **P2 (Fix this week)** | {stats.get('priority_p2', 0)} |",
-            f"| **High** | {stats.get('high', 0)} | **P3 (Backlog)** | {stats.get('priority_p3', 0)} |",
-            f"| **Medium** | {stats.get('medium', 0)} | **P4 (Low)** | {stats.get('priority_p4', 0)} |",
-            f"| **Low** | {stats.get('low', 0)} | **Duplicates** | {stats.get('duplicates_count', 0)} |",
+            f"| **High** | {stats.get('high', 0)} | **P2 (Fix this week)** | {stats.get('priority_p2', 0)} |",
+            f"| **Medium** | {stats.get('medium', 0)} | **P3 (Backlog)** | {stats.get('priority_p3', 0)} |",
+            f"| **Low** | {stats.get('low', 0)} | **P4 (Low)** | {stats.get('priority_p4', 0)} |",
+            f"| **Duplicates** | {stats.get('duplicates_count', 0)} | | |",
             f"",
             f"---",
             f"",
@@ -409,10 +409,6 @@ class ReportExporter:
                 <div class="stat-label">Total Bugs</div>
             </div>
             <div class="stat-box">
-                <div class="stat-val" style="color: #ef4444;">{stats.get('critical', 0)}</div>
-                <div class="stat-label">Critical</div>
-            </div>
-            <div class="stat-box">
                 <div class="stat-val" style="color: #f97316;">{stats.get('high', 0)}</div>
                 <div class="stat-label">High</div>
             </div>
@@ -608,7 +604,7 @@ class _PDFCanvas:
 
         # Metric text
         self._text("SUMMARY METRICS", 62, box_top - 16, font="/F2", size=9, r=0.3, g=0.35, b=0.5)
-        stats_line = f"Total Bugs: {total}   |   Critical: {critical}   |   High: {high}   |   Medium: {medium}   |   Low: {low}"
+        stats_line = f"Total Bugs: {total}   |   High: {high}   |   Medium: {medium}   |   Low: {low}"
         self._text(stats_line, 62, box_top - 32, font="/F2", size=10, r=0.1, g=0.1, b=0.1)
         prio_line = f"Triage Priority ->  P1 (Immediate): {p1}   |   P2 (High): {p2}   |   P3 (Normal): {p3}"
         self._text(prio_line, 62, box_top - 46, font="/F1", size=9, r=0.4, g=0.4, b=0.4)

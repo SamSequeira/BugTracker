@@ -3,9 +3,8 @@ repository_service.py
 ---------------------
 Handles GitHub repository cloning:
   1. Clone into repositories/<uuid>-<name>/
-  2. Zip the cloned folder
-  3. Upload the ZIP to S3 (if S3 is enabled)
-  4. Remove the ZIP (cloned folder stays for analysis)
+  2. Zip the cloned folder and upload to S3 (if S3 is enabled)
+  3. Persist repository metadata to PostgreSQL
 """
 
 import asyncio
@@ -44,7 +43,6 @@ class RepositoryCloneService:
         db: AsyncSession,
         user_id: Optional[str] = None,
     ) -> dict:
-        repository_id = str(uuid.uuid4())
         parsed_url = urlparse(repository_url)
         if not parsed_url.scheme or not parsed_url.netloc:
             raise ValueError("Invalid repository URL format.")
@@ -64,13 +62,10 @@ class RepositoryCloneService:
             raise
 
         # ------------------------------------------------------------------
-        # A persisted Repository must point to a durable S3 archive.
+        # S3 upload (if configured/enabled)
         # ------------------------------------------------------------------
         s3_uri: str | None = None
         s3_key: str | None = None
-
-        if not s3_service.enabled:
-            raise S3UploadError("S3 uploads are not configured.")
 
         if s3_service.enabled:
             try:
@@ -81,10 +76,11 @@ class RepositoryCloneService:
                 s3_key = f"{s3_config.prefix}/{repository_id}-{repository_name}.zip"
                 s3_uri = s3_service.upload_file(zip_path, s3_key)
                 zip_path.unlink(missing_ok=True)
-            except S3UploadError:
+            except S3UploadError as err:
+                logger.error("S3 upload failed for repository %s: %s", repository_name, err)
                 raise
         else:
-            logger.debug("S3 uploads disabled — skipping for %s", repository_name)
+            logger.info("S3 uploads disabled or unconfigured — storing repository locally for %s", repository_name)
 
         repository = Repository(
             id=repository_id,
@@ -135,6 +131,11 @@ class RepositoryCloneService:
             for file_path in source_dir.rglob("*"):
                 if file_path.is_file():
                     zf.write(file_path, file_path.relative_to(source_dir))
+
+    @staticmethod
+    def _cleanup(path: Path) -> None:
+        if path.exists():
+            shutil.rmtree(path, ignore_errors=True)
 
 
 repository_service = RepositoryCloneService()

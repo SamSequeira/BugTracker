@@ -14,7 +14,7 @@ from typing import Dict, List, Tuple
 # Label Taxonomies & Mappings
 # ===========================================================================
 
-SEVERITY_LABELS: List[str] = ["critical", "high", "medium", "low"]
+SEVERITY_LABELS: List[str] = ["high", "medium", "low"]
 PRIORITY_LABELS: List[str] = ["p1", "p2", "p3", "p4"]
 
 SEVERITY_TO_ID: Dict[str, int] = {label: idx for idx, label in enumerate(SEVERITY_LABELS)}
@@ -25,8 +25,6 @@ ID_TO_PRIORITY: Dict[int, str] = {idx: label for idx, label in enumerate(PRIORIT
 
 # Under-classification pairs (actual, predicted) representing serious dangerous errors
 UNDERCLASSIFICATION_SEVERITY_PAIRS: List[Tuple[str, str]] = [
-    ("critical", "low"),
-    ("critical", "medium"),
     ("high", "low"),
 ]
 

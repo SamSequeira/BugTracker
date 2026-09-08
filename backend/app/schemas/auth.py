@@ -1,6 +1,5 @@
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from typing import Optional
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class SignupRequest(BaseModel):
@@ -24,9 +23,8 @@ class UserResponse(BaseModel):
 
 class TokenResponse(BaseModel):
     access_token: str
-    token_type: str
+    token_type: str = "bearer"
 
 
 class AuthResponse(TokenResponse):
     user: UserResponse
-    user: Optional[UserResponse] = None

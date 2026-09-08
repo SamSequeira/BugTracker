@@ -240,8 +240,8 @@ async def test_list_repository_candidate_issues_success(test_client):
         line_number=10,
         severity="high",
         urgency="high",
-        security_impact="Potential denial of service",
         code_snippet="return a / b",
+        evidence={"security_impact": "Potential denial of service"},
     )
     issue.status = None
     issue.recommendations = []
