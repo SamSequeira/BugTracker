@@ -19,25 +19,44 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # 1. Update candidate_issues with triage & inspector columns
-    op.add_column('candidate_issues', sa.Column('issue_key', sa.String(length=50), nullable=True))
-    op.add_column('candidate_issues', sa.Column('rule_id', sa.String(length=50), nullable=True))
-    op.add_column('candidate_issues', sa.Column('security_impact', sa.Text(), nullable=True))
-    op.add_column('candidate_issues', sa.Column('code_snippet', sa.Text(), nullable=True))
-    op.add_column('candidate_issues', sa.Column('assigned_to_user_id', sa.String(), nullable=True))
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    ci_cols = {c['name'] for c in inspector.get_columns('candidate_issues')}
+    ci_idxs = {i['name'] for i in inspector.get_indexes('candidate_issues')}
 
-    op.create_index(op.f('ix_candidate_issues_issue_key'), 'candidate_issues', ['issue_key'], unique=False)
-    op.create_index(op.f('ix_candidate_issues_rule_id'), 'candidate_issues', ['rule_id'], unique=False)
-    op.create_index(op.f('ix_candidate_issues_assigned_to_user_id'), 'candidate_issues', ['assigned_to_user_id'], unique=False)
-    op.create_unique_constraint('uq_candidate_issues_run_issue_key', 'candidate_issues', ['analysis_run_id', 'issue_key'])
-    op.create_foreign_key(
-        'fk_candidate_issues_assigned_to_user_id_users',
-        'candidate_issues',
-        'users',
-        ['assigned_to_user_id'],
-        ['id'],
-        ondelete='SET NULL',
-    )
+    # 1. Update candidate_issues with triage & inspector columns
+    if 'issue_key' not in ci_cols:
+        op.add_column('candidate_issues', sa.Column('issue_key', sa.String(length=50), nullable=True))
+    if 'rule_id' not in ci_cols:
+        op.add_column('candidate_issues', sa.Column('rule_id', sa.String(length=50), nullable=True))
+    if 'security_impact' not in ci_cols:
+        op.add_column('candidate_issues', sa.Column('security_impact', sa.Text(), nullable=True))
+    if 'code_snippet' not in ci_cols:
+        op.add_column('candidate_issues', sa.Column('code_snippet', sa.Text(), nullable=True))
+    if 'assigned_to_user_id' not in ci_cols:
+        op.add_column('candidate_issues', sa.Column('assigned_to_user_id', sa.String(), nullable=True))
+
+    if 'ix_candidate_issues_issue_key' not in ci_idxs:
+        op.create_index(op.f('ix_candidate_issues_issue_key'), 'candidate_issues', ['issue_key'], unique=False)
+    if 'ix_candidate_issues_rule_id' not in ci_idxs:
+        op.create_index(op.f('ix_candidate_issues_rule_id'), 'candidate_issues', ['rule_id'], unique=False)
+    if 'ix_candidate_issues_assigned_to_user_id' not in ci_idxs:
+        op.create_index(op.f('ix_candidate_issues_assigned_to_user_id'), 'candidate_issues', ['assigned_to_user_id'], unique=False)
+    
+    ci_uniques = {u['name'] for u in inspector.get_unique_constraints('candidate_issues')}
+    if 'uq_candidate_issues_run_issue_key' not in ci_uniques:
+        op.create_unique_constraint('uq_candidate_issues_run_issue_key', 'candidate_issues', ['analysis_run_id', 'issue_key'])
+
+    ci_fks = {fk['name'] for fk in inspector.get_foreign_keys('candidate_issues')}
+    if 'fk_candidate_issues_assigned_to_user_id_users' not in ci_fks:
+        op.create_foreign_key(
+            'fk_candidate_issues_assigned_to_user_id_users',
+            'candidate_issues',
+            'users',
+            ['assigned_to_user_id'],
+            ['id'],
+            ondelete='SET NULL',
+        )
 
     # 2. Update issue_statuses with remarks/notes and resolution tracking
     op.add_column('issue_statuses', sa.Column('remarks', sa.Text(), nullable=True))
