@@ -1,0 +1,51 @@
+{
+  "file_path": "/var/folders/_1/vmn2h0916nnghqrg_11m1kw40000gn/T/tmpj1x_j9iq.java",
+  "language": "Java",
+  "issues": [
+    {
+      "rule_id": "JAVA_DIV_001",
+      "issue_type": "division_by_zero",
+      "message": "Division by potentially zero value: the divisor `b` may be zero at runtime. Add a zero-guard before dividing.",
+      "file_path": "/var/folders/_1/vmn2h0916nnghqrg_11m1kw40000gn/T/tmpj1x_j9iq.java",
+      "line_number": 4,
+      "column": 15,
+      "code_snippet": "a / b",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "b",
+        "right_node_type": "identifier",
+        "classification": "potentially_zero",
+        "confidence": "medium"
+      },
+      "severity": "high",
+      "confidence": "medium"
+    },
+    {
+      "rule_id": "JAVA_RES_001",
+      "issue_type": "unclosed_resource",
+      "message": "`FileReader` created outside try-with-resources and not guaranteed to be closed. Wrap in `try (FileReader res = new FileReader(...))` to prevent leaks.",
+      "file_path": "/var/folders/_1/vmn2h0916nnghqrg_11m1kw40000gn/T/tmpj1x_j9iq.java",
+      "line_number": 12,
+      "column": 27,
+      "code_snippet": "fr = new java.io.FileReader(path)",
+      "evidence": {
+        "resource_type": "FileReader",
+        "assigned_variable": "fr",
+        "lifecycle_status": "UNCLOSED",
+        "confidence": "high",
+        "reason": "Resource `FileReader` created without try-with-resources; lifecycle status is UNCLOSED."
+      },
+      "severity": "high",
+      "confidence": "high"
+    }
+  ],
+  "issue_count": 2,
+  "rules_run": [
+    "JAVA_DIV_001",
+    "JAVA_EXC_001",
+    "JAVA_EQ_001",
+    "JAVA_RES_001",
+    "JAVA_LOOP_001"
+  ],
+  "errors": []
+}

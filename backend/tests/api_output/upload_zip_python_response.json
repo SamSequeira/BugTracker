@@ -1,0 +1,7 @@
+{
+  "message": "Repository uploaded successfully.",
+  "repository_id": "3cce8559-0539-4ce7-86bc-d4735c93dd59",
+  "repository_name": "project",
+  "s3_uri": "s3://bugtracker-repositories-577702170996-ap-south-1-an/repositories/3cce8559-0539-4ce7-86bc-d4735c93dd59-project.zip",
+  "s3_key": "repositories/3cce8559-0539-4ce7-86bc-d4735c93dd59-project.zip"
+}

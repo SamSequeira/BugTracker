@@ -1,0 +1,37 @@
+import asyncio
+
+from sqlalchemy import text
+
+from data.dbconnection.session import engine
+
+
+async def test_connection():
+    async with engine.connect() as conn:
+        result = await conn.execute(
+            text("SELECT 1")
+        )
+
+        assert result.scalar() == 1
+
+
+if __name__ == "__main__":
+    asyncio.run(test_connection())
+    print("Database connected successfully!")
+import pytest
+from sqlalchemy import text
+from data.dbconnection.session import engine
+
+
+@pytest.mark.asyncio
+async def test_connection():
+    async with engine.connect() as conn:
+        result = await conn.execute(
+            text("SELECT 1")
+        )
+
+        assert result.scalar() == 1
+
+
+if __name__ == "__main__":
+    asyncio.run(test_connection())
+    print("Database connected successfully!")

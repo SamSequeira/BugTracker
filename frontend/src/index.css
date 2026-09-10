@@ -1,0 +1,181 @@
+/* src/index.css - Design System & Print Styles for BugTracker */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-primary: #0B0F17;
+  --bg-secondary: #0F1623;
+  --bg-card: #131B2E;
+  --bg-hover: #1E293B;
+  --border-subtle: #1E293B;
+  --border-strong: #334155;
+  --accent-cyan: #22D3EE;
+  --accent-cyan-dark: #06B6D4;
+  --text-main: #F1F5F9;
+  --text-muted: #94A3B8;
+  --text-dim: #64748B;
+}
+
+body {
+  margin: 0;
+  background-color: #0B0F17;
+  color: #CBD5E1;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+code,
+pre,
+.font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Custom Sleek Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0B0F17;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1E293B;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+/* Glassmorphic utilities */
+.glass-panel {
+  background: rgba(19, 27, 46, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(51, 65, 85, 0.5);
+}
+
+.glow-cyan {
+  box-shadow: 0 0 20px -5px rgba(34, 211, 238, 0.25);
+}
+
+.glow-red {
+  box-shadow: 0 0 20px -5px rgba(239, 68, 68, 0.25);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in {
+  animation: slideInRight 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ========================================================================= */
+/* PRINT STYLESHEET FOR TAB 4 PDF DOWNLOAD                                    */
+/* ========================================================================= */
+@media print {
+  body {
+    background-color: #FFFFFF !important;
+    color: #0F172A !important;
+    font-size: 11pt !important;
+  }
+
+  /* Hide navigation, sidebar, header controls, action buttons, modals */
+  aside,
+  header,
+  .no-print,
+  button,
+  .modal-overlay,
+  .drawer-overlay,
+  .tab-buttons,
+  input,
+  textarea {
+    display: none !important;
+  }
+
+  /* Expand print report container */
+  .print-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 20px !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  .print-header {
+    display: block !important;
+    margin-bottom: 24px !important;
+    border-bottom: 2px solid #0F172A !important;
+    padding-bottom: 12px !important;
+  }
+
+  .print-card {
+    background: #F8FAFC !important;
+    border: 1px solid #CBD5E1 !important;
+    color: #0F172A !important;
+    box-shadow: none !important;
+  }
+
+  .print-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    color: #0F172A !important;
+  }
+
+  .print-table th {
+    background: #E2E8F0 !important;
+    color: #0F172A !important;
+    border: 1px solid #CBD5E1 !important;
+    padding: 8px !important;
+    font-weight: 700 !important;
+  }
+
+  .print-table td {
+    border: 1px solid #E2E8F0 !important;
+    padding: 8px !important;
+    color: #1E293B !important;
+  }
+
+  .badge-resolved {
+    color: #065F46 !important;
+    font-weight: bold !important;
+  }
+
+  .badge-open {
+    color: #991B1B !important;
+    font-weight: bold !important;
+  }
+}
