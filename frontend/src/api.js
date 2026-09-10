@@ -429,6 +429,17 @@ class ApiService {
   async getAiSummary() {
     return { live: false, data: DEFAULT_AI_SUMMARY };
   }
+
+  // GET /api/v1/candidate-issues/{id}/source-context
+  // Returns surrounding source code lines for a given issue.
+  async getSourceContext(issueId, contextLines = 8) {
+    try {
+      const data = await this.request(`/v1/candidate-issues/${issueId}/source-context?context_lines=${contextLines}`);
+      return { found: true, ...data };
+    } catch (err) {
+      return { found: false, lines: [] };
+    }
+  }
 }
 
 export const apiService = new ApiService();
