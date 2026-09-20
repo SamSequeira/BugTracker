@@ -108,9 +108,15 @@ def run_tests() -> bool:
     ])
     r.must_not_flag("cursor = await fetchCursor() -> dependent pagination iteration", rule, module(while_cursor), "src/app.js")
 
-    # Retry loop
-    while_retry = node("while_statement", "while (retries > 0) { await fetch(); }", children=[
-        leaf("while", "while"), block(node("expression_statement", "await fetch();", children=[await_expr]))
+    # Retry loop with progression
+    retry_dec = node("update_expression", "retries--", children=[ident("retries"), leaf("--", "--")])
+    while_retry = node("while_statement", "while (retries > 0) { await fetch(); retries--; }", children=[
+        leaf("while", "while"),
+        node("parenthesized_expression", "(retries > 0)", children=[ident("retries")]),
+        block(
+            node("expression_statement", "await fetch();", children=[await_expr]),
+            node("expression_statement", "retries--;", children=[retry_dec]),
+        )
     ])
     r.must_not_flag("while (retries > 0) -> retry loop", rule, module(while_retry), "src/app.js")
 

@@ -152,10 +152,21 @@ class TestJavaDivisionByZero:
         div_issues = [i for i in res["issues"] if i["rule_id"] == "JAVA_DIV_001"]
         assert len(div_issues) == 0
 
+        # 3. Unconstrained unknown variable divisor (precision requirement)
+        res = _analyze("""
+        public class D3 {
+            int divide(int total, int count) {
+                return total / count;
+            }
+        }
+        """, "Java")
+        div_issues = [i for i in res["issues"] if i["rule_id"] == "JAVA_DIV_001"]
+        assert len(div_issues) == 0
+
     def test_detections(self):
         # 1. Statically zero division
         res = _analyze("""
-        public class D3 {
+        public class D4 {
             int calc(int x) {
                 return x / 0;
             }
@@ -165,17 +176,18 @@ class TestJavaDivisionByZero:
         assert len(div_issues) == 1
         assert div_issues[0]["evidence"]["confidence"] == "high"
 
-        # 2. Unguarded dynamic divisor
+        # 2. Variable assigned zero divisor
         res = _analyze("""
-        public class D4 {
-            int calc(int x, int y) {
+        public class D5 {
+            int calc(int x) {
+                int y = 0;
                 return x / y;
             }
         }
         """, "Java")
         div_issues = [i for i in res["issues"] if i["rule_id"] == "JAVA_DIV_001"]
         assert len(div_issues) == 1
-        assert div_issues[0]["evidence"]["confidence"] == "medium"
+        assert div_issues[0]["evidence"]["confidence"] == "high"
 
 
 # ===========================================================================
@@ -211,16 +223,26 @@ class TestJSDivisionByZero:
         div_issues = [i for i in res["issues"] if i["rule_id"] == "JS_DIV_001"]
         assert len(div_issues) == 0
 
-    def test_detections(self):
-        # Unguarded division
+        # 4. Unconstrained dynamic variable divisor
         res = _analyze("""
         function computeRate(total, count) {
             return total / count;
         }
         """, "JavaScript")
         div_issues = [i for i in res["issues"] if i["rule_id"] == "JS_DIV_001"]
+        assert len(div_issues) == 0
+
+    def test_detections(self):
+        # Variable assigned zero divisor
+        res = _analyze("""
+        function computeRate(total) {
+            const count = 0;
+            return total / count;
+        }
+        """, "JavaScript")
+        div_issues = [i for i in res["issues"] if i["rule_id"] == "JS_DIV_001"]
         assert len(div_issues) == 1
-        assert div_issues[0]["evidence"]["confidence"] == "medium"
+        assert div_issues[0]["evidence"]["confidence"] == "high"
 
 
 # ===========================================================================

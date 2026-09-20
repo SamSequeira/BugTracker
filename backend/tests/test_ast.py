@@ -52,7 +52,8 @@ PYTHON_CODE = textwrap.dedent("""\
 
 JAVASCRIPT_CODE = textwrap.dedent("""\
     function divide(a, b) {
-        return a / b;          // bug: no division-by-zero guard
+        let x = 10 / 0;        // bug: division by zero
+        return a === b;
     }
 
     function getUser(obj, key) {

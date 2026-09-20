@@ -32,13 +32,20 @@ def run_tests() -> bool:
     r.must_flag("x / 0x00 (multi-digit hex zero)", rule, module(java_binop(x, "/", java_hex_int("0x00"))), "T.java")
     r.must_flag("x / 00 (octal zero literal)", rule, module(java_binop(x, "/", java_decimal_int("00"))), "T.java")
 
-    # --- 2. DYNAMIC / UNKNOWN DIVISORS (MUST FLAG) ---
-    r.must_flag("x / y (variable divisor)", rule, module(java_binop(x, "/", ident("y"))), "T.java")
+    # --- 2. ZERO VARIABLE (MUST FLAG) ---
+    assign_zero = node("local_variable_declaration", "int divisor = 0;", 1, children=[
+        node("integral_type", "int", 1),
+        node("variable_declarator", "divisor = 0", 1, children=[ident("divisor", 1), leaf("=", "=", 1), java_decimal_int("0", 1)])
+    ])
+    r.must_flag("int divisor = 0; x / divisor", rule, module(assign_zero, java_binop(x, "/", ident("divisor", 2), 2)), "T.java")
+
+    # --- 3. DYNAMIC / UNKNOWN DIVISORS (MUST NOT FLAG) ---
+    r.must_not_flag("x / y (unknown variable divisor)", rule, module(java_binop(x, "/", ident("y"))), "T.java")
 
     cast_expr = node("cast_expression", "(int) b", children=[
         leaf("(", "("), node("integral_type", "int"), leaf(")", ")"), ident("b")
     ])
-    r.must_flag("x / (int)b (cast expression)", rule, module(java_binop(x, "/", cast_expr)), "T.java")
+    r.must_not_flag("x / (int)b (unknown cast expression)", rule, module(java_binop(x, "/", cast_expr)), "T.java")
 
     # --- 3. DEFINITELY NON-ZERO LITERALS (MUST NOT FLAG) ---
     r.must_not_flag("x / 1 (decimal int 1)", rule, module(java_binop(x, "/", java_decimal_int("1"))), "T.java")

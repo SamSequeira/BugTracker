@@ -30,7 +30,7 @@ class FailingSimilarityService:
 def _repository_ast(tmp_path):
     source = tmp_path / "example.py"
     source.write_text(
-        "def divide(total, divisor):\n    return total / divisor\n",
+        "def divide(total, divisor):\n    return total / 0\n",
         encoding="utf-8",
     )
     file_result = ast_generator.generate_ast(str(source), "Python")

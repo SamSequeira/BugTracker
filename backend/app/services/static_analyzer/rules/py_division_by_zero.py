@@ -1,58 +1,43 @@
 """
 PY_DIV_001 — Division by zero (Python)
 ---------------------------------------
-Detects `/` and `//` binary operations where the divisor is provably zero
-or initialized/assigned to zero without subsequent non-zero guards.
+Detects `/` and `//` arithmetic division operations where the divisor is
+provably zero via literal constants, constant folding, or local variable state tracking.
 
-Classification of the right-hand operand:
-- DEFINITELY_ZERO:
-    - Literal numeric zeros: `0`, `0.0`, `-0`, `+0`, `-0.0`, `0x0`, `0b0`, `0o0`, `False`
-    - Constant arithmetic folding to zero: `1 - 1`, `0 * 5`, `2 - 2`
-    - Variables assigned to zero (`d = 0`) without subsequent non-zero reassignment or guards
-    -> ALWAYS REPORTED (High severity, High confidence bug)
+High-confidence detection criteria:
+- Literal numeric zeros: `0`, `0.0`, `-0.0`, `+0`, `0x0`, `0b0`, `False`
+- Constant arithmetic folding to zero: `10 / (2 - 2)`, `10 / (0 * 5)`
+- Variables assigned to zero: `z = 0; x / z`
+- Divisors guarded inside a known-zero condition: `if z == 0: x / z`
 
-- DEFINITELY_NON_ZERO / GUARDED / DYNAMIC SAFE:
-    - Non-zero literals: `1`, `-1`, `2.5`, `True`, `0xFF`
-    - Constant arithmetic folding to non-zero: `1 + 1`
-    - Safe mathematical patterns: `d + 1`, `len(x) + 1`, `d + 1e-8`, `max(1, d)`, `d or 1`
-    - Control-flow guards:
-        - `if d != 0:`, `if d > 0:`, `if d >= 1:`, `if d < 0:`, `if d:`
-        - `assert d != 0`, `assert d > 0`, `assert d`
-        - Early-exit guards: `if d == 0: return / raise / continue / break`
-        - Early-exit guards: `if not d: return / raise / continue / break`
-    - Divisions inside `try ... except (ZeroDivisionError, Exception):` blocks
-    - Generic unconstrained dynamic variables (not reported to prevent false positives)
+Suppression / Safe criteria (provably safe or unestablished):
+- Non-zero literals and expressions: `x / 2`, `x / (1 + 1)`
+- Guarded divisions:
+    - `if y != 0: x / y`
+    - `if y > 0: x / y`
+    - `if y: x / y`
+    - `assert y != 0; x / y`
+    - `if y == 0: return; x / y` (early-exit guard)
+- Protected by exception handlers: `try: x / y except (ZeroDivisionError, Exception): ...`
+- Unconstrained dynamic variables (`x / y` where `y` is an unknown parameter or function result).
 """
 
 from __future__ import annotations
 
-from enum import Enum, auto
-from typing import Dict, Iterator, List, Optional, Set, Tuple
+from typing import Dict, Iterator, List, Optional, Set
 
+from ..analysis.constant_evaluator import ConstantEvaluator, evaluate_constant
+from ..analysis.guard_analyzer import GuardAnalyzer, GuardType
+from ..analysis.reachability_analyzer import ReachabilityAnalyzer
+from ..analysis.variable_tracker import ScopeEnvironment, VariableStateTracker, VarInfo, VarState
 from ..base_rule import BaseRule
 from ..models import CandidateIssue
 
-
-class _Z(Enum):
-    DEFINITELY_ZERO     = auto()
-    DEFINITELY_NON_ZERO = auto()
-    POTENTIALLY_ZERO    = auto()
-
-
-# Node types that introduce a new lexical scope
 _SCOPE_NODES = {
     "function_definition",
     "async_function_definition",
     "lambda",
     "class_definition",
-}
-
-# Jump / terminating statements
-_TERMINATING_TYPES = {
-    "return_statement",
-    "raise_statement",
-    "break_statement",
-    "continue_statement",
 }
 
 
@@ -72,39 +57,23 @@ class PythonDivisionByZero(BaseRule):
     def severity(self) -> str:
         return "high"
 
-    # ------------------------------------------------------------------
-    # Public entry point
-    # ------------------------------------------------------------------
-
     def analyze(
         self,
         ast: dict,
         file_path: str,
         source_lines: List[str],
     ) -> Iterator[CandidateIssue]:
-        yield from self._analyze_scope(ast, {}, file_path, source_lines)
-
-    # ------------------------------------------------------------------
-    # Lexical Scope & Flow-Sensitive Analysis
-    # ------------------------------------------------------------------
+        env = ScopeEnvironment(scope_type="module")
+        yield from self._analyze_scope(ast, env, file_path, source_lines)
 
     def _analyze_scope(
         self,
         scope_node: dict,
-        outer_facts: Dict[str, str],
+        env: ScopeEnvironment,
         file_path: str,
         source_lines: List[str],
     ) -> Iterator[CandidateIssue]:
-        facts: Dict[str, str] = {}
-
-        # Inherit outer facts across function boundaries
-        for k, v in outer_facts.items():
-            if v == "DEFINITELY_ZERO":
-                facts[k] = "DEFINITELY_ZERO"
-            else:
-                facts[k] = "POTENTIALLY_ZERO"
-
-        # Formal parameter bindings
+        # Form parameters bind as dynamic variables (shadow outer scope)
         ntype = scope_node.get("type", "")
         if ntype in ("function_definition", "async_function_definition", "lambda"):
             params_node = next(
@@ -117,24 +86,19 @@ class PythonDivisionByZero(BaseRule):
                     if ptype == "identifier":
                         pname = (p.get("text") or "").strip()
                         if pname:
-                            facts[pname] = "POTENTIALLY_ZERO"
+                            env.set(pname, VarInfo(name=pname, state=VarState.UNKNOWN))
                     elif ptype == "default_parameter":
                         pkids = p.get("children", [])
-                        if pkids:
+                        if pkids and pkids[0].get("type") == "identifier":
                             pname = (pkids[0].get("text") or "").strip()
-                            if pname:
-                                # If default value is literal 0
-                                if len(pkids) >= 3 and self._classify(pkids[2]) == _Z.DEFINITELY_ZERO:
-                                    facts[pname] = "POTENTIALLY_ZERO"
-                                else:
-                                    facts[pname] = "POTENTIALLY_ZERO"
+                            env.set(pname, VarInfo(name=pname, state=VarState.UNKNOWN))
 
-        yield from self._analyze_block(scope_node, facts, file_path, source_lines, is_scope_root=True)
+        yield from self._analyze_block(scope_node, env, file_path, source_lines, is_scope_root=True)
 
     def _analyze_block(
         self,
         node: dict,
-        facts: Dict[str, str],
+        env: ScopeEnvironment,
         file_path: str,
         source_lines: List[str],
         is_scope_root: bool = False,
@@ -149,185 +113,172 @@ class PythonDivisionByZero(BaseRule):
             child = children[i]
             ntype = child.get("type", "")
 
-            # 1. Child scope boundary (function, lambda, class)
+            # 1. Child scope (function, lambda, class)
             if ntype in _SCOPE_NODES:
-                yield from self._analyze_scope(child, facts, file_path, source_lines)
+                child_env = env.fork(scope_type=ntype)
+                yield from self._analyze_scope(child, child_env, file_path, source_lines)
                 i += 1
                 continue
 
-            # 2. Simple assignment: var = <rhs>
+            # Unwrap expression_statement for assignment or augmented_assignment
+            actual_node = child
+            if ntype == "expression_statement":
+                inner_kids = child.get("children", [])
+                if inner_kids and inner_kids[0].get("type") in ("assignment", "augmented_assignment"):
+                    actual_node = inner_kids[0]
+                    ntype = actual_node.get("type", "")
+
+            # 2. Assignment: var = <rhs>
             if ntype == "assignment":
-                yield from self._check_divisions(child, facts, file_path, source_lines, in_try_protected)
-                assign_kids = child.get("children", [])
+                yield from self._check_divisions(actual_node, env, file_path, source_lines, in_try_protected)
+                assign_kids = actual_node.get("children", [])
                 if len(assign_kids) >= 3:
                     lhs = assign_kids[0]
-                    name = self._identifier_name(lhs)
-                    if name:
-                        rhs = assign_kids[-1]
-                        cls = self._classify_assignment_rhs(rhs)
-                        if cls == _Z.DEFINITELY_NON_ZERO:
-                            facts[name] = "DEFINITELY_NON_ZERO"
-                        elif cls == _Z.DEFINITELY_ZERO:
-                            facts[name] = "DEFINITELY_ZERO"
-                        else:
-                            facts[name] = "POTENTIALLY_ZERO"
+                    rhs = assign_kids[-1]
+                    VariableStateTracker.process_assignment(lhs, rhs, env)
                 i += 1
                 continue
 
-            # 3. Augmented assignment: var += 1, var -= 1
+            # 3. Augmented assignment: var += 1 -> kill state
             if ntype == "augmented_assignment":
-                yield from self._check_divisions(child, facts, file_path, source_lines, in_try_protected)
-                assign_kids = child.get("children", [])
+                yield from self._check_divisions(actual_node, env, file_path, source_lines, in_try_protected)
+                assign_kids = actual_node.get("children", [])
                 if assign_kids:
-                    name = self._identifier_name(assign_kids[0])
-                    if name:
-                        facts[name] = "POTENTIALLY_ZERO"
+                    vname = VariableStateTracker.extract_target_name(assign_kids[0])
+                    if vname:
+                        env.kill(vname)
                 i += 1
                 continue
 
-            # 4. Assert guard: assert d != 0 / assert d > 0 / assert d
+            # 4. Assert guard: assert d != 0 / assert d
             if ntype == "assert_statement":
-                yield from self._check_divisions(child, facts, file_path, source_lines, in_try_protected)
-                guard_info = self._guard_info_from_assert(child)
-                if guard_info:
-                    g_name, g_type = guard_info
-                    if g_type == "non_zero":
-                        facts[g_name] = "GUARDED"
+                yield from self._check_divisions(child, env, file_path, source_lines, in_try_protected)
+                guards = GuardAnalyzer.analyze_assert(child)
+                for g in guards:
+                    if g.var_name and g.guard_type == GuardType.NON_ZERO:
+                        env.update_state(g.var_name, VarState.GUARDED_NON_ZERO)
                 i += 1
                 continue
 
-            # 5. If statement (branching and guard clauses)
+            # 5. If statement (branching and guards)
             if ntype == "if_statement":
-                yield from self._analyze_if_statement(child, facts, file_path, source_lines, in_try_protected)
+                yield from self._analyze_if_statement(child, env, file_path, source_lines, in_try_protected)
                 i += 1
                 continue
 
-            # 6. Try statement (check if ZeroDivisionError / Exception is caught)
+            # 6. Try statement
             if ntype == "try_statement":
-                yield from self._analyze_try_statement(child, facts, file_path, source_lines)
+                yield from self._analyze_try_statement(child, env, file_path, source_lines)
                 i += 1
                 continue
 
-            # 7. Loops (for / while)
+            # 7. Loops (while / for)
             if ntype in ("while_statement", "for_statement"):
-                yield from self._analyze_loop(child, facts, file_path, source_lines, in_try_protected)
+                loop_env = env.fork(scope_type="loop")
+                yield from self._analyze_block(child, loop_env, file_path, source_lines, in_try_protected=in_try_protected)
                 i += 1
                 continue
 
-            # 8. Division in general expression / statement
-            if ntype == "binary_operator" and len(child.get("children", [])) >= 3 and child.get("children", [])[1].get("text", "") in ("/", "//"):
-                yield from self._eval_division_node(child, facts, file_path, source_lines, in_try_protected)
-                yield from self._check_divisions(child.get("children", [{}])[0], facts, file_path, source_lines, in_try_protected)
-                i += 1
-                continue
+            # 8. Division in statement
+            if ntype == "binary_operator":
+                op_kids = child.get("children", [])
+                if len(op_kids) >= 3 and (op_kids[1].get("text") or "") in ("/", "//"):
+                    yield from self._eval_division_node(child, env, file_path, source_lines, in_try_protected)
+                    yield from self._check_divisions(op_kids[0], env, file_path, source_lines, in_try_protected)
+                    i += 1
+                    continue
 
-            # 9. Expression statements & return statements
             if ntype in ("expression_statement", "return_statement"):
-                yield from self._check_divisions(child, facts, file_path, source_lines, in_try_protected)
+                yield from self._check_divisions(child, env, file_path, source_lines, in_try_protected)
                 i += 1
                 continue
 
             if ntype in ("block", "with_statement", "else_clause", "elif_clause"):
-                yield from self._analyze_block(child, facts, file_path, source_lines, in_try_protected=in_try_protected)
+                yield from self._analyze_block(child, env, file_path, source_lines, in_try_protected=in_try_protected)
                 i += 1
                 continue
 
-            # Default recursion
-            yield from self._check_divisions(child, facts, file_path, source_lines, in_try_protected)
-            yield from self._analyze_block(child, facts, file_path, source_lines, in_try_protected=in_try_protected)
+            # Default
+            yield from self._check_divisions(child, env, file_path, source_lines, in_try_protected)
+            yield from self._analyze_block(child, env, file_path, source_lines, in_try_protected=in_try_protected)
             i += 1
 
     def _analyze_if_statement(
         self,
         if_node: dict,
-        facts: Dict[str, str],
+        env: ScopeEnvironment,
         file_path: str,
         source_lines: List[str],
         in_try_protected: bool = False,
     ) -> Iterator[CandidateIssue]:
         children = if_node.get("children", [])
-        cond_node = self._if_condition(if_node)
+        # Extract condition node
+        cond_node = next((c for c in children if c.get("type") not in ("if", "elif", ":", "block", "else_clause", "elif_clause")), None)
         if cond_node:
-            yield from self._check_divisions(cond_node, facts, file_path, source_lines, in_try_protected)
+            yield from self._check_divisions(cond_node, env, file_path, source_lines, in_try_protected)
 
-        guard_info = self._cond_guard_info(cond_node) if cond_node else None
+        guards = GuardAnalyzer.analyze_condition(cond_node) if cond_node else []
 
         then_block = next((c for c in children if c.get("type") == "block"), None)
         elif_clauses = [c for c in children if c.get("type") == "elif_clause"]
         else_clause = next((c for c in children if c.get("type") == "else_clause"), None)
 
         # 1. Then branch
-        then_facts = dict(facts)
-        if guard_info:
-            g_name, g_type = guard_info
-            if g_type == "non_zero":
-                then_facts[g_name] = "GUARDED"
-            elif g_type == "zero":
-                then_facts[g_name] = "DEFINITELY_ZERO"
+        then_env = env.fork()
+        for g in guards:
+            if g.var_name:
+                if g.guard_type == GuardType.NON_ZERO:
+                    then_env.update_state(g.var_name, VarState.GUARDED_NON_ZERO)
+                elif g.guard_type == GuardType.ZERO:
+                    then_env.update_state(g.var_name, VarState.DEFINITELY_ZERO, constant_value=0)
 
         if then_block:
-            yield from self._analyze_block(then_block, then_facts, file_path, source_lines, in_try_protected=in_try_protected)
+            yield from self._analyze_block(then_block, then_env, file_path, source_lines, in_try_protected=in_try_protected)
 
         # 2. Elif branches
-        elif_facts_list = []
         for elif_c in elif_clauses:
-            e_facts = dict(facts)
-            yield from self._analyze_block(elif_c, e_facts, file_path, source_lines, in_try_protected=in_try_protected)
-            elif_facts_list.append(e_facts)
+            elif_env = env.fork()
+            yield from self._analyze_block(elif_c, elif_env, file_path, source_lines, in_try_protected=in_try_protected)
 
         # 3. Else branch
-        else_facts = None
         if else_clause:
-            else_facts = dict(facts)
-            if guard_info:
-                g_name, g_type = guard_info
-                if g_type == "zero":
-                    else_facts[g_name] = "GUARDED"
-                elif g_type == "non_zero":
-                    else_facts[g_name] = "DEFINITELY_ZERO"
-            yield from self._analyze_block(else_clause, else_facts, file_path, source_lines, in_try_protected=in_try_protected)
+            else_env = env.fork()
+            for g in guards:
+                if g.var_name:
+                    if g.guard_type == GuardType.ZERO:
+                        else_env.update_state(g.var_name, VarState.GUARDED_NON_ZERO)
+                    elif g.guard_type == GuardType.NON_ZERO:
+                        else_env.update_state(g.var_name, VarState.DEFINITELY_ZERO, constant_value=0)
+            yield from self._analyze_block(else_clause, else_env, file_path, source_lines, in_try_protected=in_try_protected)
 
-        # 4. Check for Early Exit / Guard Clause pattern:
-        # If `if d == 0: return / raise / continue / break`, then for the REST of this scope, `d` is guarded!
-        if guard_info and not elif_clauses and not else_clause:
-            g_name, g_type = guard_info
-            if g_type == "zero" and self._is_terminating_block(then_block):
-                facts[g_name] = "GUARDED"
-                return
-            if g_type == "non_zero":
-                then_children = then_block.get("children", []) if then_block else []
-                is_empty_then = not then_children or (len(then_children) == 1 and then_children[0].get("type") == "pass_statement")
-                if is_empty_then:
-                    facts[g_name] = "GUARDED"
-                    return
+        # 4. Early-exit guard clause handling:
+        # e.g. `if d == 0: return` -> for the remainder of this scope, `d` is guarded non-zero!
+        if guards and not elif_clauses and not else_clause and then_block:
+            if ReachabilityAnalyzer._block_unconditionally_terminates(then_block):
+                for g in guards:
+                    if g.var_name and g.guard_type == GuardType.ZERO:
+                        env.update_state(g.var_name, VarState.GUARDED_NON_ZERO)
 
-        # Merge facts across branches
-        all_branch_facts = [then_facts] + elif_facts_list
-        if else_facts is not None:
-            all_branch_facts.append(else_facts)
-
-        modified_vars: Set[str] = set()
-        for b_facts in all_branch_facts:
-            for k, v in b_facts.items():
-                if facts.get(k) != v:
-                    modified_vars.add(k)
-
-        for v in modified_vars:
-            branch_values = [b.get(v, facts.get(v, "POTENTIALLY_ZERO")) for b in all_branch_facts]
-            if else_facts is None:
-                branch_values.append(facts.get(v, "POTENTIALLY_ZERO"))
-
-            if all(val == "DEFINITELY_ZERO" for val in branch_values):
-                facts[v] = "DEFINITELY_ZERO"
-            elif all(val in ("DEFINITELY_NON_ZERO", "GUARDED") for val in branch_values):
-                facts[v] = "DEFINITELY_NON_ZERO"
-            else:
-                facts[v] = "POTENTIALLY_ZERO"
+        # 5. Merge branch facts if both then and else assign the exact same constant state
+        if then_block and else_clause and not elif_clauses:
+            for var_name, then_info in then_env.symbols.items():
+                if var_name in else_env.symbols:
+                    else_info = else_env.symbols[var_name]
+                    if (
+                        then_info.state == else_info.state == VarState.DEFINITELY_ZERO
+                        and then_info.constant_value == else_info.constant_value == 0
+                    ):
+                        env.update_state(var_name, VarState.DEFINITELY_ZERO, constant_value=0)
+                    elif (
+                        then_info.state == else_info.state == VarState.DEFINITELY_NON_ZERO
+                        or then_info.state == else_info.state == VarState.GUARDED_NON_ZERO
+                    ):
+                        env.update_state(var_name, VarState.GUARDED_NON_ZERO)
 
     def _analyze_try_statement(
         self,
         try_node: dict,
-        facts: Dict[str, str],
+        env: ScopeEnvironment,
         file_path: str,
         source_lines: List[str],
     ) -> Iterator[CandidateIssue]:
@@ -335,65 +286,26 @@ class PythonDivisionByZero(BaseRule):
         try_block = next((c for c in children if c.get("type") == "block"), None)
         except_clauses = [c for c in children if c.get("type") == "except_clause"]
 
-        # Check if ZeroDivisionError, ArithmeticError, or Exception is caught
         is_zero_div_caught = False
         for ec in except_clauses:
-            ec_text = (ec.get("text") or "")
-            if not ec.get("children") or len(ec.get("children", [])) <= 2:
-                # Bare except:
-                is_zero_div_caught = True
-                break
-            if any(exc in ec_text for exc in ("ZeroDivisionError", "ArithmeticError", "Exception", "BaseException")):
+            text = ec.get("text") or ""
+            # Bare except or catches ZeroDivisionError / ArithmeticError / Exception
+            if not ec.get("children") or len(ec.get("children", [])) <= 2 or any(e in text for e in ("ZeroDivisionError", "ArithmeticError", "Exception", "BaseException")):
                 is_zero_div_caught = True
                 break
 
-        inner_facts = dict(facts)
         if try_block:
-            yield from self._analyze_block(
-                try_block,
-                inner_facts,
-                file_path,
-                source_lines,
-                in_try_protected=is_zero_div_caught,
-            )
+            try_env = env.fork()
+            yield from self._analyze_block(try_block, try_env, file_path, source_lines, in_try_protected=is_zero_div_caught)
 
         for ec in except_clauses:
-            e_facts = dict(facts)
-            yield from self._analyze_block(ec, e_facts, file_path, source_lines, in_try_protected=False)
-
-    def _analyze_loop(
-        self,
-        loop_node: dict,
-        facts: Dict[str, str],
-        file_path: str,
-        source_lines: List[str],
-        in_try_protected: bool = False,
-    ) -> Iterator[CandidateIssue]:
-        inner_facts = dict(facts)
-
-        # Check for positive range loops: `for i in range(1, ...)`
-        if loop_node.get("type") == "for_statement":
-            children = loop_node.get("children", [])
-            loop_var = None
-            for idx, c in enumerate(children):
-                if c.get("type") == "identifier" and idx < 2:
-                    loop_var = (c.get("text") or "").strip()
-                    break
-            if loop_var:
-                loop_text = loop_node.get("text") or ""
-                if "range(1," in loop_text.replace(" ", "") or "enumerate(" in loop_text and ",1)" in loop_text.replace(" ", ""):
-                    inner_facts[loop_var] = "DEFINITELY_NON_ZERO"
-
-        yield from self._analyze_block(loop_node, inner_facts, file_path, source_lines, in_try_protected=in_try_protected)
-
-        for k, v in inner_facts.items():
-            if facts.get(k) != v:
-                facts[k] = "POTENTIALLY_ZERO"
+            ec_env = env.fork()
+            yield from self._analyze_block(ec, ec_env, file_path, source_lines, in_try_protected=False)
 
     def _check_divisions(
         self,
         node: dict,
-        facts: Dict[str, str],
+        env: ScopeEnvironment,
         file_path: str,
         source_lines: List[str],
         in_try_protected: bool = False,
@@ -404,1121 +316,85 @@ class PythonDivisionByZero(BaseRule):
 
         if ntype == "binary_operator":
             children = node.get("children", [])
-            if len(children) >= 3 and children[1].get("text", "") in ("/", "//"):
-                yield from self._eval_division_node(node, facts, file_path, source_lines, in_try_protected)
-                yield from self._check_divisions(children[0], facts, file_path, source_lines, in_try_protected)
+            if len(children) >= 3 and (children[1].get("text") or "") in ("/", "//"):
+                yield from self._eval_division_node(node, env, file_path, source_lines, in_try_protected)
+                yield from self._check_divisions(children[0], env, file_path, source_lines, in_try_protected)
                 return
 
         for child in node.get("children", []):
-            yield from self._check_divisions(child, facts, file_path, source_lines, in_try_protected)
+            yield from self._check_divisions(child, env, file_path, source_lines, in_try_protected)
 
     def _eval_division_node(
         self,
         binop_node: dict,
-        facts: Dict[str, str],
+        env: ScopeEnvironment,
         file_path: str,
         source_lines: List[str],
         in_try_protected: bool = False,
     ) -> Iterator[CandidateIssue]:
         if in_try_protected:
-            # Explicitly handled by try ... except ZeroDivisionError
+            self.record_suppression("protected_by_try_except")
             return
 
         children = binop_node.get("children", [])
         if len(children) < 3:
             return
-        op_text = children[1].get("text") or "/"
+
+        op_text = (children[1].get("text") or "/").strip()
+        if op_text not in ("/", "//"):
+            return
+
         right_node = children[2]
-        right_text = right_node.get("text") or "?"
-        right_type = right_node.get("type", "unknown")
+        right_text = (right_node.get("text") or "?").strip()
 
-        cls = self._classify(right_node, facts)
-        if cls == _Z.DEFINITELY_NON_ZERO:
-            return
-
-        if cls == _Z.DEFINITELY_ZERO:
-            self.record_syntax_match()
-            yield self._make_issue(
-                node=binop_node,
-                file_path=file_path,
-                source_lines=source_lines,
-                message=f"Division by zero: the divisor `{right_text}` is always zero.",
-                evidence={
-                    "operator": op_text,
-                    "right_operand": right_text,
-                    "right_node_type": right_type,
-                    "classification": "definitely_zero",
-                    "confidence": "high",
-                },
-                confidence="high",
-            )
-            return
-
-        # Check variable in scope facts
-        name = self._identifier_name(right_node)
-        if name:
-            fact = facts.get(name)
-            if fact in ("GUARDED", "DEFINITELY_NON_ZERO"):
-                return  # Safe
-            if fact == "DEFINITELY_ZERO":
+        # 1. Constant evaluation on divisor
+        const_val = evaluate_constant(right_node)
+        if const_val is not None:
+            if isinstance(const_val, (int, float, bool)) and const_val == 0:
                 self.record_syntax_match()
                 yield self._make_issue(
                     node=binop_node,
                     file_path=file_path,
                     source_lines=source_lines,
-                    message=f"Division by zero: variable `{name}` is zero.",
+                    message=f"Division by zero: divisor `{right_text}` evaluates to 0.",
                     evidence={
                         "operator": op_text,
-                        "right_operand": right_text,
-                        "right_node_type": right_type,
-                        "variable": name,
-                        "classification": "definitely_zero",
+                        "divisor": right_text,
+                        "reason": "constant_zero",
                         "confidence": "high",
                     },
                     confidence="high",
                 )
                 return
-
-        # General potentially-zero warning
-        yield self._make_issue(
-            node=binop_node,
-            file_path=file_path,
-            source_lines=source_lines,
-            message=(
-                f"Division by potentially zero value: the divisor "
-                f"`{right_text}` may be zero at runtime.  "
-                f"Add a zero-guard before dividing."
-            ),
-            evidence={
-                "operator": op_text,
-                "right_operand": right_text,
-                "right_node_type": right_type,
-                "classification": "potentially_zero",
-            },
-        )
-
-    def _classify_assignment_rhs(self, rhs: Optional[dict]) -> _Z:
-        if rhs is None:
-            return _Z.POTENTIALLY_ZERO
-        ntype = rhs.get("type", "")
-        if ntype in ("integer", "float"):
-            return self._classify_numeric_literal(rhs)
-        if ntype in ("true", "false"):
-            return _Z.DEFINITELY_NON_ZERO if (rhs.get("text") or "").lower() == "true" else _Z.DEFINITELY_ZERO
-        if ntype == "unary_operator":
-            return self._classify_unary(rhs)
-        return _Z.POTENTIALLY_ZERO
-
-    # ------------------------------------------------------------------
-    # Divisor classification helpers
-    # ------------------------------------------------------------------
-
-    def _classify(self, node: dict) -> _Z:
-        ntype = node.get("type", "")
-
-        if ntype == "parenthesized_expression":
-            inner = self._unwrap_parens(node)
-            return self._classify(inner)
-
-        if ntype in ("integer", "float"):
-            return self._classify_numeric_literal(node)
-
-        if ntype in ("true", "false"):
-            text = (node.get("text") or "").strip().lower()
-            if text == "true":
-                return _Z.DEFINITELY_NON_ZERO
-            if text == "false":
-                return _Z.DEFINITELY_ZERO
-            return _Z.POTENTIALLY_ZERO
-
-        if ntype == "unary_operator":
-            return self._classify_unary(node)
-
-        if ntype == "conditional_expression":
-            return self._classify_conditional(node)
-
-        if ntype == "boolean_operator":
-            return self._classify_boolean_op(node)
-
-        if ntype == "binary_operator":
-            return self._classify_constant_arithmetic(node)
-
-        if ntype == "call":
-            result = self._classify_safe_call(node)
-            if result is not None:
-                return result
-
-        return _Z.POTENTIALLY_ZERO
-
-    @staticmethod
-    def _numeric_value(node: dict) -> Optional[float]:
-        text = (node.get("text") or "").strip().replace("_", "")
-        if not text:
-            return None
-        try:
-            return float(int(text, 0))
-        except (ValueError, TypeError):
-            pass
-        try:
-            return float(text)
-        except (ValueError, TypeError):
-            return None
-
-    def _classify_numeric_literal(self, node: dict) -> _Z:
-        val = self._numeric_value(node)
-        if val is None:
-            return _Z.POTENTIALLY_ZERO
-        return _Z.DEFINITELY_ZERO if val == 0.0 else _Z.DEFINITELY_NON_ZERO
-
-    def _classify_unary(self, node: dict) -> _Z:
-        children = node.get("children", [])
-        if not children:
-            return _Z.POTENTIALLY_ZERO
-        op_text = (children[0].get("text") or "").strip()
-        if op_text not in ("+", "-"):
-            return _Z.POTENTIALLY_ZERO
-        operand = children[-1]
-        return self._classify(operand)
-
-    def _classify_conditional(self, node: dict) -> _Z:
-        children = node.get("children", [])
-        non_kw = [c for c in children if (c.get("text") or "") not in ("if", "else")]
-        if len(non_kw) < 3:
-            return _Z.POTENTIALLY_ZERO
-        cls_t = self._classify(non_kw[0])
-        cls_f = self._classify(non_kw[2])
-        if cls_t == _Z.DEFINITELY_NON_ZERO and cls_f == _Z.DEFINITELY_NON_ZERO:
-            return _Z.DEFINITELY_NON_ZERO
-        if cls_t == _Z.DEFINITELY_ZERO and cls_f == _Z.DEFINITELY_ZERO:
-            return _Z.DEFINITELY_ZERO
-        return _Z.POTENTIALLY_ZERO
-
-    def _classify_boolean_op(self, node: dict) -> _Z:
-        children = node.get("children", [])
-        op_children = [c for c in children if (c.get("text") or "") not in ("or", "and")]
-        kw_children = [c for c in children if (c.get("text") or "") in ("or", "and")]
-        if not kw_children:
-            return _Z.POTENTIALLY_ZERO
-        op = kw_children[0].get("text", "")
-        if op != "or" or len(op_children) < 2:
-            return _Z.POTENTIALLY_ZERO
-        right = op_children[-1]
-        cls_r = self._classify(right)
-        if cls_r == _Z.DEFINITELY_NON_ZERO:
-            return _Z.DEFINITELY_NON_ZERO
-        return _Z.POTENTIALLY_ZERO
-
-    def _classify_constant_arithmetic(self, node: dict) -> _Z:
-        val = self._try_eval_constant(node)
-        if val is None:
-            return _Z.POTENTIALLY_ZERO
-        return _Z.DEFINITELY_ZERO if val == 0.0 else _Z.DEFINITELY_NON_ZERO
-
-    def _try_eval_constant(self, node: dict) -> Optional[float]:
-        ntype = node.get("type", "")
-        if ntype == "parenthesized_expression":
-            inner = self._unwrap_parens(node)
-            return self._try_eval_constant(inner)
-        if ntype in ("integer", "float"):
-            return self._numeric_value(node)
-        if ntype in ("true", "false"):
-            return 1.0 if (node.get("text") or "").lower() == "true" else 0.0
-        if ntype == "unary_operator":
-            children = node.get("children", [])
-            if not children:
-                return None
-            op = (children[0].get("text") or "").strip()
-            val = self._try_eval_constant(children[-1])
-            if val is None:
-                return None
-            if op == "-":
-                return -val
-            if op == "+":
-                return val
-            return None
-        if ntype == "binary_operator":
-            children = node.get("children", [])
-            if len(children) < 3:
-                return None
-            op = (children[1].get("text") or "").strip()
-            lv = self._try_eval_constant(children[0])
-            rv = self._try_eval_constant(children[2])
-            if lv is None or rv is None:
-                return None
-            try:
-                if op == "+":
-                    return lv + rv
-                if op == "-":
-                    return lv - rv
-                if op == "*":
-                    return lv * rv
-                if op in ("/", "//"):
-                    if rv == 0.0:
-                        return None
-                    return lv / rv if op == "/" else float(int(lv) // int(rv))
-                if op == "**":
-                    return float(lv ** rv)
-            except (ZeroDivisionError, OverflowError, ValueError):
-                return None
-        return None
-
-    def _classify_safe_call(self, node: dict) -> Optional[_Z]:
-        children = node.get("children", [])
-        if len(children) < 2:
-            return None
-        func_name = (children[0].get("text") or "").strip()
-        args_node = children[1] if len(children) > 1 else None
-        if args_node is None or args_node.get("type") != "argument_list":
-            return None
-        args = [
-            c for c in args_node.get("children", [])
-            if (c.get("text") or "") not in ("(", ")", ",")
-            and c.get("type") not in ("(", ")", ",")
-        ]
-        if func_name == "max":
-            if any(self._classify(a) == _Z.DEFINITELY_NON_ZERO for a in args):
-                return _Z.DEFINITELY_NON_ZERO
-        return None
-
-    @staticmethod
-    def _unwrap_parens(node: dict) -> dict:
-        for child in node.get("children", []):
-            if (child.get("text") or "") not in ("(", ")"):
-                return child
-        return node
-
-    @staticmethod
-    def _identifier_name(node: dict) -> Optional[str]:
-        if node.get("type") == "identifier":
-            return (node.get("text") or "").strip() or None
-        return None
-
-    @staticmethod
-    def _if_condition(if_node: dict) -> Optional[dict]:
-        children = if_node.get("children", [])
-        for child in children:
-            if (child.get("text") or "") not in ("if", "elif", ":", "else") \
-                    and child.get("type") not in ("block", "else_clause", "elif_clause"):
-                return child
-        return None
-
-    @staticmethod
-    def _cond_guard_name(cond: dict) -> Optional[str]:
-        ctype = cond.get("type", "")
-        if ctype == "identifier":
-            return (cond.get("text") or "").strip() or None
-
-        if ctype == "parenthesized_expression":
-            inner = cond
-            for child in cond.get("children", []):
-                if (child.get("text") or "") not in ("(", ")"):
-                    inner = child
-                    break
-            return PythonDivisionByZero._cond_guard_name(inner)
-
-        if ctype == "comparison_operator":
-            children = cond.get("children", [])
-            ops = [c.get("text") or "" for c in children]
-            if "!=" not in ops:
-                return None
-            idx = ops.index("!=")
-            left  = children[idx - 1] if idx > 0 else None
-            right = children[idx + 1] if idx + 1 < len(children) else None
-
-            def _is_id(n: Optional[dict]) -> Optional[str]:
-                if n and n.get("type") == "identifier":
-                    return (n.get("text") or "").strip() or None
-                return None
-
-            def _is_zero(n: Optional[dict]) -> bool:
-                if n is None:
-                    return False
-                if n.get("type") in ("integer", "float"):
-                    text = (n.get("text") or "").replace("_", "").strip()
-                    try:
-                        return float(text) == 0.0
-                    except ValueError:
-                        return False
-                return False
-
-            name_l = _is_id(left)
-            name_r = _is_id(right)
-            if name_l and _is_zero(right):
-                return name_l
-            if name_r and _is_zero(left):
-                return name_r
-
-        return None
-
-    @staticmethod
-    def _guard_name_from_assert(assert_node: dict) -> Optional[str]:
-        children = assert_node.get("children", [])
-        exprs = [c for c in children if (c.get("text") or "") not in ("assert", ",")]
-        if exprs:
-            return PythonDivisionByZero._cond_guard_name(exprs[0])
-        return None
-
-"""
-PY_DIV_001 — Division by zero or potentially-zero divisor (Python)
--------------------------------------------------------------------
-Detects `/` and `//` binary operations where the right-hand operand is
-provably zero, or cannot be proven non-zero.
-
-Classification of the right-hand operand
------------------------------------------
-DEFINITELY_ZERO      — literal `0`, `0.0`, `-0`, `+0`, `-0.0`, etc.
-                       → always reported  (definite error)
-DEFINITELY_NON_ZERO  — literal like `1`, `-1`, `2.5`, `True`; constant
-                       arithmetic whose result is provably non-zero;
-                       `x or 1` / `x or <non-zero>`;
-                       `max(1, …)` with a provably-non-zero argument;
-                       conditional where every branch is non-zero.
-                       → never reported  (provably safe)
-POTENTIALLY_ZERO     — anything else (variables, function calls, …)
-                       → reported as a potential issue (warning)
-
-Control-flow guards & branch-aware state tracking
---------------------------------------------------
-A `POTENTIALLY_ZERO` divisor may be suppressed by a preceding guard of
-one of these forms in the same lexical scope:
-
-    if divisor != 0: ...
-    if divisor:      ...
-    assert divisor != 0
-    assert divisor
-
-The analysis tracks lexical scope boundaries (modules, functions, classes,
-lambdas), sequential fact updates, branch forks and merges, loop states,
-and assignment invalidations (kills).
-"""
-
-
-
-from enum import Enum, auto
-from typing import Dict, Iterator, List, Optional, Set, Tuple
-
-from ..base_rule import BaseRule
-from ..models import CandidateIssue
-
-
-# ---------------------------------------------------------------------------
-# Classification enum
-# ---------------------------------------------------------------------------
-
-class _Z(Enum):
-    DEFINITELY_ZERO     = auto()
-    DEFINITELY_NON_ZERO = auto()
-    POTENTIALLY_ZERO    = auto()
-
-
-# Node types that introduce a new lexical scope for variable bindings
-_SCOPE_NODES = {
-    "function_definition",
-    "async_function_definition",
-    "lambda",
-    "class_definition",
-}
-
-
-# ---------------------------------------------------------------------------
-# Rule
-# ---------------------------------------------------------------------------
-
-class PythonDivisionByZero(BaseRule):
-
-    LANGUAGES = ["Python"]
-
-    @property
-    def rule_id(self) -> str:
-        return "PY_DIV_001"
-
-    @property
-    def issue_type(self) -> str:
-        return "division_by_zero"
-
-    @property
-    def severity(self) -> str:
-        return "high"
-
-    # ------------------------------------------------------------------
-    # Public entry point
-    # ------------------------------------------------------------------
-
-    def analyze(
-        self,
-        ast: dict,
-        file_path: str,
-        source_lines: List[str],
-    ) -> Iterator[CandidateIssue]:
-        yield from self._analyze_scope(ast, {}, file_path, source_lines)
-
-    # ------------------------------------------------------------------
-    # Lexical Scope & Flow-Sensitive Analysis
-    # ------------------------------------------------------------------
-
-    def _analyze_scope(
-        self,
-        scope_node: dict,
-        outer_facts: Dict[str, str],
-        file_path: str,
-        source_lines: List[str],
-    ) -> Iterator[CandidateIssue]:
-        """
-        Analyse a lexical scope with isolated variable facts, inheriting outer
-        constants conservatively and binding formal parameters.
-        """
-        facts: Dict[str, str] = {}
-
-        # 1. Inherit outer facts across function boundaries:
-        # DEFINITELY_ZERO propagates down into closures; non-zero facts become POTENTIALLY_ZERO
-        for k, v in outer_facts.items():
-            if v == "DEFINITELY_ZERO":
-                facts[k] = "DEFINITELY_ZERO"
-            else:
-                facts[k] = "POTENTIALLY_ZERO"
-
-        # 2. Formal parameter bindings shadow outer scope as fresh dynamic variables
-        ntype = scope_node.get("type", "")
-        if ntype in ("function_definition", "async_function_definition", "lambda"):
-            params_node = next(
-                (c for c in scope_node.get("children", []) if c.get("type") == "parameters"),
-                None,
-            )
-            if params_node:
-                for p in params_node.get("children", []):
-                    ptype = p.get("type", "")
-                    if ptype == "identifier":
-                        pname = (p.get("text") or "").strip()
-                        if pname:
-                            facts[pname] = "POTENTIALLY_ZERO"
-                    elif ptype == "default_parameter":
-                        pkids = p.get("children", [])
-                        if pkids:
-                            pname = (pkids[0].get("text") or "").strip()
-                            if pname:
-                                facts[pname] = "POTENTIALLY_ZERO"
-
-        yield from self._analyze_block(scope_node, facts, file_path, source_lines, is_scope_root=True)
-
-    def _analyze_block(
-        self,
-        node: dict,
-        facts: Dict[str, str],
-        file_path: str,
-        source_lines: List[str],
-        is_scope_root: bool = False,
-    ) -> Iterator[CandidateIssue]:
-        """
-        Walk statements in `node` sequentially, updating `facts` in place
-        and recursing into child branches, loops, and child scopes.
-        """
-        children = node.get("children", [])
-        if not children and is_scope_root:
+            # Non-zero constant -> safe!
+            self.record_suppression("non_zero_constant")
             return
 
-        i = 0
-        while i < len(children):
-            child = children[i]
-            ntype = child.get("type", "")
-
-            # 1. Child scope boundary (function, lambda, class)
-            if ntype in _SCOPE_NODES:
-                yield from self._analyze_scope(child, facts, file_path, source_lines)
-                i += 1
-                continue
-
-            # 2. Simple assignment: var = <rhs>
-            if ntype == "assignment":
-                yield from self._check_divisions(child, facts, file_path, source_lines)
-                assign_kids = child.get("children", [])
-                if len(assign_kids) >= 3:
-                    lhs = assign_kids[0]
-                    name = self._identifier_name(lhs)
-                    if name:
-                        rhs = assign_kids[-1]
-                        cls = self._classify_assignment_rhs(rhs)
-                        if cls == _Z.DEFINITELY_NON_ZERO:
-                            facts[name] = "DEFINITELY_NON_ZERO"
-                        elif cls == _Z.DEFINITELY_ZERO:
-                            facts[name] = "DEFINITELY_ZERO"
-                        else:
-                            facts[name] = "POTENTIALLY_ZERO"
-                i += 1
-                continue
-
-            # 3. Augmented assignment: var += 1, var -= 1 (dynamic value -> kill to POTENTIALLY_ZERO)
-            if ntype == "augmented_assignment":
-                yield from self._check_divisions(child, facts, file_path, source_lines)
-                assign_kids = child.get("children", [])
-                if assign_kids:
-                    name = self._identifier_name(assign_kids[0])
-                    if name:
-                        facts[name] = "POTENTIALLY_ZERO"
-                i += 1
-                continue
-
-            # 4. Assert guard: assert d != 0 / assert d
-            if ntype == "assert_statement":
-                yield from self._check_divisions(child, facts, file_path, source_lines)
-                guard_name = self._guard_name_from_assert(child)
-                if guard_name:
-                    facts[guard_name] = "GUARDED"
-                i += 1
-                continue
-
-            # 5. If statement (branching)
-            if ntype == "if_statement":
-                yield from self._analyze_if_statement(child, facts, file_path, source_lines)
-                i += 1
-                continue
-
-            # 6. Loops (while / for) & Try blocks
-            if ntype in ("while_statement", "for_statement", "try_statement"):
-                yield from self._analyze_loop_or_try(child, facts, file_path, source_lines)
-                i += 1
-                continue
-
-            # 7. Division in general expression / statement
-            if ntype == "binary_operator" and child.get("children", [{}, {}])[1].get("text", "") in ("/", "//"):
-                yield from self._eval_division_node(child, facts, file_path, source_lines)
-                yield from self._check_divisions(child.get("children", [{}])[0], facts, file_path, source_lines)
-                i += 1
-                continue
-
-            # 8. Expression statements & other nested blocks
-            if ntype in ("expression_statement", "return_statement"):
-                yield from self._check_divisions(child, facts, file_path, source_lines)
-                i += 1
-                continue
-
-            if ntype in ("block", "with_statement", "else_clause", "elif_clause"):
-                yield from self._analyze_block(child, facts, file_path, source_lines)
-                i += 1
-                continue
-
-            # Default: check divisions and recurse into children
-            yield from self._check_divisions(child, facts, file_path, source_lines)
-            yield from self._analyze_block(child, facts, file_path, source_lines)
-            i += 1
-
-    def _analyze_if_statement(
-        self,
-        if_node: dict,
-        facts: Dict[str, str],
-        file_path: str,
-        source_lines: List[str],
-    ) -> Iterator[CandidateIssue]:
-        children = if_node.get("children", [])
-        cond_node = self._if_condition(if_node)
-        if cond_node:
-            yield from self._check_divisions(cond_node, facts, file_path, source_lines)
-
-        guard_name = self._cond_guard_name(cond_node) if cond_node else None
-
-        # Find then-block, elif clauses, else clause
-        then_block = next((c for c in children if c.get("type") == "block"), None)
-        elif_clauses = [c for c in children if c.get("type") == "elif_clause"]
-        else_clause = next((c for c in children if c.get("type") == "else_clause"), None)
-
-        # 1. Then branch
-        then_facts = dict(facts)
-        if guard_name:
-            then_facts[guard_name] = "GUARDED"
-        if then_block:
-            yield from self._analyze_block(then_block, then_facts, file_path, source_lines)
-
-        # 2. Elif branches
-        elif_facts_list = []
-        for elif_c in elif_clauses:
-            e_facts = dict(facts)
-            yield from self._analyze_block(elif_c, e_facts, file_path, source_lines)
-            elif_facts_list.append(e_facts)
-
-        # 3. Else branch
-        else_facts = None
-        if else_clause:
-            else_facts = dict(facts)
-            yield from self._analyze_block(else_clause, else_facts, file_path, source_lines)
-
-        # Merge facts:
-        # Check if if_node was a top-level guard without an else (e.g. `if d != 0: pass` or empty block)
-        then_children = then_block.get("children", []) if then_block else []
-        is_empty_then = not then_children or (len(then_children) == 1 and then_children[0].get("type") == "pass_statement")
-        if guard_name and not else_clause and not elif_clauses and is_empty_then:
-            facts[guard_name] = "GUARDED"
-            return
-
-        all_branch_facts = [then_facts] + elif_facts_list
-        if else_facts is not None:
-            all_branch_facts.append(else_facts)
-
-        modified_vars: Set[str] = set()
-        for b_facts in all_branch_facts:
-            for k, v in b_facts.items():
-                if facts.get(k) != v:
-                    modified_vars.add(k)
-
-        # Merge each modified variable
-        for v in modified_vars:
-            branch_values = [b.get(v, facts.get(v, "POTENTIALLY_ZERO")) for b in all_branch_facts]
-            if else_facts is None:
-                branch_values.append(facts.get(v, "POTENTIALLY_ZERO"))
-
-            if all(val == "DEFINITELY_ZERO" for val in branch_values):
-                facts[v] = "DEFINITELY_ZERO"
-            elif all(val == "DEFINITELY_NON_ZERO" for val in branch_values):
-                facts[v] = "DEFINITELY_NON_ZERO"
-            else:
-                facts[v] = "POTENTIALLY_ZERO"
-
-    def _analyze_loop_or_try(
-        self,
-        node: dict,
-        facts: Dict[str, str],
-        file_path: str,
-        source_lines: List[str],
-    ) -> Iterator[CandidateIssue]:
-        inner_facts = dict(facts)
-        yield from self._analyze_block(node, inner_facts, file_path, source_lines)
-
-        for k, v in inner_facts.items():
-            if facts.get(k) != v:
-                facts[k] = "POTENTIALLY_ZERO"
-
-    def _check_divisions(
-        self,
-        node: dict,
-        facts: Dict[str, str],
-        file_path: str,
-        source_lines: List[str],
-    ) -> Iterator[CandidateIssue]:
-        ntype = node.get("type", "")
-        if ntype in _SCOPE_NODES:
-            return
-
-        if ntype == "binary_operator":
-            children = node.get("children", [])
-            if len(children) >= 3 and children[1].get("text", "") in ("/", "//"):
-                yield from self._eval_division_node(node, facts, file_path, source_lines)
-                yield from self._check_divisions(children[0], facts, file_path, source_lines)
-                return
-
-        for child in node.get("children", []):
-            yield from self._check_divisions(child, facts, file_path, source_lines)
-
-    def _eval_division_node(
-        self,
-        binop_node: dict,
-        facts: Dict[str, str],
-        file_path: str,
-        source_lines: List[str],
-    ) -> Iterator[CandidateIssue]:
-        children = binop_node.get("children", [])
-        if len(children) < 3:
-            return
-        op_text = children[1].get("text") or "/"
-        self.record_syntax_match()
-        is_test = self._is_test_file(file_path)
-
-        right_node = children[2]
-        right_text = (right_node.get("text") or "?").strip()
-        right_type = right_node.get("type", "unknown")
-
-        cls = self._classify(right_node)
-        if cls == _Z.DEFINITELY_NON_ZERO:
-            self.record_suppression(f"provably_non_zero_{right_text}")
-            return
-
-        if cls == _Z.DEFINITELY_ZERO:
-            yield self._make_issue(
-                node=binop_node,
-                file_path=file_path,
-                source_lines=source_lines,
-                message=f"Division by zero: divisor `{right_text}` is provably zero.",
-                evidence={
-                    "operator": op_text,
-                    "right_operand": right_text,
-                    "right_node_type": right_type,
-                    "classification": "definitely_zero",
-                    "confidence": "high",
-                    "reason": "Divisor is statically evaluated as zero.",
-                },
-                confidence="high",
-            )
-            return
-
-        # POTENTIALLY_ZERO: check if variable fact is known
-        name = self._identifier_name(right_node)
-        if name:
-            fact = facts.get(name)
-            if fact in ("GUARDED", "DEFINITELY_NON_ZERO"):
-                self.record_suppression(f"flow_guarded_variable_{name}")
-                return  # Safe
-            if fact == "DEFINITELY_ZERO":
-                yield self._make_issue(
-                    node=binop_node,
-                    file_path=file_path,
-                    source_lines=source_lines,
-                    message=f"Division by zero: divisor `{right_text}` is provably zero from preceding flow.",
-                    evidence={
-                        "operator": op_text,
-                        "right_operand": right_text,
-                        "right_node_type": right_type,
-                        "classification": "definitely_zero",
-                        "confidence": "high",
-                        "reason": f"Data-flow analysis confirmed variable `{name}` has value 0 at this point.",
-                    },
-                    confidence="high",
-                )
-                return
-
-        # General potentially-zero warning
-        confidence = "low" if is_test else "medium"
-        yield self._make_issue(
-            node=binop_node,
-            file_path=file_path,
-            source_lines=source_lines,
-            message=(
-                f"Division by potentially zero value: divisor `{right_text}` "
-                f"is not guarded against zero."
-            ),
-            evidence={
-                "operator": op_text,
-                "right_operand": right_text,
-                "right_node_type": right_type,
-                "classification": "potentially_zero",
-                "confidence": confidence,
-                "reason": f"Dynamic divisor `{right_text}` has no active zero guard in flow state.",
-            },
-            confidence=confidence,
-        )
-
-    def _classify_assignment_rhs(self, rhs: Optional[dict]) -> _Z:
-        if rhs is None:
-            return _Z.POTENTIALLY_ZERO
-        return self._classify(rhs)
-
-    # ------------------------------------------------------------------
-    # Divisor classification helpers
-    # ------------------------------------------------------------------
-
-    def _classify(self, node: dict, facts: Optional[Dict[str, str]] = None) -> _Z:
-        ntype = node.get("type", "")
-
-        if ntype == "parenthesized_expression":
-            inner = self._unwrap_parens(node)
-            return self._classify(inner, facts)
-
-        if ntype in ("integer", "float"):
-            return self._classify_numeric_literal(node)
-
-        if ntype in ("true", "false"):
-            text = (node.get("text") or "").strip().lower()
-            if text == "true":
-                return _Z.DEFINITELY_NON_ZERO
-            if text == "false":
-                return _Z.DEFINITELY_ZERO
-            return _Z.POTENTIALLY_ZERO
-
-        if ntype == "unary_operator":
-            return self._classify_unary(node, facts)
-
-        if ntype == "conditional_expression":
-            return self._classify_conditional(node, facts)
-
-        if ntype == "boolean_operator":
-            return self._classify_boolean_op(node, facts)
-
-        if ntype == "binary_operator":
-            return self._classify_binary_arithmetic(node, facts)
-
-        if ntype == "call":
-            result = self._classify_safe_call(node, facts)
-            if result is not None:
-                return result
-
-        if ntype == "identifier" and facts:
-            name = (node.get("text") or "").strip()
-            fact = facts.get(name)
-            if fact in ("DEFINITELY_NON_ZERO", "GUARDED"):
-                return _Z.DEFINITELY_NON_ZERO
-            if fact == "DEFINITELY_ZERO":
-                return _Z.DEFINITELY_ZERO
-
-        return _Z.POTENTIALLY_ZERO
-
-    @staticmethod
-    def _numeric_value(node: dict) -> Optional[float]:
-        text = (node.get("text") or "").strip().replace("_", "")
-        if not text:
-            return None
-        try:
-            return float(int(text, 0))
-        except (ValueError, TypeError):
-            pass
-        try:
-            return float(text)
-        except (ValueError, TypeError):
-            return None
-
-    def _classify_numeric_literal(self, node: dict) -> _Z:
-        val = self._numeric_value(node)
-        if val is None:
-            return _Z.POTENTIALLY_ZERO
-        return _Z.DEFINITELY_ZERO if val == 0.0 else _Z.DEFINITELY_NON_ZERO
-
-    def _classify_unary(self, node: dict, facts: Optional[Dict[str, str]] = None) -> _Z:
-        children = node.get("children", [])
-        if not children:
-            return _Z.POTENTIALLY_ZERO
-        op_text = (children[0].get("text") or "").strip()
-        if op_text not in ("+", "-"):
-            return _Z.POTENTIALLY_ZERO
-        operand = children[-1]
-        return self._classify(operand, facts)
-
-    def _classify_conditional(self, node: dict, facts: Optional[Dict[str, str]] = None) -> _Z:
-        children = node.get("children", [])
-        non_kw = [c for c in children if (c.get("text") or "") not in ("if", "else")]
-        if len(non_kw) < 3:
-            return _Z.POTENTIALLY_ZERO
-        cls_t = self._classify(non_kw[0], facts)
-        cls_f = self._classify(non_kw[2], facts)
-        if cls_t == _Z.DEFINITELY_NON_ZERO and cls_f == _Z.DEFINITELY_NON_ZERO:
-            return _Z.DEFINITELY_NON_ZERO
-        if cls_t == _Z.DEFINITELY_ZERO and cls_f == _Z.DEFINITELY_ZERO:
-            return _Z.DEFINITELY_ZERO
-        return _Z.POTENTIALLY_ZERO
-
-    def _classify_boolean_op(self, node: dict, facts: Optional[Dict[str, str]] = None) -> _Z:
-        children = node.get("children", [])
-        op_children = [c for c in children if (c.get("text") or "") not in ("or", "and")]
-        kw_children = [c for c in children if (c.get("text") or "") in ("or", "and")]
-        if not kw_children:
-            return _Z.POTENTIALLY_ZERO
-        op = kw_children[0].get("text", "")
-        if op != "or" or len(op_children) < 2:
-            return _Z.POTENTIALLY_ZERO
-        right = op_children[-1]
-        cls_r = self._classify(right, facts)
-        if cls_r == _Z.DEFINITELY_NON_ZERO:
-            return _Z.DEFINITELY_NON_ZERO
-        return _Z.POTENTIALLY_ZERO
-
-    def _classify_binary_arithmetic(self, node: dict, facts: Optional[Dict[str, str]] = None) -> _Z:
-        val = self._try_eval_constant(node)
-        if val is not None:
-            return _Z.DEFINITELY_ZERO if val == 0.0 else _Z.DEFINITELY_NON_ZERO
-
-        # Mathematical non-zero pattern: <expr> + <positive_literal> or <positive_literal> + <expr>
-        children = node.get("children", [])
-        if len(children) >= 3:
-            op = (children[1].get("text") or "").strip()
-            if op == "+":
-                l_val = self._try_eval_constant(children[0])
-                r_val = self._try_eval_constant(children[2])
-                if (r_val is not None and r_val > 0) or (l_val is not None and l_val > 0):
-                    return _Z.DEFINITELY_NON_ZERO
-
-        return _Z.POTENTIALLY_ZERO
-
-    def _try_eval_constant(self, node: dict) -> Optional[float]:
-        ntype = node.get("type", "")
-        if ntype == "parenthesized_expression":
-            inner = self._unwrap_parens(node)
-            return self._try_eval_constant(inner)
-        if ntype in ("integer", "float"):
-            return self._numeric_value(node)
-        if ntype in ("true", "false"):
-            return 1.0 if (node.get("text") or "").lower() == "true" else 0.0
-        if ntype == "unary_operator":
-            children = node.get("children", [])
-            if not children:
-                return None
-            op = (children[0].get("text") or "").strip()
-            val = self._try_eval_constant(children[-1])
-            if val is None:
-                return None
-            if op == "-":
-                return -val
-            if op == "+":
-                return val
-            return None
-        if ntype == "binary_operator":
-            children = node.get("children", [])
-            if len(children) < 3:
-                return None
-            op = (children[1].get("text") or "").strip()
-            lv = self._try_eval_constant(children[0])
-            rv = self._try_eval_constant(children[2])
-            if lv is None or rv is None:
-                return None
-            try:
-                if op == "+":
-                    return lv + rv
-                if op == "-":
-                    return lv - rv
-                if op == "*":
-                    return lv * rv
-                if op in ("/", "//"):
-                    if rv == 0.0:
-                        return None
-                    return lv / rv if op == "/" else float(int(lv) // int(rv))
-                if op == "**":
-                    return float(lv ** rv)
-            except (ZeroDivisionError, OverflowError, ValueError):
-                return None
-        return None
-
-    def _classify_safe_call(self, node: dict, facts: Optional[Dict[str, str]] = None) -> Optional[_Z]:
-        children = node.get("children", [])
-        if len(children) < 2:
-            return None
-        func_name = (children[0].get("text") or "").strip()
-        args_node = children[1] if len(children) > 1 else None
-        if args_node is None or args_node.get("type") != "argument_list":
-            return None
-        args = [
-            c for c in args_node.get("children", [])
-            if (c.get("text") or "") not in ("(", ")", ",")
-            and c.get("type") not in ("(", ")", ",")
-        ]
-        if func_name == "max":
-            if any(self._classify(a, facts) == _Z.DEFINITELY_NON_ZERO for a in args):
-                return _Z.DEFINITELY_NON_ZERO
-        return None
-
-    @staticmethod
-    def _unwrap_parens(node: dict) -> dict:
-        for child in node.get("children", []):
-            if (child.get("text") or "") not in ("(", ")"):
-                return child
-        return node
-
-    @staticmethod
-    def _identifier_name(node: dict) -> Optional[str]:
-        if node.get("type") == "identifier":
-            return (node.get("text") or "").strip() or None
-        return None
-
-    @staticmethod
-    def _if_condition(if_node: dict) -> Optional[dict]:
-        children = if_node.get("children", [])
-        for child in children:
-            if (child.get("text") or "") not in ("if", "elif", ":", "else") \
-                    and child.get("type") not in ("block", "else_clause", "elif_clause"):
-                return child
-        return None
-
-    @staticmethod
-    def _is_terminating_block(block_node: Optional[dict]) -> bool:
-        if not block_node:
-            return False
-        children = block_node.get("children", [])
-        for c in reversed(children):
-            ctype = c.get("type", "")
-            if ctype in _TERMINATING_TYPES:
-                return True
-            if ctype in ("block", "expression_statement"):
-                for sub in c.get("children", []):
-                    if sub.get("type") in _TERMINATING_TYPES:
-                        return True
-        return False
-
-    @staticmethod
-    def _cond_guard_info(cond: dict) -> Optional[Tuple[str, str]]:
-        """
-        Returns (var_name, "non_zero") or (var_name, "zero") if the condition
-        asserts / tests `var_name`.
-        """
-        ctype = cond.get("type", "")
-
-        # if d:
-        if ctype == "identifier":
-            name = (cond.get("text") or "").strip()
-            return (name, "non_zero") if name else None
-
-        # if not d:
-        if ctype == "not_operator":
-            children = cond.get("children", [])
-            non_kw = [c for c in children if (c.get("text") or "") != "not"]
-            if non_kw and non_kw[0].get("type") == "identifier":
-                name = (non_kw[0].get("text") or "").strip()
-                return (name, "zero") if name else None
-
-        if ctype == "parenthesized_expression":
-            inner = cond
-            for child in cond.get("children", []):
-                if (child.get("text") or "") not in ("(", ")"):
-                    inner = child
-                    break
-            return PythonDivisionByZero._cond_guard_info(inner)
-
-        if ctype == "comparison_operator":
-            children = cond.get("children", [])
-            ops = [c.get("text") or "" for c in children]
-
-            def _is_id(n: Optional[dict]) -> Optional[str]:
-                if n and n.get("type") == "identifier":
-                    return (n.get("text") or "").strip() or None
-                return None
-
-            def _is_zero(n: Optional[dict]) -> bool:
-                if n is None:
-                    return False
-                if n.get("type") in ("integer", "float"):
-                    text = (n.get("text") or "").replace("_", "").strip()
-                    try:
-                        return float(text) == 0.0
-                    except ValueError:
-                        return False
-                return False
-
-            # `d != 0`, `0 != d`
-            if "!=" in ops:
-                idx = ops.index("!=")
-                left = children[idx - 1] if idx > 0 else None
-                right = children[idx + 1] if idx + 1 < len(children) else None
-                if _is_id(left) and _is_zero(right):
-                    return (_is_id(left), "non_zero")
-                if _is_id(right) and _is_zero(left):
-                    return (_is_id(right), "non_zero")
-
-            # `d == 0`, `0 == d`
-            if "==" in ops:
-                idx = ops.index("==")
-                left = children[idx - 1] if idx > 0 else None
-                right = children[idx + 1] if idx + 1 < len(children) else None
-                if _is_id(left) and _is_zero(right):
-                    return (_is_id(left), "zero")
-                if _is_id(right) and _is_zero(left):
-                    return (_is_id(right), "zero")
-
-            # `d > 0`, `0 < d`, `d >= 1`, `1 <= d`
-            for op in (">", ">=", "<", "<="):
-                if op in ops:
-                    idx = ops.index(op)
-                    left = children[idx - 1] if idx > 0 else None
-                    right = children[idx + 1] if idx + 1 < len(children) else None
-                    name_l = _is_id(left)
-                    name_r = _is_id(right)
-                    if op in (">", ">="):
-                        if name_l and _is_zero(right):
-                            return (name_l, "non_zero")
-                        if name_r and _is_zero(left):
-                            return (name_r, "zero")
-                    elif op in ("<", "<="):
-                        if name_l and _is_zero(right):
-                            return (name_l, "zero")
-                        if name_r and _is_zero(left):
-                            return (name_r, "non_zero")
-
-        return None
-
-    @staticmethod
-    def _guard_info_from_assert(assert_node: dict) -> Optional[Tuple[str, str]]:
-        children = assert_node.get("children", [])
-        exprs = [c for c in children if (c.get("text") or "") not in ("assert", ",")]
-        if exprs:
-            return PythonDivisionByZero._cond_guard_info(exprs[0])
-        return None
+        # 2. Check variable state in scope
+        var_name = VariableStateTracker.extract_target_name(right_node)
+        if var_name:
+            var_info = env.get(var_name)
+            if var_info:
+                if var_info.is_definitely_zero:
+                    self.record_syntax_match()
+                    yield self._make_issue(
+                        node=binop_node,
+                        file_path=file_path,
+                        source_lines=source_lines,
+                        message=f"Division by zero: variable `{var_name}` is known to be 0 at this point.",
+                        evidence={
+                            "operator": op_text,
+                            "variable": var_name,
+                            "reason": "variable_assigned_zero",
+                            "confidence": "high",
+                        },
+                        confidence="high",
+                    )
+                    return
+                if var_info.is_definitely_non_zero:
+                    self.record_suppression("guarded_or_non_zero_variable")
+                    return
+
+        # Unconstrained unknown dynamic variable (e.g. `x / y` where y is unknown):
+        # By non-negotiable requirement: DO NOT flag unknown variables as division by zero!
+        self.record_suppression("unestablished_divisor")

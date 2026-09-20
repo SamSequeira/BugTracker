@@ -2,7 +2,7 @@
 run_audit.py — Master test suite runner for the static analyzer.
 ================================================================
 Consolidated execution of all permanent unit, boundary, regression,
-and integration test suites.
+and integration test suites across all 24 static analyzer rules.
 
 Run from backend/: python -m app.services.static_analyzer.tests.run_audit
 """
@@ -13,62 +13,90 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent.parent.parent.parent.resolve()))
 
-# Python rule suites
+# Python rule suites (9 rules)
 from app.services.static_analyzer.tests.python.test_division_by_zero import run_tests as test_py_div
 from app.services.static_analyzer.tests.python.test_resource_management import run_tests as test_py_res
 from app.services.static_analyzer.tests.python.test_exception_handling import run_tests as test_py_exc
 from app.services.static_analyzer.tests.python.test_assert_usage import run_tests as test_py_ass
 from app.services.static_analyzer.tests.python.test_mutable_defaults import run_tests as test_py_mut
+from app.services.static_analyzer.tests.python.test_eval_usage import run_tests as test_py_eval
+from app.services.static_analyzer.tests.python.test_none_comparison import run_tests as test_py_none
+from app.services.static_analyzer.tests.python.test_unreachable_code import run_tests as test_py_unreach
+from app.services.static_analyzer.tests.python.test_constant_condition import run_tests as test_py_constcond
 
-# Java rule suites
+# Java rule suites (8 rules)
 from app.services.static_analyzer.tests.java.test_division_by_zero import run_tests as test_java_div
 from app.services.static_analyzer.tests.java.test_empty_catch import run_tests as test_java_exc
 from app.services.static_analyzer.tests.java.test_string_equality import run_tests as test_java_eq
 from app.services.static_analyzer.tests.java.test_resource_management import run_tests as test_java_res
 from app.services.static_analyzer.tests.java.test_infinite_loops import run_tests as test_java_loop
+from app.services.static_analyzer.tests.java.test_null_dereference import run_tests as test_java_null
+from app.services.static_analyzer.tests.java.test_unreachable_code import run_tests as test_java_unreach
+from app.services.static_analyzer.tests.java.test_constant_condition import run_tests as test_java_constcond
 
-# JavaScript rule suites
+# JavaScript rule suites (7 rules)
 from app.services.static_analyzer.tests.javascript.test_division_by_zero import run_tests as test_js_div
 from app.services.static_analyzer.tests.javascript.test_loose_equality import run_tests as test_js_eq
 from app.services.static_analyzer.tests.javascript.test_await_in_loop import run_tests as test_js_awa
+from app.services.static_analyzer.tests.javascript.test_eval_usage import run_tests as test_js_eval
+from app.services.static_analyzer.tests.javascript.test_unhandled_promise import run_tests as test_js_promise
+from app.services.static_analyzer.tests.javascript.test_unreachable_code import run_tests as test_js_unreach
+from app.services.static_analyzer.tests.javascript.test_constant_condition import run_tests as test_js_constcond
 
-# Regression suites
+# Regression suites (4 categories)
 from app.services.static_analyzer.tests.regression.test_scope_regressions import run_tests as test_reg_scope
 from app.services.static_analyzer.tests.regression.test_control_flow_regressions import run_tests as test_reg_ctrl
 from app.services.static_analyzer.tests.regression.test_alias_regressions import run_tests as test_reg_alias
 from app.services.static_analyzer.tests.regression.test_type_resolution_regressions import run_tests as test_reg_type
 
-# Integration suites
+# Integration suites (2 categories)
 from app.services.static_analyzer.tests.integration.test_cross_language_behavior import run_tests as test_int_cross
 from app.services.static_analyzer.tests.integration.test_rule_engine_integration import run_tests as test_int_engine
 
 
 def main() -> bool:
     print("\n" + "=" * 60)
-    print("  STATIC ANALYZER CONSOLIDATED TEST SUITE")
+    print("  STATIC ANALYZER CONSOLIDATED TEST SUITE (24 RULES)")
     print("=" * 60)
 
-    # 1. Python rules
-    py_div_ok = test_py_div()
-    py_res_ok = test_py_res()
-    py_exc_ok = test_py_exc()
-    py_ass_ok = test_py_ass()
-    py_mut_ok = test_py_mut()
-    py_all_ok = py_div_ok and py_res_ok and py_exc_ok and py_ass_ok and py_mut_ok
+    # 1. Python rules (9/9)
+    py_results = [
+        ("PY_DIV_001", test_py_div()),
+        ("PY_RES_001", test_py_res()),
+        ("PY_EXC_001", test_py_exc()),
+        ("PY_ASS_001", test_py_ass()),
+        ("PY_MUT_001", test_py_mut()),
+        ("PY_EVAL_001", test_py_eval()),
+        ("PY_NONE_001", test_py_none()),
+        ("PY_UNREACH_001", test_py_unreach()),
+        ("PY_CONSTCOND_001", test_py_constcond()),
+    ]
+    py_all_ok = all(ok for _, ok in py_results)
 
-    # 2. Java rules
-    java_div_ok = test_java_div()
-    java_exc_ok = test_java_exc()
-    java_eq_ok = test_java_eq()
-    java_res_ok = test_java_res()
-    java_loop_ok = test_java_loop()
-    java_all_ok = java_div_ok and java_exc_ok and java_eq_ok and java_res_ok and java_loop_ok
+    # 2. Java rules (8/8)
+    java_results = [
+        ("JAVA_DIV_001", test_java_div()),
+        ("JAVA_EXC_001", test_java_exc()),
+        ("JAVA_EQ_001", test_java_eq()),
+        ("JAVA_RES_001", test_java_res()),
+        ("JAVA_LOOP_001", test_java_loop()),
+        ("JAVA_NULL_001", test_java_null()),
+        ("JAVA_UNREACH_001", test_java_unreach()),
+        ("JAVA_CONSTCOND_001", test_java_constcond()),
+    ]
+    java_all_ok = all(ok for _, ok in java_results)
 
-    # 3. JavaScript rules
-    js_div_ok = test_js_div()
-    js_eq_ok = test_js_eq()
-    js_awa_ok = test_js_awa()
-    js_all_ok = js_div_ok and js_eq_ok and js_awa_ok
+    # 3. JavaScript rules (7/7)
+    js_results = [
+        ("JS_DIV_001", test_js_div()),
+        ("JS_EQ_001", test_js_eq()),
+        ("JS_AWA_001", test_js_awa()),
+        ("JS_EVAL_001", test_js_eval()),
+        ("JS_PROMISE_001", test_js_promise()),
+        ("JS_UNREACH_001", test_js_unreach()),
+        ("JS_CONSTCOND_001", test_js_constcond()),
+    ]
+    js_all_ok = all(ok for _, ok in js_results)
 
     # 4. Regressions
     reg_scope_ok = test_reg_scope()
@@ -85,9 +113,9 @@ def main() -> bool:
     print("\n" + "=" * 60)
     print("  CONSOLIDATED SUITE EXECUTION SUMMARY")
     print("=" * 60)
-    print(f"  Python Rules Suite (5 rules)       : {'PASS' if py_all_ok   else 'FAIL'}")
-    print(f"  Java Rules Suite (5 rules)         : {'PASS' if java_all_ok else 'FAIL'}")
-    print(f"  JavaScript Rules Suite (3 rules)   : {'PASS' if js_all_ok   else 'FAIL'}")
+    print(f"  Python Rules Suite (9 rules)       : {'PASS' if py_all_ok   else 'FAIL'}")
+    print(f"  Java Rules Suite (8 rules)         : {'PASS' if java_all_ok else 'FAIL'}")
+    print(f"  JavaScript Rules Suite (7 rules)   : {'PASS' if js_all_ok   else 'FAIL'}")
     print(f"  Regression Suite (4 categories)    : {'PASS' if reg_all_ok  else 'FAIL'}")
     print(f"  Integration Suite (2 categories)   : {'PASS' if int_all_ok  else 'FAIL'}")
 

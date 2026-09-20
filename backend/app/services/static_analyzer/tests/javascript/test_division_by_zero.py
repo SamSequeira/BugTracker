@@ -27,10 +27,14 @@ def run_tests() -> bool:
     r.must_flag("x / -0 (negative zero)", rule, module(js_binop(x, "/", js_unary("-", number_lit("0")))), "f.js")
     r.must_flag("x / 0e5 (scientific zero)", rule, module(js_binop(x, "/", number_lit("0e5"))), "f.js")
     r.must_flag("x / 00 (legacy octal zero)", rule, module(js_binop(x, "/", number_lit("00"))), "f.js")
-    r.must_flag("x / undefined (coerces to NaN/0)", rule, module(js_binop(x, "/", node("undefined", "undefined"))), "f.js")
+    # --- 2. ZERO VARIABLE (MUST FLAG) ---
+    assign_zero = node("lexical_declaration", "const divisor = 0;", 1, children=[
+        node("variable_declarator", "divisor = 0", 1, children=[ident("divisor", 1), leaf("=", "=", 1), number_lit("0", 1)])
+    ])
+    r.must_flag("const divisor = 0; x / divisor", rule, module(assign_zero, js_binop(x, "/", ident("divisor", 2), 2)), "f.js")
 
-    # --- 2. DYNAMIC / VARIABLE DIVISORS (MUST FLAG) ---
-    r.must_flag("x / y (variable divisor)", rule, module(js_binop(x, "/", ident("y"))), "f.js")
+    # --- 3. DYNAMIC UNKNOWN VARIABLE (MUST NOT FLAG) ---
+    r.must_not_flag("x / y (unknown variable divisor)", rule, module(js_binop(x, "/", ident("y"))), "f.js")
 
     # --- 3. DEFINITELY NON-ZERO LITERALS (MUST NOT FLAG) ---
     r.must_not_flag("x / 1 (integer 1)", rule, module(js_binop(x, "/", number_lit("1"))), "f.js")

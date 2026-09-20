@@ -1,36 +1,34 @@
 {
-  "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpkmlbtgla.js",
+  "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpex2m6unr.js",
   "language": "JavaScript",
   "issues": [
     {
       "rule_id": "JS_DIV_001",
       "issue_type": "division_by_zero",
-      "message": "Division by potentially zero value: divisor `b` is not guarded against 0. Ensure divisor is non-zero before dividing.",
-      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpkmlbtgla.js",
+      "message": "Division by zero: divisor `0` evaluates to 0.",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpex2m6unr.js",
       "line_number": 2,
-      "column": 11,
-      "code_snippet": "a / b",
+      "column": 12,
+      "code_snippet": "10 / 0",
       "evidence": {
         "operator": "/",
-        "right_operand": "b",
-        "right_node_type": "identifier",
-        "confidence": "medium",
-        "reason": "Dynamic divisor `b` has no static zero guard."
+        "divisor": "0",
+        "reason": "constant_zero",
+        "confidence": "high"
       },
       "severity": "high",
-      "confidence": "medium"
+      "confidence": "high"
     }
   ],
   "issue_count": 1,
   "rules_run": [
     "JS_DIV_001",
     "JS_EQ_001",
-    "JS_AWA_001"
+    "JS_AWA_001",
+    "JS_EVAL_001",
+    "JS_UNREACH_001",
+    "JS_CONSTCOND_001",
+    "JS_PROMISE_001"
   ],
-  "errors": [
-    {
-      "rule_id": "JS_DIV_001",
-      "error": "NameError: name 'op' is not defined"
-    }
-  ]
+  "errors": []
 }

@@ -17,7 +17,7 @@ from app.services.static_analyzer.rules.js_division_by_zero import JavaScriptDiv
 from app.services.static_analyzer.rules.java_string_equality import JavaStringEquality
 from app.services.static_analyzer.rules.js_triple_equals import JavaScriptTripleEquals
 from app.services.static_analyzer.tests.harness import (
-    RuleTestRunner, module, ident, integer, number_lit,
+    RuleTestRunner, module, ident, integer, number_lit, node,
     binop_node, java_binop, js_binop, java_decimal_int,
 )
 
@@ -46,23 +46,23 @@ def run_tests() -> bool:
     r.must_not_flag("JAVA_DIV_001: x / 1 safe", jv_div, jv_one, "T.java")
     r.must_not_flag("JS_DIV_001: x / 1 safe", js_div, js_one, "f.js")
 
-    # --- 3. DYNAMIC VARIABLE DIVISOR (PY, JAVA, JS) ---
+    # --- 3. DYNAMIC UNKNOWN VARIABLE DIVISOR (PY, JAVA, JS) -> MUST NOT FLAG ---
     py_var = module(binop_node(ident("x"), "/", ident("y")))
     jv_var = module(java_binop(ident("x"), "/", ident("y")))
     js_var = module(js_binop(ident("x"), "/", ident("y")))
 
-    r.must_flag("PY_DIV_001: x / y flagged", py_div, py_var, "f.py")
-    r.must_flag("JAVA_DIV_001: x / y flagged", jv_div, jv_var, "T.java")
-    r.must_flag("JS_DIV_001: x / y flagged", js_div, js_var, "f.js")
+    r.must_not_flag("PY_DIV_001: x / y (unknown) safe", py_div, py_var, "f.py")
+    r.must_not_flag("JAVA_DIV_001: x / y (unknown) safe", jv_div, jv_var, "T.java")
+    r.must_not_flag("JS_DIV_001: x / y (unknown) safe", js_div, js_var, "f.js")
 
     # --- 4. EQUALITY DETECTION CONSISTENCY (JAVA, JS) ---
     jv_eq = JavaStringEquality()
     js_eq = JavaScriptTripleEquals()
 
-    jv_eq_ast = module(java_binop(ident("name"), "==", ident("other")))
+    jv_eq_ast = module(java_binop(ident("name"), "==", node("string_literal", '"other"')))
     js_eq_ast = module(js_binop(ident("name"), "==", ident("other")))
 
-    r.must_flag("JAVA_EQ_001: name == other flagged", jv_eq, jv_eq_ast, "T.java")
+    r.must_flag("JAVA_EQ_001: name == \"other\" flagged", jv_eq, jv_eq_ast, "T.java")
     r.must_flag("JS_EQ_001: name == other flagged", js_eq, js_eq_ast, "f.js")
 
     return r.run()

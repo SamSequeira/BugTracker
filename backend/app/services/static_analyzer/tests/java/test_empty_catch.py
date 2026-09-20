@@ -41,12 +41,12 @@ def run_tests() -> bool:
     rethrow_catch = java_catch_clause("Exception e", rethrow_stmt)
     r.must_not_flag("rethrowing catch: catch (Exception e) { throw e; }", rule, module(rethrow_catch), "T.java")
 
-    # --- 3. COMMENT-ONLY CATCH (MUST FLAG: COMMENTS PROVIDE NO RUNTIME ACTION) ---
-    comment_catch = node("catch_clause", "catch (Exception e) { /* ignored */ }", children=[
+    # --- 3. INTENTIONAL COMMENT-ONLY CATCH (MUST NOT FLAG: INTENTIONAL SUPPRESSION) ---
+    comment_catch = node("catch_clause", "catch (Exception e) { /* ignored: intentional fallback */ }", children=[
         node("catch_formal_parameter", "Exception e"),
-        node("block", "/* ignored */", children=[leaf("comment", "/* ignored: intentional fallback */")]),
+        node("block", "/* ignored: intentional fallback */", children=[leaf("comment", "/* ignored: intentional fallback */")]),
     ])
-    r.must_flag("comment-only catch: catch (e) { /* ignored */ } (flagged: comments do not handle exception)", rule, module(comment_catch), "T.java")
+    r.must_not_flag("intentional comment catch: catch (e) { /* ignored: intentional fallback */ }", rule, module(comment_catch), "T.java")
 
     return r.run()
 

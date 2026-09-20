@@ -1,10 +1,10 @@
 {
   "success": true,
-  "file": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpkmlbtgla.js",
-  "file_name": "tmpkmlbtgla.js",
+  "file": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpex2m6unr.js",
+  "file_name": "tmpex2m6unr.js",
   "extension": ".js",
   "language": "JavaScript",
-  "line_count": 21,
+  "line_count": 22,
   "is_supported": true,
   "ast": {
     "type": "program",
@@ -14,11 +14,11 @@
       "byte": 0
     },
     "end": {
-      "line": 21,
+      "line": 22,
       "column": 0,
-      "byte": 508
+      "byte": 520
     },
-    "text": "function divide(a, b) {\r\n    return a / b;          // bug: no division-by-zero guard\r\n}\r\n\r\nfunction getUser(obj, key) {\r\n    return obj[key].name;  // bug: obj[key] may be undefined\r\n}\r\n\r\nasync function fetchData(url) {\r\n    const res = await fetch(url);\r\n    const data = await res.json();\r\n    return data;           // bug: no error handling\r\n}\r\n\r\nclass Stack {\r\n    constructor() {\r\n        this.items = [];\r\n    }\r\n    push(item) { this.items.push(item); }\r\n    pop()  { return this.items.pop(); }\r\n}\r\n",
+    "text": "function divide(a, b) {\r\n    let x = 10 / 0;        // bug: division by zero\r\n    return a === b;\r\n}\r\n\r\nfunction getUser(obj, key) {\r\n    return obj[key].name;  // bug: obj[key] may be undefined\r\n}\r\n\r\nasync function fetchData(url) {\r\n    const res = await fetch(url);\r\n    const data = await res.json();\r\n    return data;           // bug: no error handling\r\n}\r\n\r\nclass Stack {\r\n    constructor() {\r\n        this.items = [];\r\n    }\r\n    push(item) { this.items.push(item); }\r\n    pop()  { return this.items.pop(); }\r\n}\r\n",
     "children": [
       {
         "type": "function_declaration",
@@ -28,11 +28,11 @@
           "byte": 0
         },
         "end": {
-          "line": 2,
+          "line": 3,
           "column": 1,
-          "byte": 88
+          "byte": 100
         },
-        "text": "function divide(a, b) {\r\n    return a / b;          // bug: no division-by-zero guard\r\n}",
+        "text": "function divide(a, b) {\r\n    let x = 10 / 0;        // bug: division by zero\r\n    return a === b;\r\n}",
         "children": [
           {
             "type": "function",
@@ -163,11 +163,11 @@
               "byte": 22
             },
             "end": {
-              "line": 2,
+              "line": 3,
               "column": 1,
-              "byte": 88
+              "byte": 100
             },
-            "text": "{\r\n    return a / b;          // bug: no division-by-zero guard\r\n}",
+            "text": "{\r\n    let x = 10 / 0;        // bug: division by zero\r\n    return a === b;\r\n}",
             "children": [
               {
                 "type": "{",
@@ -185,7 +185,7 @@
                 "children": []
               },
               {
-                "type": "return_statement",
+                "type": "lexical_declaration",
                 "start": {
                   "line": 1,
                   "column": 4,
@@ -193,13 +193,13 @@
                 },
                 "end": {
                   "line": 1,
-                  "column": 17,
-                  "byte": 42
+                  "column": 19,
+                  "byte": 44
                 },
-                "text": "return a / b;",
+                "text": "let x = 10 / 0;",
                 "children": [
                   {
-                    "type": "return",
+                    "type": "let",
                     "start": {
                       "line": 1,
                       "column": 4,
@@ -207,70 +207,116 @@
                     },
                     "end": {
                       "line": 1,
-                      "column": 10,
-                      "byte": 35
+                      "column": 7,
+                      "byte": 32
                     },
-                    "text": "return",
+                    "text": "let",
                     "children": []
                   },
                   {
-                    "type": "binary_expression",
+                    "type": "variable_declarator",
                     "start": {
                       "line": 1,
-                      "column": 11,
-                      "byte": 36
+                      "column": 8,
+                      "byte": 33
                     },
                     "end": {
                       "line": 1,
-                      "column": 16,
-                      "byte": 41
+                      "column": 18,
+                      "byte": 43
                     },
-                    "text": "a / b",
+                    "text": "x = 10 / 0",
                     "children": [
                       {
                         "type": "identifier",
                         "start": {
                           "line": 1,
+                          "column": 8,
+                          "byte": 33
+                        },
+                        "end": {
+                          "line": 1,
+                          "column": 9,
+                          "byte": 34
+                        },
+                        "text": "x",
+                        "children": []
+                      },
+                      {
+                        "type": "=",
+                        "start": {
+                          "line": 1,
+                          "column": 10,
+                          "byte": 35
+                        },
+                        "end": {
+                          "line": 1,
                           "column": 11,
                           "byte": 36
                         },
-                        "end": {
+                        "text": "=",
+                        "children": []
+                      },
+                      {
+                        "type": "binary_expression",
+                        "start": {
                           "line": 1,
                           "column": 12,
                           "byte": 37
                         },
-                        "text": "a",
-                        "children": []
-                      },
-                      {
-                        "type": "/",
-                        "start": {
-                          "line": 1,
-                          "column": 13,
-                          "byte": 38
-                        },
                         "end": {
                           "line": 1,
-                          "column": 14,
-                          "byte": 39
+                          "column": 18,
+                          "byte": 43
                         },
-                        "text": "/",
-                        "children": []
-                      },
-                      {
-                        "type": "identifier",
-                        "start": {
-                          "line": 1,
-                          "column": 15,
-                          "byte": 40
-                        },
-                        "end": {
-                          "line": 1,
-                          "column": 16,
-                          "byte": 41
-                        },
-                        "text": "b",
-                        "children": []
+                        "text": "10 / 0",
+                        "children": [
+                          {
+                            "type": "number",
+                            "start": {
+                              "line": 1,
+                              "column": 12,
+                              "byte": 37
+                            },
+                            "end": {
+                              "line": 1,
+                              "column": 14,
+                              "byte": 39
+                            },
+                            "text": "10",
+                            "children": []
+                          },
+                          {
+                            "type": "/",
+                            "start": {
+                              "line": 1,
+                              "column": 15,
+                              "byte": 40
+                            },
+                            "end": {
+                              "line": 1,
+                              "column": 16,
+                              "byte": 41
+                            },
+                            "text": "/",
+                            "children": []
+                          },
+                          {
+                            "type": "number",
+                            "start": {
+                              "line": 1,
+                              "column": 17,
+                              "byte": 42
+                            },
+                            "end": {
+                              "line": 1,
+                              "column": 18,
+                              "byte": 43
+                            },
+                            "text": "0",
+                            "children": []
+                          }
+                        ]
                       }
                     ]
                   },
@@ -278,13 +324,13 @@
                     "type": ";",
                     "start": {
                       "line": 1,
-                      "column": 16,
-                      "byte": 41
+                      "column": 18,
+                      "byte": 43
                     },
                     "end": {
                       "line": 1,
-                      "column": 17,
-                      "byte": 42
+                      "column": 19,
+                      "byte": 44
                     },
                     "text": ";",
                     "children": []
@@ -300,23 +346,130 @@
                 },
                 "end": {
                   "line": 1,
-                  "column": 60,
-                  "byte": 85
+                  "column": 51,
+                  "byte": 76
                 },
-                "text": "// bug: no division-by-zero guard",
+                "text": "// bug: division by zero",
                 "children": []
+              },
+              {
+                "type": "return_statement",
+                "start": {
+                  "line": 2,
+                  "column": 4,
+                  "byte": 82
+                },
+                "end": {
+                  "line": 2,
+                  "column": 19,
+                  "byte": 97
+                },
+                "text": "return a === b;",
+                "children": [
+                  {
+                    "type": "return",
+                    "start": {
+                      "line": 2,
+                      "column": 4,
+                      "byte": 82
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": 10,
+                      "byte": 88
+                    },
+                    "text": "return",
+                    "children": []
+                  },
+                  {
+                    "type": "binary_expression",
+                    "start": {
+                      "line": 2,
+                      "column": 11,
+                      "byte": 89
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": 18,
+                      "byte": 96
+                    },
+                    "text": "a === b",
+                    "children": [
+                      {
+                        "type": "identifier",
+                        "start": {
+                          "line": 2,
+                          "column": 11,
+                          "byte": 89
+                        },
+                        "end": {
+                          "line": 2,
+                          "column": 12,
+                          "byte": 90
+                        },
+                        "text": "a",
+                        "children": []
+                      },
+                      {
+                        "type": "===",
+                        "start": {
+                          "line": 2,
+                          "column": 13,
+                          "byte": 91
+                        },
+                        "end": {
+                          "line": 2,
+                          "column": 16,
+                          "byte": 94
+                        },
+                        "text": "===",
+                        "children": []
+                      },
+                      {
+                        "type": "identifier",
+                        "start": {
+                          "line": 2,
+                          "column": 17,
+                          "byte": 95
+                        },
+                        "end": {
+                          "line": 2,
+                          "column": 18,
+                          "byte": 96
+                        },
+                        "text": "b",
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "type": ";",
+                    "start": {
+                      "line": 2,
+                      "column": 18,
+                      "byte": 96
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": 19,
+                      "byte": 97
+                    },
+                    "text": ";",
+                    "children": []
+                  }
+                ]
               },
               {
                 "type": "}",
                 "start": {
-                  "line": 2,
+                  "line": 3,
                   "column": 0,
-                  "byte": 87
+                  "byte": 99
                 },
                 "end": {
-                  "line": 2,
+                  "line": 3,
                   "column": 1,
-                  "byte": 88
+                  "byte": 100
                 },
                 "text": "}",
                 "children": []
@@ -328,28 +481,28 @@
       {
         "type": "function_declaration",
         "start": {
-          "line": 4,
+          "line": 5,
           "column": 0,
-          "byte": 92
+          "byte": 104
         },
         "end": {
-          "line": 6,
+          "line": 7,
           "column": 1,
-          "byte": 185
+          "byte": 197
         },
         "text": "function getUser(obj, key) {\r\n    return obj[key].name;  // bug: obj[key] may be undefined\r\n}",
         "children": [
           {
             "type": "function",
             "start": {
-              "line": 4,
+              "line": 5,
               "column": 0,
-              "byte": 92
+              "byte": 104
             },
             "end": {
-              "line": 4,
+              "line": 5,
               "column": 8,
-              "byte": 100
+              "byte": 112
             },
             "text": "function",
             "children": []
@@ -357,14 +510,14 @@
           {
             "type": "identifier",
             "start": {
-              "line": 4,
+              "line": 5,
               "column": 9,
-              "byte": 101
+              "byte": 113
             },
             "end": {
-              "line": 4,
+              "line": 5,
               "column": 16,
-              "byte": 108
+              "byte": 120
             },
             "text": "getUser",
             "children": []
@@ -372,28 +525,28 @@
           {
             "type": "formal_parameters",
             "start": {
-              "line": 4,
+              "line": 5,
               "column": 16,
-              "byte": 108
+              "byte": 120
             },
             "end": {
-              "line": 4,
+              "line": 5,
               "column": 26,
-              "byte": 118
+              "byte": 130
             },
             "text": "(obj, key)",
             "children": [
               {
                 "type": "(",
                 "start": {
-                  "line": 4,
+                  "line": 5,
                   "column": 16,
-                  "byte": 108
+                  "byte": 120
                 },
                 "end": {
-                  "line": 4,
+                  "line": 5,
                   "column": 17,
-                  "byte": 109
+                  "byte": 121
                 },
                 "text": "(",
                 "children": []
@@ -401,14 +554,14 @@
               {
                 "type": "identifier",
                 "start": {
-                  "line": 4,
+                  "line": 5,
                   "column": 17,
-                  "byte": 109
+                  "byte": 121
                 },
                 "end": {
-                  "line": 4,
+                  "line": 5,
                   "column": 20,
-                  "byte": 112
+                  "byte": 124
                 },
                 "text": "obj",
                 "children": []
@@ -416,14 +569,14 @@
               {
                 "type": ",",
                 "start": {
-                  "line": 4,
+                  "line": 5,
                   "column": 20,
-                  "byte": 112
+                  "byte": 124
                 },
                 "end": {
-                  "line": 4,
+                  "line": 5,
                   "column": 21,
-                  "byte": 113
+                  "byte": 125
                 },
                 "text": ",",
                 "children": []
@@ -431,14 +584,14 @@
               {
                 "type": "identifier",
                 "start": {
-                  "line": 4,
+                  "line": 5,
                   "column": 22,
-                  "byte": 114
+                  "byte": 126
                 },
                 "end": {
-                  "line": 4,
+                  "line": 5,
                   "column": 25,
-                  "byte": 117
+                  "byte": 129
                 },
                 "text": "key",
                 "children": []
@@ -446,14 +599,14 @@
               {
                 "type": ")",
                 "start": {
-                  "line": 4,
+                  "line": 5,
                   "column": 25,
-                  "byte": 117
+                  "byte": 129
                 },
                 "end": {
-                  "line": 4,
+                  "line": 5,
                   "column": 26,
-                  "byte": 118
+                  "byte": 130
                 },
                 "text": ")",
                 "children": []
@@ -463,28 +616,28 @@
           {
             "type": "statement_block",
             "start": {
-              "line": 4,
+              "line": 5,
               "column": 27,
-              "byte": 119
+              "byte": 131
             },
             "end": {
-              "line": 6,
+              "line": 7,
               "column": 1,
-              "byte": 185
+              "byte": 197
             },
             "text": "{\r\n    return obj[key].name;  // bug: obj[key] may be undefined\r\n}",
             "children": [
               {
                 "type": "{",
                 "start": {
-                  "line": 4,
+                  "line": 5,
                   "column": 27,
-                  "byte": 119
+                  "byte": 131
                 },
                 "end": {
-                  "line": 4,
+                  "line": 5,
                   "column": 28,
-                  "byte": 120
+                  "byte": 132
                 },
                 "text": "{",
                 "children": []
@@ -492,28 +645,28 @@
               {
                 "type": "return_statement",
                 "start": {
-                  "line": 5,
+                  "line": 6,
                   "column": 4,
-                  "byte": 126
+                  "byte": 138
                 },
                 "end": {
-                  "line": 5,
+                  "line": 6,
                   "column": 25,
-                  "byte": 147
+                  "byte": 159
                 },
                 "text": "return obj[key].name;",
                 "children": [
                   {
                     "type": "return",
                     "start": {
-                      "line": 5,
+                      "line": 6,
                       "column": 4,
-                      "byte": 126
+                      "byte": 138
                     },
                     "end": {
-                      "line": 5,
+                      "line": 6,
                       "column": 10,
-                      "byte": 132
+                      "byte": 144
                     },
                     "text": "return",
                     "children": []
@@ -521,42 +674,42 @@
                   {
                     "type": "member_expression",
                     "start": {
-                      "line": 5,
+                      "line": 6,
                       "column": 11,
-                      "byte": 133
+                      "byte": 145
                     },
                     "end": {
-                      "line": 5,
+                      "line": 6,
                       "column": 24,
-                      "byte": 146
+                      "byte": 158
                     },
                     "text": "obj[key].name",
                     "children": [
                       {
                         "type": "subscript_expression",
                         "start": {
-                          "line": 5,
+                          "line": 6,
                           "column": 11,
-                          "byte": 133
+                          "byte": 145
                         },
                         "end": {
-                          "line": 5,
+                          "line": 6,
                           "column": 19,
-                          "byte": 141
+                          "byte": 153
                         },
                         "text": "obj[key]",
                         "children": [
                           {
                             "type": "identifier",
                             "start": {
-                              "line": 5,
+                              "line": 6,
                               "column": 11,
-                              "byte": 133
+                              "byte": 145
                             },
                             "end": {
-                              "line": 5,
+                              "line": 6,
                               "column": 14,
-                              "byte": 136
+                              "byte": 148
                             },
                             "text": "obj",
                             "children": []
@@ -564,14 +717,14 @@
                           {
                             "type": "[",
                             "start": {
-                              "line": 5,
+                              "line": 6,
                               "column": 14,
-                              "byte": 136
+                              "byte": 148
                             },
                             "end": {
-                              "line": 5,
+                              "line": 6,
                               "column": 15,
-                              "byte": 137
+                              "byte": 149
                             },
                             "text": "[",
                             "children": []
@@ -579,14 +732,14 @@
                           {
                             "type": "identifier",
                             "start": {
-                              "line": 5,
+                              "line": 6,
                               "column": 15,
-                              "byte": 137
+                              "byte": 149
                             },
                             "end": {
-                              "line": 5,
+                              "line": 6,
                               "column": 18,
-                              "byte": 140
+                              "byte": 152
                             },
                             "text": "key",
                             "children": []
@@ -594,14 +747,14 @@
                           {
                             "type": "]",
                             "start": {
-                              "line": 5,
+                              "line": 6,
                               "column": 18,
-                              "byte": 140
+                              "byte": 152
                             },
                             "end": {
-                              "line": 5,
+                              "line": 6,
                               "column": 19,
-                              "byte": 141
+                              "byte": 153
                             },
                             "text": "]",
                             "children": []
@@ -611,14 +764,14 @@
                       {
                         "type": ".",
                         "start": {
-                          "line": 5,
+                          "line": 6,
                           "column": 19,
-                          "byte": 141
+                          "byte": 153
                         },
                         "end": {
-                          "line": 5,
+                          "line": 6,
                           "column": 20,
-                          "byte": 142
+                          "byte": 154
                         },
                         "text": ".",
                         "children": []
@@ -626,14 +779,14 @@
                       {
                         "type": "property_identifier",
                         "start": {
-                          "line": 5,
+                          "line": 6,
                           "column": 20,
-                          "byte": 142
+                          "byte": 154
                         },
                         "end": {
-                          "line": 5,
+                          "line": 6,
                           "column": 24,
-                          "byte": 146
+                          "byte": 158
                         },
                         "text": "name",
                         "children": []
@@ -643,14 +796,14 @@
                   {
                     "type": ";",
                     "start": {
-                      "line": 5,
+                      "line": 6,
                       "column": 24,
-                      "byte": 146
+                      "byte": 158
                     },
                     "end": {
-                      "line": 5,
+                      "line": 6,
                       "column": 25,
-                      "byte": 147
+                      "byte": 159
                     },
                     "text": ";",
                     "children": []
@@ -660,14 +813,14 @@
               {
                 "type": "comment",
                 "start": {
-                  "line": 5,
+                  "line": 6,
                   "column": 27,
-                  "byte": 149
+                  "byte": 161
                 },
                 "end": {
-                  "line": 5,
+                  "line": 6,
                   "column": 60,
-                  "byte": 182
+                  "byte": 194
                 },
                 "text": "// bug: obj[key] may be undefined",
                 "children": []
@@ -675,14 +828,14 @@
               {
                 "type": "}",
                 "start": {
-                  "line": 6,
+                  "line": 7,
                   "column": 0,
-                  "byte": 184
+                  "byte": 196
                 },
                 "end": {
-                  "line": 6,
+                  "line": 7,
                   "column": 1,
-                  "byte": 185
+                  "byte": 197
                 },
                 "text": "}",
                 "children": []
@@ -694,28 +847,28 @@
       {
         "type": "function_declaration",
         "start": {
-          "line": 8,
+          "line": 9,
           "column": 0,
-          "byte": 189
+          "byte": 201
         },
         "end": {
-          "line": 12,
+          "line": 13,
           "column": 1,
-          "byte": 348
+          "byte": 360
         },
         "text": "async function fetchData(url) {\r\n    const res = await fetch(url);\r\n    const data = await res.json();\r\n    return data;           // bug: no error handling\r\n}",
         "children": [
           {
             "type": "async",
             "start": {
-              "line": 8,
+              "line": 9,
               "column": 0,
-              "byte": 189
+              "byte": 201
             },
             "end": {
-              "line": 8,
+              "line": 9,
               "column": 5,
-              "byte": 194
+              "byte": 206
             },
             "text": "async",
             "children": []
@@ -723,14 +876,14 @@
           {
             "type": "function",
             "start": {
-              "line": 8,
+              "line": 9,
               "column": 6,
-              "byte": 195
+              "byte": 207
             },
             "end": {
-              "line": 8,
+              "line": 9,
               "column": 14,
-              "byte": 203
+              "byte": 215
             },
             "text": "function",
             "children": []
@@ -738,14 +891,14 @@
           {
             "type": "identifier",
             "start": {
-              "line": 8,
+              "line": 9,
               "column": 15,
-              "byte": 204
+              "byte": 216
             },
             "end": {
-              "line": 8,
+              "line": 9,
               "column": 24,
-              "byte": 213
+              "byte": 225
             },
             "text": "fetchData",
             "children": []
@@ -753,28 +906,28 @@
           {
             "type": "formal_parameters",
             "start": {
-              "line": 8,
+              "line": 9,
               "column": 24,
-              "byte": 213
+              "byte": 225
             },
             "end": {
-              "line": 8,
+              "line": 9,
               "column": 29,
-              "byte": 218
+              "byte": 230
             },
             "text": "(url)",
             "children": [
               {
                 "type": "(",
                 "start": {
-                  "line": 8,
+                  "line": 9,
                   "column": 24,
-                  "byte": 213
+                  "byte": 225
                 },
                 "end": {
-                  "line": 8,
+                  "line": 9,
                   "column": 25,
-                  "byte": 214
+                  "byte": 226
                 },
                 "text": "(",
                 "children": []
@@ -782,14 +935,14 @@
               {
                 "type": "identifier",
                 "start": {
-                  "line": 8,
+                  "line": 9,
                   "column": 25,
-                  "byte": 214
+                  "byte": 226
                 },
                 "end": {
-                  "line": 8,
+                  "line": 9,
                   "column": 28,
-                  "byte": 217
+                  "byte": 229
                 },
                 "text": "url",
                 "children": []
@@ -797,14 +950,14 @@
               {
                 "type": ")",
                 "start": {
-                  "line": 8,
+                  "line": 9,
                   "column": 28,
-                  "byte": 217
+                  "byte": 229
                 },
                 "end": {
-                  "line": 8,
+                  "line": 9,
                   "column": 29,
-                  "byte": 218
+                  "byte": 230
                 },
                 "text": ")",
                 "children": []
@@ -814,28 +967,28 @@
           {
             "type": "statement_block",
             "start": {
-              "line": 8,
+              "line": 9,
               "column": 30,
-              "byte": 219
+              "byte": 231
             },
             "end": {
-              "line": 12,
+              "line": 13,
               "column": 1,
-              "byte": 348
+              "byte": 360
             },
             "text": "{\r\n    const res = await fetch(url);\r\n    const data = await res.json();\r\n    return data;           // bug: no error handling\r\n}",
             "children": [
               {
                 "type": "{",
                 "start": {
-                  "line": 8,
+                  "line": 9,
                   "column": 30,
-                  "byte": 219
+                  "byte": 231
                 },
                 "end": {
-                  "line": 8,
+                  "line": 9,
                   "column": 31,
-                  "byte": 220
+                  "byte": 232
                 },
                 "text": "{",
                 "children": []
@@ -843,28 +996,28 @@
               {
                 "type": "lexical_declaration",
                 "start": {
-                  "line": 9,
+                  "line": 10,
                   "column": 4,
-                  "byte": 226
+                  "byte": 238
                 },
                 "end": {
-                  "line": 9,
+                  "line": 10,
                   "column": 33,
-                  "byte": 255
+                  "byte": 267
                 },
                 "text": "const res = await fetch(url);",
                 "children": [
                   {
                     "type": "const",
                     "start": {
-                      "line": 9,
+                      "line": 10,
                       "column": 4,
-                      "byte": 226
+                      "byte": 238
                     },
                     "end": {
-                      "line": 9,
+                      "line": 10,
                       "column": 9,
-                      "byte": 231
+                      "byte": 243
                     },
                     "text": "const",
                     "children": []
@@ -872,28 +1025,28 @@
                   {
                     "type": "variable_declarator",
                     "start": {
-                      "line": 9,
+                      "line": 10,
                       "column": 10,
-                      "byte": 232
+                      "byte": 244
                     },
                     "end": {
-                      "line": 9,
+                      "line": 10,
                       "column": 32,
-                      "byte": 254
+                      "byte": 266
                     },
                     "text": "res = await fetch(url)",
                     "children": [
                       {
                         "type": "identifier",
                         "start": {
-                          "line": 9,
+                          "line": 10,
                           "column": 10,
-                          "byte": 232
+                          "byte": 244
                         },
                         "end": {
-                          "line": 9,
+                          "line": 10,
                           "column": 13,
-                          "byte": 235
+                          "byte": 247
                         },
                         "text": "res",
                         "children": []
@@ -901,14 +1054,14 @@
                       {
                         "type": "=",
                         "start": {
-                          "line": 9,
+                          "line": 10,
                           "column": 14,
-                          "byte": 236
+                          "byte": 248
                         },
                         "end": {
-                          "line": 9,
+                          "line": 10,
                           "column": 15,
-                          "byte": 237
+                          "byte": 249
                         },
                         "text": "=",
                         "children": []
@@ -916,28 +1069,28 @@
                       {
                         "type": "await_expression",
                         "start": {
-                          "line": 9,
+                          "line": 10,
                           "column": 16,
-                          "byte": 238
+                          "byte": 250
                         },
                         "end": {
-                          "line": 9,
+                          "line": 10,
                           "column": 32,
-                          "byte": 254
+                          "byte": 266
                         },
                         "text": "await fetch(url)",
                         "children": [
                           {
                             "type": "await",
                             "start": {
-                              "line": 9,
+                              "line": 10,
                               "column": 16,
-                              "byte": 238
+                              "byte": 250
                             },
                             "end": {
-                              "line": 9,
+                              "line": 10,
                               "column": 21,
-                              "byte": 243
+                              "byte": 255
                             },
                             "text": "await",
                             "children": []
@@ -945,28 +1098,28 @@
                           {
                             "type": "call_expression",
                             "start": {
-                              "line": 9,
+                              "line": 10,
                               "column": 22,
-                              "byte": 244
+                              "byte": 256
                             },
                             "end": {
-                              "line": 9,
+                              "line": 10,
                               "column": 32,
-                              "byte": 254
+                              "byte": 266
                             },
                             "text": "fetch(url)",
                             "children": [
                               {
                                 "type": "identifier",
                                 "start": {
-                                  "line": 9,
+                                  "line": 10,
                                   "column": 22,
-                                  "byte": 244
+                                  "byte": 256
                                 },
                                 "end": {
-                                  "line": 9,
+                                  "line": 10,
                                   "column": 27,
-                                  "byte": 249
+                                  "byte": 261
                                 },
                                 "text": "fetch",
                                 "children": []
@@ -974,28 +1127,28 @@
                               {
                                 "type": "arguments",
                                 "start": {
-                                  "line": 9,
+                                  "line": 10,
                                   "column": 27,
-                                  "byte": 249
+                                  "byte": 261
                                 },
                                 "end": {
-                                  "line": 9,
+                                  "line": 10,
                                   "column": 32,
-                                  "byte": 254
+                                  "byte": 266
                                 },
                                 "text": "(url)",
                                 "children": [
                                   {
                                     "type": "(",
                                     "start": {
-                                      "line": 9,
+                                      "line": 10,
                                       "column": 27,
-                                      "byte": 249
+                                      "byte": 261
                                     },
                                     "end": {
-                                      "line": 9,
+                                      "line": 10,
                                       "column": 28,
-                                      "byte": 250
+                                      "byte": 262
                                     },
                                     "text": "(",
                                     "children": []
@@ -1003,14 +1156,14 @@
                                   {
                                     "type": "identifier",
                                     "start": {
-                                      "line": 9,
+                                      "line": 10,
                                       "column": 28,
-                                      "byte": 250
+                                      "byte": 262
                                     },
                                     "end": {
-                                      "line": 9,
+                                      "line": 10,
                                       "column": 31,
-                                      "byte": 253
+                                      "byte": 265
                                     },
                                     "text": "url",
                                     "children": []
@@ -1018,14 +1171,14 @@
                                   {
                                     "type": ")",
                                     "start": {
-                                      "line": 9,
+                                      "line": 10,
                                       "column": 31,
-                                      "byte": 253
+                                      "byte": 265
                                     },
                                     "end": {
-                                      "line": 9,
+                                      "line": 10,
                                       "column": 32,
-                                      "byte": 254
+                                      "byte": 266
                                     },
                                     "text": ")",
                                     "children": []
@@ -1041,14 +1194,14 @@
                   {
                     "type": ";",
                     "start": {
-                      "line": 9,
+                      "line": 10,
                       "column": 32,
-                      "byte": 254
+                      "byte": 266
                     },
                     "end": {
-                      "line": 9,
+                      "line": 10,
                       "column": 33,
-                      "byte": 255
+                      "byte": 267
                     },
                     "text": ";",
                     "children": []
@@ -1058,28 +1211,28 @@
               {
                 "type": "lexical_declaration",
                 "start": {
-                  "line": 10,
+                  "line": 11,
                   "column": 4,
-                  "byte": 261
+                  "byte": 273
                 },
                 "end": {
-                  "line": 10,
+                  "line": 11,
                   "column": 34,
-                  "byte": 291
+                  "byte": 303
                 },
                 "text": "const data = await res.json();",
                 "children": [
                   {
                     "type": "const",
                     "start": {
-                      "line": 10,
+                      "line": 11,
                       "column": 4,
-                      "byte": 261
+                      "byte": 273
                     },
                     "end": {
-                      "line": 10,
+                      "line": 11,
                       "column": 9,
-                      "byte": 266
+                      "byte": 278
                     },
                     "text": "const",
                     "children": []
@@ -1087,28 +1240,28 @@
                   {
                     "type": "variable_declarator",
                     "start": {
-                      "line": 10,
+                      "line": 11,
                       "column": 10,
-                      "byte": 267
+                      "byte": 279
                     },
                     "end": {
-                      "line": 10,
+                      "line": 11,
                       "column": 33,
-                      "byte": 290
+                      "byte": 302
                     },
                     "text": "data = await res.json()",
                     "children": [
                       {
                         "type": "identifier",
                         "start": {
-                          "line": 10,
+                          "line": 11,
                           "column": 10,
-                          "byte": 267
+                          "byte": 279
                         },
                         "end": {
-                          "line": 10,
+                          "line": 11,
                           "column": 14,
-                          "byte": 271
+                          "byte": 283
                         },
                         "text": "data",
                         "children": []
@@ -1116,14 +1269,14 @@
                       {
                         "type": "=",
                         "start": {
-                          "line": 10,
+                          "line": 11,
                           "column": 15,
-                          "byte": 272
+                          "byte": 284
                         },
                         "end": {
-                          "line": 10,
+                          "line": 11,
                           "column": 16,
-                          "byte": 273
+                          "byte": 285
                         },
                         "text": "=",
                         "children": []
@@ -1131,28 +1284,28 @@
                       {
                         "type": "await_expression",
                         "start": {
-                          "line": 10,
+                          "line": 11,
                           "column": 17,
-                          "byte": 274
+                          "byte": 286
                         },
                         "end": {
-                          "line": 10,
+                          "line": 11,
                           "column": 33,
-                          "byte": 290
+                          "byte": 302
                         },
                         "text": "await res.json()",
                         "children": [
                           {
                             "type": "await",
                             "start": {
-                              "line": 10,
+                              "line": 11,
                               "column": 17,
-                              "byte": 274
+                              "byte": 286
                             },
                             "end": {
-                              "line": 10,
+                              "line": 11,
                               "column": 22,
-                              "byte": 279
+                              "byte": 291
                             },
                             "text": "await",
                             "children": []
@@ -1160,42 +1313,42 @@
                           {
                             "type": "call_expression",
                             "start": {
-                              "line": 10,
+                              "line": 11,
                               "column": 23,
-                              "byte": 280
+                              "byte": 292
                             },
                             "end": {
-                              "line": 10,
+                              "line": 11,
                               "column": 33,
-                              "byte": 290
+                              "byte": 302
                             },
                             "text": "res.json()",
                             "children": [
                               {
                                 "type": "member_expression",
                                 "start": {
-                                  "line": 10,
+                                  "line": 11,
                                   "column": 23,
-                                  "byte": 280
+                                  "byte": 292
                                 },
                                 "end": {
-                                  "line": 10,
+                                  "line": 11,
                                   "column": 31,
-                                  "byte": 288
+                                  "byte": 300
                                 },
                                 "text": "res.json",
                                 "children": [
                                   {
                                     "type": "identifier",
                                     "start": {
-                                      "line": 10,
+                                      "line": 11,
                                       "column": 23,
-                                      "byte": 280
+                                      "byte": 292
                                     },
                                     "end": {
-                                      "line": 10,
+                                      "line": 11,
                                       "column": 26,
-                                      "byte": 283
+                                      "byte": 295
                                     },
                                     "text": "res",
                                     "children": []
@@ -1203,14 +1356,14 @@
                                   {
                                     "type": ".",
                                     "start": {
-                                      "line": 10,
+                                      "line": 11,
                                       "column": 26,
-                                      "byte": 283
+                                      "byte": 295
                                     },
                                     "end": {
-                                      "line": 10,
+                                      "line": 11,
                                       "column": 27,
-                                      "byte": 284
+                                      "byte": 296
                                     },
                                     "text": ".",
                                     "children": []
@@ -1218,14 +1371,14 @@
                                   {
                                     "type": "property_identifier",
                                     "start": {
-                                      "line": 10,
+                                      "line": 11,
                                       "column": 27,
-                                      "byte": 284
+                                      "byte": 296
                                     },
                                     "end": {
-                                      "line": 10,
+                                      "line": 11,
                                       "column": 31,
-                                      "byte": 288
+                                      "byte": 300
                                     },
                                     "text": "json",
                                     "children": []
@@ -1235,28 +1388,28 @@
                               {
                                 "type": "arguments",
                                 "start": {
-                                  "line": 10,
+                                  "line": 11,
                                   "column": 31,
-                                  "byte": 288
+                                  "byte": 300
                                 },
                                 "end": {
-                                  "line": 10,
+                                  "line": 11,
                                   "column": 33,
-                                  "byte": 290
+                                  "byte": 302
                                 },
                                 "text": "()",
                                 "children": [
                                   {
                                     "type": "(",
                                     "start": {
-                                      "line": 10,
+                                      "line": 11,
                                       "column": 31,
-                                      "byte": 288
+                                      "byte": 300
                                     },
                                     "end": {
-                                      "line": 10,
+                                      "line": 11,
                                       "column": 32,
-                                      "byte": 289
+                                      "byte": 301
                                     },
                                     "text": "(",
                                     "children": []
@@ -1264,14 +1417,14 @@
                                   {
                                     "type": ")",
                                     "start": {
-                                      "line": 10,
+                                      "line": 11,
                                       "column": 32,
-                                      "byte": 289
+                                      "byte": 301
                                     },
                                     "end": {
-                                      "line": 10,
+                                      "line": 11,
                                       "column": 33,
-                                      "byte": 290
+                                      "byte": 302
                                     },
                                     "text": ")",
                                     "children": []
@@ -1287,14 +1440,14 @@
                   {
                     "type": ";",
                     "start": {
-                      "line": 10,
+                      "line": 11,
                       "column": 33,
-                      "byte": 290
+                      "byte": 302
                     },
                     "end": {
-                      "line": 10,
+                      "line": 11,
                       "column": 34,
-                      "byte": 291
+                      "byte": 303
                     },
                     "text": ";",
                     "children": []
@@ -1304,28 +1457,28 @@
               {
                 "type": "return_statement",
                 "start": {
-                  "line": 11,
+                  "line": 12,
                   "column": 4,
-                  "byte": 297
+                  "byte": 309
                 },
                 "end": {
-                  "line": 11,
+                  "line": 12,
                   "column": 16,
-                  "byte": 309
+                  "byte": 321
                 },
                 "text": "return data;",
                 "children": [
                   {
                     "type": "return",
                     "start": {
-                      "line": 11,
+                      "line": 12,
                       "column": 4,
-                      "byte": 297
+                      "byte": 309
                     },
                     "end": {
-                      "line": 11,
+                      "line": 12,
                       "column": 10,
-                      "byte": 303
+                      "byte": 315
                     },
                     "text": "return",
                     "children": []
@@ -1333,14 +1486,14 @@
                   {
                     "type": "identifier",
                     "start": {
-                      "line": 11,
+                      "line": 12,
                       "column": 11,
-                      "byte": 304
+                      "byte": 316
                     },
                     "end": {
-                      "line": 11,
+                      "line": 12,
                       "column": 15,
-                      "byte": 308
+                      "byte": 320
                     },
                     "text": "data",
                     "children": []
@@ -1348,14 +1501,14 @@
                   {
                     "type": ";",
                     "start": {
-                      "line": 11,
+                      "line": 12,
                       "column": 15,
-                      "byte": 308
+                      "byte": 320
                     },
                     "end": {
-                      "line": 11,
+                      "line": 12,
                       "column": 16,
-                      "byte": 309
+                      "byte": 321
                     },
                     "text": ";",
                     "children": []
@@ -1365,14 +1518,14 @@
               {
                 "type": "comment",
                 "start": {
-                  "line": 11,
+                  "line": 12,
                   "column": 27,
-                  "byte": 320
+                  "byte": 332
                 },
                 "end": {
-                  "line": 11,
+                  "line": 12,
                   "column": 52,
-                  "byte": 345
+                  "byte": 357
                 },
                 "text": "// bug: no error handling",
                 "children": []
@@ -1380,14 +1533,14 @@
               {
                 "type": "}",
                 "start": {
-                  "line": 12,
+                  "line": 13,
                   "column": 0,
-                  "byte": 347
+                  "byte": 359
                 },
                 "end": {
-                  "line": 12,
+                  "line": 13,
                   "column": 1,
-                  "byte": 348
+                  "byte": 360
                 },
                 "text": "}",
                 "children": []
@@ -1399,28 +1552,28 @@
       {
         "type": "class_declaration",
         "start": {
-          "line": 14,
+          "line": 15,
           "column": 0,
-          "byte": 352
+          "byte": 364
         },
         "end": {
-          "line": 20,
+          "line": 21,
           "column": 1,
-          "byte": 506
+          "byte": 518
         },
         "text": "class Stack {\r\n    constructor() {\r\n        this.items = [];\r\n    }\r\n    push(item) { this.items.push(item); }\r\n    pop()  { return this.items.pop(); }\r\n}",
         "children": [
           {
             "type": "class",
             "start": {
-              "line": 14,
+              "line": 15,
               "column": 0,
-              "byte": 352
+              "byte": 364
             },
             "end": {
-              "line": 14,
+              "line": 15,
               "column": 5,
-              "byte": 357
+              "byte": 369
             },
             "text": "class",
             "children": []
@@ -1428,14 +1581,14 @@
           {
             "type": "identifier",
             "start": {
-              "line": 14,
+              "line": 15,
               "column": 6,
-              "byte": 358
+              "byte": 370
             },
             "end": {
-              "line": 14,
+              "line": 15,
               "column": 11,
-              "byte": 363
+              "byte": 375
             },
             "text": "Stack",
             "children": []
@@ -1443,28 +1596,28 @@
           {
             "type": "class_body",
             "start": {
-              "line": 14,
+              "line": 15,
               "column": 12,
-              "byte": 364
+              "byte": 376
             },
             "end": {
-              "line": 20,
+              "line": 21,
               "column": 1,
-              "byte": 506
+              "byte": 518
             },
             "text": "{\r\n    constructor() {\r\n        this.items = [];\r\n    }\r\n    push(item) { this.items.push(item); }\r\n    pop()  { return this.items.pop(); }\r\n}",
             "children": [
               {
                 "type": "{",
                 "start": {
-                  "line": 14,
+                  "line": 15,
                   "column": 12,
-                  "byte": 364
+                  "byte": 376
                 },
                 "end": {
-                  "line": 14,
+                  "line": 15,
                   "column": 13,
-                  "byte": 365
+                  "byte": 377
                 },
                 "text": "{",
                 "children": []
@@ -1472,28 +1625,28 @@
               {
                 "type": "method_definition",
                 "start": {
-                  "line": 15,
+                  "line": 16,
                   "column": 4,
-                  "byte": 371
+                  "byte": 383
                 },
                 "end": {
-                  "line": 17,
+                  "line": 18,
                   "column": 5,
-                  "byte": 419
+                  "byte": 431
                 },
                 "text": "constructor() {\r\n        this.items = [];\r\n    }",
                 "children": [
                   {
                     "type": "property_identifier",
                     "start": {
-                      "line": 15,
+                      "line": 16,
                       "column": 4,
-                      "byte": 371
+                      "byte": 383
                     },
                     "end": {
-                      "line": 15,
+                      "line": 16,
                       "column": 15,
-                      "byte": 382
+                      "byte": 394
                     },
                     "text": "constructor",
                     "children": []
@@ -1501,28 +1654,28 @@
                   {
                     "type": "formal_parameters",
                     "start": {
-                      "line": 15,
+                      "line": 16,
                       "column": 15,
-                      "byte": 382
+                      "byte": 394
                     },
                     "end": {
-                      "line": 15,
+                      "line": 16,
                       "column": 17,
-                      "byte": 384
+                      "byte": 396
                     },
                     "text": "()",
                     "children": [
                       {
                         "type": "(",
                         "start": {
-                          "line": 15,
+                          "line": 16,
                           "column": 15,
-                          "byte": 382
+                          "byte": 394
                         },
                         "end": {
-                          "line": 15,
+                          "line": 16,
                           "column": 16,
-                          "byte": 383
+                          "byte": 395
                         },
                         "text": "(",
                         "children": []
@@ -1530,14 +1683,14 @@
                       {
                         "type": ")",
                         "start": {
-                          "line": 15,
+                          "line": 16,
                           "column": 16,
-                          "byte": 383
+                          "byte": 395
                         },
                         "end": {
-                          "line": 15,
+                          "line": 16,
                           "column": 17,
-                          "byte": 384
+                          "byte": 396
                         },
                         "text": ")",
                         "children": []
@@ -1547,28 +1700,28 @@
                   {
                     "type": "statement_block",
                     "start": {
-                      "line": 15,
+                      "line": 16,
                       "column": 18,
-                      "byte": 385
+                      "byte": 397
                     },
                     "end": {
-                      "line": 17,
+                      "line": 18,
                       "column": 5,
-                      "byte": 419
+                      "byte": 431
                     },
                     "text": "{\r\n        this.items = [];\r\n    }",
                     "children": [
                       {
                         "type": "{",
                         "start": {
-                          "line": 15,
+                          "line": 16,
                           "column": 18,
-                          "byte": 385
+                          "byte": 397
                         },
                         "end": {
-                          "line": 15,
+                          "line": 16,
                           "column": 19,
-                          "byte": 386
+                          "byte": 398
                         },
                         "text": "{",
                         "children": []
@@ -1576,56 +1729,56 @@
                       {
                         "type": "expression_statement",
                         "start": {
-                          "line": 16,
+                          "line": 17,
                           "column": 8,
-                          "byte": 396
+                          "byte": 408
                         },
                         "end": {
-                          "line": 16,
+                          "line": 17,
                           "column": 24,
-                          "byte": 412
+                          "byte": 424
                         },
                         "text": "this.items = [];",
                         "children": [
                           {
                             "type": "assignment_expression",
                             "start": {
-                              "line": 16,
+                              "line": 17,
                               "column": 8,
-                              "byte": 396
+                              "byte": 408
                             },
                             "end": {
-                              "line": 16,
+                              "line": 17,
                               "column": 23,
-                              "byte": 411
+                              "byte": 423
                             },
                             "text": "this.items = []",
                             "children": [
                               {
                                 "type": "member_expression",
                                 "start": {
-                                  "line": 16,
+                                  "line": 17,
                                   "column": 8,
-                                  "byte": 396
+                                  "byte": 408
                                 },
                                 "end": {
-                                  "line": 16,
+                                  "line": 17,
                                   "column": 18,
-                                  "byte": 406
+                                  "byte": 418
                                 },
                                 "text": "this.items",
                                 "children": [
                                   {
                                     "type": "this",
                                     "start": {
-                                      "line": 16,
+                                      "line": 17,
                                       "column": 8,
-                                      "byte": 396
+                                      "byte": 408
                                     },
                                     "end": {
-                                      "line": 16,
+                                      "line": 17,
                                       "column": 12,
-                                      "byte": 400
+                                      "byte": 412
                                     },
                                     "text": "this",
                                     "children": []
@@ -1633,14 +1786,14 @@
                                   {
                                     "type": ".",
                                     "start": {
-                                      "line": 16,
+                                      "line": 17,
                                       "column": 12,
-                                      "byte": 400
+                                      "byte": 412
                                     },
                                     "end": {
-                                      "line": 16,
+                                      "line": 17,
                                       "column": 13,
-                                      "byte": 401
+                                      "byte": 413
                                     },
                                     "text": ".",
                                     "children": []
@@ -1648,14 +1801,14 @@
                                   {
                                     "type": "property_identifier",
                                     "start": {
-                                      "line": 16,
+                                      "line": 17,
                                       "column": 13,
-                                      "byte": 401
+                                      "byte": 413
                                     },
                                     "end": {
-                                      "line": 16,
+                                      "line": 17,
                                       "column": 18,
-                                      "byte": 406
+                                      "byte": 418
                                     },
                                     "text": "items",
                                     "children": []
@@ -1665,14 +1818,14 @@
                               {
                                 "type": "=",
                                 "start": {
-                                  "line": 16,
+                                  "line": 17,
                                   "column": 19,
-                                  "byte": 407
+                                  "byte": 419
                                 },
                                 "end": {
-                                  "line": 16,
+                                  "line": 17,
                                   "column": 20,
-                                  "byte": 408
+                                  "byte": 420
                                 },
                                 "text": "=",
                                 "children": []
@@ -1680,28 +1833,28 @@
                               {
                                 "type": "array",
                                 "start": {
-                                  "line": 16,
+                                  "line": 17,
                                   "column": 21,
-                                  "byte": 409
+                                  "byte": 421
                                 },
                                 "end": {
-                                  "line": 16,
+                                  "line": 17,
                                   "column": 23,
-                                  "byte": 411
+                                  "byte": 423
                                 },
                                 "text": "[]",
                                 "children": [
                                   {
                                     "type": "[",
                                     "start": {
-                                      "line": 16,
+                                      "line": 17,
                                       "column": 21,
-                                      "byte": 409
+                                      "byte": 421
                                     },
                                     "end": {
-                                      "line": 16,
+                                      "line": 17,
                                       "column": 22,
-                                      "byte": 410
+                                      "byte": 422
                                     },
                                     "text": "[",
                                     "children": []
@@ -1709,14 +1862,14 @@
                                   {
                                     "type": "]",
                                     "start": {
-                                      "line": 16,
+                                      "line": 17,
                                       "column": 22,
-                                      "byte": 410
+                                      "byte": 422
                                     },
                                     "end": {
-                                      "line": 16,
+                                      "line": 17,
                                       "column": 23,
-                                      "byte": 411
+                                      "byte": 423
                                     },
                                     "text": "]",
                                     "children": []
@@ -1728,14 +1881,14 @@
                           {
                             "type": ";",
                             "start": {
-                              "line": 16,
+                              "line": 17,
                               "column": 23,
-                              "byte": 411
+                              "byte": 423
                             },
                             "end": {
-                              "line": 16,
+                              "line": 17,
                               "column": 24,
-                              "byte": 412
+                              "byte": 424
                             },
                             "text": ";",
                             "children": []
@@ -1745,14 +1898,14 @@
                       {
                         "type": "}",
                         "start": {
-                          "line": 17,
+                          "line": 18,
                           "column": 4,
-                          "byte": 418
+                          "byte": 430
                         },
                         "end": {
-                          "line": 17,
+                          "line": 18,
                           "column": 5,
-                          "byte": 419
+                          "byte": 431
                         },
                         "text": "}",
                         "children": []
@@ -1764,28 +1917,28 @@
               {
                 "type": "method_definition",
                 "start": {
-                  "line": 18,
+                  "line": 19,
                   "column": 4,
-                  "byte": 425
+                  "byte": 437
                 },
                 "end": {
-                  "line": 18,
+                  "line": 19,
                   "column": 41,
-                  "byte": 462
+                  "byte": 474
                 },
                 "text": "push(item) { this.items.push(item); }",
                 "children": [
                   {
                     "type": "property_identifier",
                     "start": {
-                      "line": 18,
+                      "line": 19,
                       "column": 4,
-                      "byte": 425
+                      "byte": 437
                     },
                     "end": {
-                      "line": 18,
+                      "line": 19,
                       "column": 8,
-                      "byte": 429
+                      "byte": 441
                     },
                     "text": "push",
                     "children": []
@@ -1793,28 +1946,28 @@
                   {
                     "type": "formal_parameters",
                     "start": {
-                      "line": 18,
+                      "line": 19,
                       "column": 8,
-                      "byte": 429
+                      "byte": 441
                     },
                     "end": {
-                      "line": 18,
+                      "line": 19,
                       "column": 14,
-                      "byte": 435
+                      "byte": 447
                     },
                     "text": "(item)",
                     "children": [
                       {
                         "type": "(",
                         "start": {
-                          "line": 18,
+                          "line": 19,
                           "column": 8,
-                          "byte": 429
+                          "byte": 441
                         },
                         "end": {
-                          "line": 18,
+                          "line": 19,
                           "column": 9,
-                          "byte": 430
+                          "byte": 442
                         },
                         "text": "(",
                         "children": []
@@ -1822,14 +1975,14 @@
                       {
                         "type": "identifier",
                         "start": {
-                          "line": 18,
+                          "line": 19,
                           "column": 9,
-                          "byte": 430
+                          "byte": 442
                         },
                         "end": {
-                          "line": 18,
+                          "line": 19,
                           "column": 13,
-                          "byte": 434
+                          "byte": 446
                         },
                         "text": "item",
                         "children": []
@@ -1837,14 +1990,14 @@
                       {
                         "type": ")",
                         "start": {
-                          "line": 18,
+                          "line": 19,
                           "column": 13,
-                          "byte": 434
+                          "byte": 446
                         },
                         "end": {
-                          "line": 18,
+                          "line": 19,
                           "column": 14,
-                          "byte": 435
+                          "byte": 447
                         },
                         "text": ")",
                         "children": []
@@ -1854,28 +2007,28 @@
                   {
                     "type": "statement_block",
                     "start": {
-                      "line": 18,
+                      "line": 19,
                       "column": 15,
-                      "byte": 436
+                      "byte": 448
                     },
                     "end": {
-                      "line": 18,
+                      "line": 19,
                       "column": 41,
-                      "byte": 462
+                      "byte": 474
                     },
                     "text": "{ this.items.push(item); }",
                     "children": [
                       {
                         "type": "{",
                         "start": {
-                          "line": 18,
+                          "line": 19,
                           "column": 15,
-                          "byte": 436
+                          "byte": 448
                         },
                         "end": {
-                          "line": 18,
+                          "line": 19,
                           "column": 16,
-                          "byte": 437
+                          "byte": 449
                         },
                         "text": "{",
                         "children": []
@@ -1883,70 +2036,70 @@
                       {
                         "type": "expression_statement",
                         "start": {
-                          "line": 18,
+                          "line": 19,
                           "column": 17,
-                          "byte": 438
+                          "byte": 450
                         },
                         "end": {
-                          "line": 18,
+                          "line": 19,
                           "column": 39,
-                          "byte": 460
+                          "byte": 472
                         },
                         "text": "this.items.push(item);",
                         "children": [
                           {
                             "type": "call_expression",
                             "start": {
-                              "line": 18,
+                              "line": 19,
                               "column": 17,
-                              "byte": 438
+                              "byte": 450
                             },
                             "end": {
-                              "line": 18,
+                              "line": 19,
                               "column": 38,
-                              "byte": 459
+                              "byte": 471
                             },
                             "text": "this.items.push(item)",
                             "children": [
                               {
                                 "type": "member_expression",
                                 "start": {
-                                  "line": 18,
+                                  "line": 19,
                                   "column": 17,
-                                  "byte": 438
+                                  "byte": 450
                                 },
                                 "end": {
-                                  "line": 18,
+                                  "line": 19,
                                   "column": 32,
-                                  "byte": 453
+                                  "byte": 465
                                 },
                                 "text": "this.items.push",
                                 "children": [
                                   {
                                     "type": "member_expression",
                                     "start": {
-                                      "line": 18,
+                                      "line": 19,
                                       "column": 17,
-                                      "byte": 438
+                                      "byte": 450
                                     },
                                     "end": {
-                                      "line": 18,
+                                      "line": 19,
                                       "column": 27,
-                                      "byte": 448
+                                      "byte": 460
                                     },
                                     "text": "this.items",
                                     "children": [
                                       {
                                         "type": "this",
                                         "start": {
-                                          "line": 18,
+                                          "line": 19,
                                           "column": 17,
-                                          "byte": 438
+                                          "byte": 450
                                         },
                                         "end": {
-                                          "line": 18,
+                                          "line": 19,
                                           "column": 21,
-                                          "byte": 442
+                                          "byte": 454
                                         },
                                         "text": "this",
                                         "children": []
@@ -1954,14 +2107,14 @@
                                       {
                                         "type": ".",
                                         "start": {
-                                          "line": 18,
+                                          "line": 19,
                                           "column": 21,
-                                          "byte": 442
+                                          "byte": 454
                                         },
                                         "end": {
-                                          "line": 18,
+                                          "line": 19,
                                           "column": 22,
-                                          "byte": 443
+                                          "byte": 455
                                         },
                                         "text": ".",
                                         "children": []
@@ -1969,14 +2122,14 @@
                                       {
                                         "type": "property_identifier",
                                         "start": {
-                                          "line": 18,
+                                          "line": 19,
                                           "column": 22,
-                                          "byte": 443
+                                          "byte": 455
                                         },
                                         "end": {
-                                          "line": 18,
+                                          "line": 19,
                                           "column": 27,
-                                          "byte": 448
+                                          "byte": 460
                                         },
                                         "text": "items",
                                         "children": []
@@ -1986,14 +2139,14 @@
                                   {
                                     "type": ".",
                                     "start": {
-                                      "line": 18,
+                                      "line": 19,
                                       "column": 27,
-                                      "byte": 448
+                                      "byte": 460
                                     },
                                     "end": {
-                                      "line": 18,
+                                      "line": 19,
                                       "column": 28,
-                                      "byte": 449
+                                      "byte": 461
                                     },
                                     "text": ".",
                                     "children": []
@@ -2001,14 +2154,14 @@
                                   {
                                     "type": "property_identifier",
                                     "start": {
-                                      "line": 18,
+                                      "line": 19,
                                       "column": 28,
-                                      "byte": 449
+                                      "byte": 461
                                     },
                                     "end": {
-                                      "line": 18,
+                                      "line": 19,
                                       "column": 32,
-                                      "byte": 453
+                                      "byte": 465
                                     },
                                     "text": "push",
                                     "children": []
@@ -2018,28 +2171,28 @@
                               {
                                 "type": "arguments",
                                 "start": {
-                                  "line": 18,
+                                  "line": 19,
                                   "column": 32,
-                                  "byte": 453
+                                  "byte": 465
                                 },
                                 "end": {
-                                  "line": 18,
+                                  "line": 19,
                                   "column": 38,
-                                  "byte": 459
+                                  "byte": 471
                                 },
                                 "text": "(item)",
                                 "children": [
                                   {
                                     "type": "(",
                                     "start": {
-                                      "line": 18,
+                                      "line": 19,
                                       "column": 32,
-                                      "byte": 453
+                                      "byte": 465
                                     },
                                     "end": {
-                                      "line": 18,
+                                      "line": 19,
                                       "column": 33,
-                                      "byte": 454
+                                      "byte": 466
                                     },
                                     "text": "(",
                                     "children": []
@@ -2047,14 +2200,14 @@
                                   {
                                     "type": "identifier",
                                     "start": {
-                                      "line": 18,
+                                      "line": 19,
                                       "column": 33,
-                                      "byte": 454
+                                      "byte": 466
                                     },
                                     "end": {
-                                      "line": 18,
+                                      "line": 19,
                                       "column": 37,
-                                      "byte": 458
+                                      "byte": 470
                                     },
                                     "text": "item",
                                     "children": []
@@ -2062,14 +2215,14 @@
                                   {
                                     "type": ")",
                                     "start": {
-                                      "line": 18,
+                                      "line": 19,
                                       "column": 37,
-                                      "byte": 458
+                                      "byte": 470
                                     },
                                     "end": {
-                                      "line": 18,
+                                      "line": 19,
                                       "column": 38,
-                                      "byte": 459
+                                      "byte": 471
                                     },
                                     "text": ")",
                                     "children": []
@@ -2081,14 +2234,14 @@
                           {
                             "type": ";",
                             "start": {
-                              "line": 18,
+                              "line": 19,
                               "column": 38,
-                              "byte": 459
+                              "byte": 471
                             },
                             "end": {
-                              "line": 18,
+                              "line": 19,
                               "column": 39,
-                              "byte": 460
+                              "byte": 472
                             },
                             "text": ";",
                             "children": []
@@ -2098,14 +2251,14 @@
                       {
                         "type": "}",
                         "start": {
-                          "line": 18,
+                          "line": 19,
                           "column": 40,
-                          "byte": 461
+                          "byte": 473
                         },
                         "end": {
-                          "line": 18,
+                          "line": 19,
                           "column": 41,
-                          "byte": 462
+                          "byte": 474
                         },
                         "text": "}",
                         "children": []
@@ -2117,28 +2270,28 @@
               {
                 "type": "method_definition",
                 "start": {
-                  "line": 19,
+                  "line": 20,
                   "column": 4,
-                  "byte": 468
+                  "byte": 480
                 },
                 "end": {
-                  "line": 19,
+                  "line": 20,
                   "column": 39,
-                  "byte": 503
+                  "byte": 515
                 },
                 "text": "pop()  { return this.items.pop(); }",
                 "children": [
                   {
                     "type": "property_identifier",
                     "start": {
-                      "line": 19,
+                      "line": 20,
                       "column": 4,
-                      "byte": 468
+                      "byte": 480
                     },
                     "end": {
-                      "line": 19,
+                      "line": 20,
                       "column": 7,
-                      "byte": 471
+                      "byte": 483
                     },
                     "text": "pop",
                     "children": []
@@ -2146,28 +2299,28 @@
                   {
                     "type": "formal_parameters",
                     "start": {
-                      "line": 19,
+                      "line": 20,
                       "column": 7,
-                      "byte": 471
+                      "byte": 483
                     },
                     "end": {
-                      "line": 19,
+                      "line": 20,
                       "column": 9,
-                      "byte": 473
+                      "byte": 485
                     },
                     "text": "()",
                     "children": [
                       {
                         "type": "(",
                         "start": {
-                          "line": 19,
+                          "line": 20,
                           "column": 7,
-                          "byte": 471
+                          "byte": 483
                         },
                         "end": {
-                          "line": 19,
+                          "line": 20,
                           "column": 8,
-                          "byte": 472
+                          "byte": 484
                         },
                         "text": "(",
                         "children": []
@@ -2175,14 +2328,14 @@
                       {
                         "type": ")",
                         "start": {
-                          "line": 19,
+                          "line": 20,
                           "column": 8,
-                          "byte": 472
+                          "byte": 484
                         },
                         "end": {
-                          "line": 19,
+                          "line": 20,
                           "column": 9,
-                          "byte": 473
+                          "byte": 485
                         },
                         "text": ")",
                         "children": []
@@ -2192,28 +2345,28 @@
                   {
                     "type": "statement_block",
                     "start": {
-                      "line": 19,
+                      "line": 20,
                       "column": 11,
-                      "byte": 475
+                      "byte": 487
                     },
                     "end": {
-                      "line": 19,
+                      "line": 20,
                       "column": 39,
-                      "byte": 503
+                      "byte": 515
                     },
                     "text": "{ return this.items.pop(); }",
                     "children": [
                       {
                         "type": "{",
                         "start": {
-                          "line": 19,
+                          "line": 20,
                           "column": 11,
-                          "byte": 475
+                          "byte": 487
                         },
                         "end": {
-                          "line": 19,
+                          "line": 20,
                           "column": 12,
-                          "byte": 476
+                          "byte": 488
                         },
                         "text": "{",
                         "children": []
@@ -2221,28 +2374,28 @@
                       {
                         "type": "return_statement",
                         "start": {
-                          "line": 19,
+                          "line": 20,
                           "column": 13,
-                          "byte": 477
+                          "byte": 489
                         },
                         "end": {
-                          "line": 19,
+                          "line": 20,
                           "column": 37,
-                          "byte": 501
+                          "byte": 513
                         },
                         "text": "return this.items.pop();",
                         "children": [
                           {
                             "type": "return",
                             "start": {
-                              "line": 19,
+                              "line": 20,
                               "column": 13,
-                              "byte": 477
+                              "byte": 489
                             },
                             "end": {
-                              "line": 19,
+                              "line": 20,
                               "column": 19,
-                              "byte": 483
+                              "byte": 495
                             },
                             "text": "return",
                             "children": []
@@ -2250,56 +2403,56 @@
                           {
                             "type": "call_expression",
                             "start": {
-                              "line": 19,
+                              "line": 20,
                               "column": 20,
-                              "byte": 484
+                              "byte": 496
                             },
                             "end": {
-                              "line": 19,
+                              "line": 20,
                               "column": 36,
-                              "byte": 500
+                              "byte": 512
                             },
                             "text": "this.items.pop()",
                             "children": [
                               {
                                 "type": "member_expression",
                                 "start": {
-                                  "line": 19,
+                                  "line": 20,
                                   "column": 20,
-                                  "byte": 484
+                                  "byte": 496
                                 },
                                 "end": {
-                                  "line": 19,
+                                  "line": 20,
                                   "column": 34,
-                                  "byte": 498
+                                  "byte": 510
                                 },
                                 "text": "this.items.pop",
                                 "children": [
                                   {
                                     "type": "member_expression",
                                     "start": {
-                                      "line": 19,
+                                      "line": 20,
                                       "column": 20,
-                                      "byte": 484
+                                      "byte": 496
                                     },
                                     "end": {
-                                      "line": 19,
+                                      "line": 20,
                                       "column": 30,
-                                      "byte": 494
+                                      "byte": 506
                                     },
                                     "text": "this.items",
                                     "children": [
                                       {
                                         "type": "this",
                                         "start": {
-                                          "line": 19,
+                                          "line": 20,
                                           "column": 20,
-                                          "byte": 484
+                                          "byte": 496
                                         },
                                         "end": {
-                                          "line": 19,
+                                          "line": 20,
                                           "column": 24,
-                                          "byte": 488
+                                          "byte": 500
                                         },
                                         "text": "this",
                                         "children": []
@@ -2307,14 +2460,14 @@
                                       {
                                         "type": ".",
                                         "start": {
-                                          "line": 19,
+                                          "line": 20,
                                           "column": 24,
-                                          "byte": 488
+                                          "byte": 500
                                         },
                                         "end": {
-                                          "line": 19,
+                                          "line": 20,
                                           "column": 25,
-                                          "byte": 489
+                                          "byte": 501
                                         },
                                         "text": ".",
                                         "children": []
@@ -2322,14 +2475,14 @@
                                       {
                                         "type": "property_identifier",
                                         "start": {
-                                          "line": 19,
+                                          "line": 20,
                                           "column": 25,
-                                          "byte": 489
+                                          "byte": 501
                                         },
                                         "end": {
-                                          "line": 19,
+                                          "line": 20,
                                           "column": 30,
-                                          "byte": 494
+                                          "byte": 506
                                         },
                                         "text": "items",
                                         "children": []
@@ -2339,14 +2492,14 @@
                                   {
                                     "type": ".",
                                     "start": {
-                                      "line": 19,
+                                      "line": 20,
                                       "column": 30,
-                                      "byte": 494
+                                      "byte": 506
                                     },
                                     "end": {
-                                      "line": 19,
+                                      "line": 20,
                                       "column": 31,
-                                      "byte": 495
+                                      "byte": 507
                                     },
                                     "text": ".",
                                     "children": []
@@ -2354,14 +2507,14 @@
                                   {
                                     "type": "property_identifier",
                                     "start": {
-                                      "line": 19,
+                                      "line": 20,
                                       "column": 31,
-                                      "byte": 495
+                                      "byte": 507
                                     },
                                     "end": {
-                                      "line": 19,
+                                      "line": 20,
                                       "column": 34,
-                                      "byte": 498
+                                      "byte": 510
                                     },
                                     "text": "pop",
                                     "children": []
@@ -2371,28 +2524,28 @@
                               {
                                 "type": "arguments",
                                 "start": {
-                                  "line": 19,
+                                  "line": 20,
                                   "column": 34,
-                                  "byte": 498
+                                  "byte": 510
                                 },
                                 "end": {
-                                  "line": 19,
+                                  "line": 20,
                                   "column": 36,
-                                  "byte": 500
+                                  "byte": 512
                                 },
                                 "text": "()",
                                 "children": [
                                   {
                                     "type": "(",
                                     "start": {
-                                      "line": 19,
+                                      "line": 20,
                                       "column": 34,
-                                      "byte": 498
+                                      "byte": 510
                                     },
                                     "end": {
-                                      "line": 19,
+                                      "line": 20,
                                       "column": 35,
-                                      "byte": 499
+                                      "byte": 511
                                     },
                                     "text": "(",
                                     "children": []
@@ -2400,14 +2553,14 @@
                                   {
                                     "type": ")",
                                     "start": {
-                                      "line": 19,
+                                      "line": 20,
                                       "column": 35,
-                                      "byte": 499
+                                      "byte": 511
                                     },
                                     "end": {
-                                      "line": 19,
+                                      "line": 20,
                                       "column": 36,
-                                      "byte": 500
+                                      "byte": 512
                                     },
                                     "text": ")",
                                     "children": []
@@ -2419,14 +2572,14 @@
                           {
                             "type": ";",
                             "start": {
-                              "line": 19,
+                              "line": 20,
                               "column": 36,
-                              "byte": 500
+                              "byte": 512
                             },
                             "end": {
-                              "line": 19,
+                              "line": 20,
                               "column": 37,
-                              "byte": 501
+                              "byte": 513
                             },
                             "text": ";",
                             "children": []
@@ -2436,14 +2589,14 @@
                       {
                         "type": "}",
                         "start": {
-                          "line": 19,
+                          "line": 20,
                           "column": 38,
-                          "byte": 502
+                          "byte": 514
                         },
                         "end": {
-                          "line": 19,
+                          "line": 20,
                           "column": 39,
-                          "byte": 503
+                          "byte": 515
                         },
                         "text": "}",
                         "children": []
@@ -2455,14 +2608,14 @@
               {
                 "type": "}",
                 "start": {
-                  "line": 20,
+                  "line": 21,
                   "column": 0,
-                  "byte": 505
+                  "byte": 517
                 },
                 "end": {
-                  "line": 20,
+                  "line": 21,
                   "column": 1,
-                  "byte": 506
+                  "byte": 518
                 },
                 "text": "}",
                 "children": []

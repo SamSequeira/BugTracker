@@ -1,51 +1,35 @@
 {
-  "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmp89pyc_56.java",
+  "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpb23cye_f.java",
   "language": "Java",
   "issues": [
     {
-      "rule_id": "JAVA_DIV_001",
-      "issue_type": "division_by_zero",
-      "message": "Division by potentially zero value: divisor `b` is not guarded against 0. Ensure divisor is validated before dividing.",
-      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmp89pyc_56.java",
-      "line_number": 4,
-      "column": 15,
-      "code_snippet": "a / b",
-      "evidence": {
-        "operator": "/",
-        "right_operand": "b",
-        "right_node_type": "identifier",
-        "confidence": "medium",
-        "reason": "Dynamic divisor `b` has no static zero guard."
-      },
-      "severity": "high",
-      "confidence": "medium"
-    },
-    {
       "rule_id": "JAVA_RES_001",
       "issue_type": "unclosed_resource",
-      "message": "`FileReader` created outside try-with-resources and not guaranteed to be closed. Wrap in `try (FileReader res = new FileReader(...))` to prevent leaks.",
-      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmp89pyc_56.java",
+      "message": "Resource `fr` of type `FileReader` is never closed or returned.",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpb23cye_f.java",
       "line_number": 12,
       "column": 27,
       "code_snippet": "fr = new java.io.FileReader(path)",
       "evidence": {
+        "variable": "fr",
         "resource_type": "FileReader",
-        "assigned_variable": "fr",
-        "lifecycle_status": "UNCLOSED",
-        "confidence": "high",
-        "reason": "Resource `FileReader` created without try-with-resources; lifecycle status is UNCLOSED."
+        "lifecycle_status": "definitely_leaked",
+        "confidence": "high"
       },
-      "severity": "high",
+      "severity": "medium",
       "confidence": "high"
     }
   ],
-  "issue_count": 2,
+  "issue_count": 1,
   "rules_run": [
     "JAVA_DIV_001",
     "JAVA_EXC_001",
     "JAVA_EQ_001",
     "JAVA_RES_001",
-    "JAVA_LOOP_001"
+    "JAVA_LOOP_001",
+    "JAVA_NULL_001",
+    "JAVA_UNREACH_001",
+    "JAVA_CONSTCOND_001"
   ],
   "errors": []
 }

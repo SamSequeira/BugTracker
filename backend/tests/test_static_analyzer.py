@@ -73,10 +73,17 @@ def save(data: dict, filename: str) -> Path:
 # ===========================================================================
 
 def test_py_div_variable_divisor_flagged():
-    src = "def f(a, b):\n    return a / b\n"
+    src = "def f(a):\n    b = 0\n    return a / b\n"
     ids = _rule_ids(src, "Python")
     assert "PY_DIV_001" in ids, f"Expected PY_DIV_001 in {ids}"
-    print("  ✓ PY_DIV_001: variable divisor flagged")
+    print("  ✓ PY_DIV_001: variable assigned zero divisor flagged")
+
+
+def test_py_div_unknown_divisor_not_flagged():
+    src = "def f(a, b):\n    return a / b\n"
+    ids = _rule_ids(src, "Python")
+    assert "PY_DIV_001" not in ids, "Unknown divisor should not be flagged"
+    print("  ✓ PY_DIV_001: unknown divisor not flagged")
 
 
 def test_py_div_literal_divisor_not_flagged():
@@ -87,10 +94,10 @@ def test_py_div_literal_divisor_not_flagged():
 
 
 def test_py_div_floor_division_flagged():
-    src = "def f(a, b):\n    return a // b\n"
+    src = "def f(a):\n    b = 0\n    return a // b\n"
     ids = _rule_ids(src, "Python")
     assert "PY_DIV_001" in ids
-    print("  ✓ PY_DIV_001: floor division flagged")
+    print("  ✓ PY_DIV_001: floor division by zero flagged")
 
 
 # ===========================================================================
@@ -226,13 +233,14 @@ def test_py_mut_none_default_not_flagged():
 
 def test_js_div_variable_divisor_flagged():
     src = textwrap.dedent("""\
-        function f(a, b) {
+        function f(a) {
+            let b = 0;
             return a / b;
         }
     """)
     ids = _rule_ids(src, "JavaScript")
     assert "JS_DIV_001" in ids, f"Expected JS_DIV_001 in {ids}"
-    print("  ✓ JS_DIV_001: variable divisor flagged")
+    print("  ✓ JS_DIV_001: variable assigned zero divisor flagged")
 
 
 def test_js_div_literal_divisor_not_flagged():
@@ -248,13 +256,14 @@ def test_js_div_literal_divisor_not_flagged():
 
 def test_js_div_modulo_variable_flagged():
     src = textwrap.dedent("""\
-        function f(a, n) {
+        function f(a) {
+            let n = 0;
             return a % n;
         }
     """)
     ids = _rule_ids(src, "JavaScript")
     assert "JS_DIV_001" in ids
-    print("  ✓ JS_DIV_001: modulo by variable flagged")
+    print("  ✓ JS_DIV_001: modulo by variable assigned zero flagged")
 
 
 # ===========================================================================
@@ -342,10 +351,10 @@ def test_js_await_outside_loop_not_flagged():
 # ===========================================================================
 
 def test_java_div_variable_divisor_flagged():
-    src = "public class T { int f(int a, int b) { return a / b; } }"
+    src = "public class T { int f(int a) { int b = 0; return a / b; } }"
     ids = _rule_ids(src, "Java")
     assert "JAVA_DIV_001" in ids, f"Expected JAVA_DIV_001 in {ids}"
-    print("  ✓ JAVA_DIV_001: variable divisor flagged")
+    print("  ✓ JAVA_DIV_001: variable assigned zero divisor flagged")
 
 
 def test_java_div_literal_divisor_not_flagged():
@@ -356,10 +365,10 @@ def test_java_div_literal_divisor_not_flagged():
 
 
 def test_java_div_modulo_variable_flagged():
-    src = "public class T { int f(int a, int n) { return a % n; } }"
+    src = "public class T { int f(int a) { int n = 0; return a % n; } }"
     ids = _rule_ids(src, "Java")
     assert "JAVA_DIV_001" in ids
-    print("  ✓ JAVA_DIV_001: modulo by variable flagged")
+    print("  ✓ JAVA_DIV_001: modulo by variable assigned zero flagged")
 
 
 # ===========================================================================
@@ -508,7 +517,7 @@ def test_java_while_condition_not_flagged():
     print("  ✓ JAVA_LOOP_001: while with real condition not flagged")
 
 def test_candidate_issue_fields_present():
-    src = "def f(a, b):\n    return a / b\n"
+    src = "def f(a):\n    return a / 0\n"
     issues = _issues(src, "Python")
     assert len(issues) > 0, "Expected at least one issue"
     issue = issues[0]
@@ -563,8 +572,8 @@ def test_full_python_ast_analysis():
         file_path=ast_result["file"],
     )
 
-    assert analysis["issue_count"] >= 2, \
-        f"Expected ≥2 issues from known-buggy Python sample, got {analysis['issue_count']}"
+    assert analysis["issue_count"] >= 1, \
+        f"Expected ≥1 issues from known-buggy Python sample, got {analysis['issue_count']}"
 
     out = save(analysis, "python_static_analysis.json")
     print(f"  ✓ E2E Python analysis: {analysis['issue_count']} issues → {out}")

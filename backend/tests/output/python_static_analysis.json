@@ -1,52 +1,35 @@
 {
-  "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpq959egep.py",
+  "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmp1fu5ujfz.py",
   "language": "Python",
   "issues": [
     {
-      "rule_id": "PY_DIV_001",
-      "issue_type": "division_by_zero",
-      "message": "Division by potentially zero value: divisor `b` is not guarded against zero.",
-      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpq959egep.py",
-      "line_number": 2,
-      "column": 11,
-      "code_snippet": "a / b",
-      "evidence": {
-        "operator": "/",
-        "right_operand": "b",
-        "right_node_type": "identifier",
-        "classification": "potentially_zero",
-        "confidence": "medium",
-        "reason": "Dynamic divisor `b` has no active zero guard in flow state."
-      },
-      "severity": "high",
-      "confidence": "medium"
-    },
-    {
       "rule_id": "PY_RES_001",
       "issue_type": "unclosed_resource",
-      "message": "`open()` called outside `with` statement and resource `f` is not guaranteed to be closed on error paths.",
-      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmpq959egep.py",
+      "message": "Resource `f` opened via `open()` called outside `with` statement is never closed or returned.",
+      "file_path": "C:\\Users\\seque\\AppData\\Local\\Temp\\tmp1fu5ujfz.py",
       "line_number": 5,
       "column": 4,
       "code_snippet": "f = open(path, \"r\")",
       "evidence": {
-        "call": "open(path, \"r\")",
-        "assigned_variable": "f",
-        "lifecycle_status": "UNCLOSED",
-        "confidence": "high",
-        "reason": "File opened with `open(path, \"r\")` outside `with` and lifecycle status is UNCLOSED."
+        "variable": "f",
+        "lifecycle_status": "definitely_leaked",
+        "confidence": "high"
       },
-      "severity": "high",
+      "severity": "medium",
       "confidence": "high"
     }
   ],
-  "issue_count": 2,
+  "issue_count": 1,
   "rules_run": [
     "PY_DIV_001",
     "PY_RES_001",
     "PY_EXC_001",
     "PY_ASS_001",
-    "PY_MUT_001"
+    "PY_MUT_001",
+    "PY_EVAL_001",
+    "PY_NONE_001",
+    "PY_UNREACH_001",
+    "PY_CONSTCOND_001"
   ],
   "errors": []
 }

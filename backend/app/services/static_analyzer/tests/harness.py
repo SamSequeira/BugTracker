@@ -477,10 +477,10 @@ class RuleTestRunner:
                             for i in issues
                             if hasattr(i, "evidence")
                         )
-                        print(f"  OK  [flagged×{count}] {desc}")
+                        print(f"  OK  [flagged x {count}] {desc}")
                 else:
                     self._failures.append(
-                        f"  FAIL [false_negative] {desc} — expected ≥{expected} issue(s), got {count}"
+                        f"  FAIL [false_negative] {desc} - expected >={expected} issue(s), got {count}"
                     )
             elif case_type == "must_not_flag":
                 if count == 0:
@@ -491,7 +491,7 @@ class RuleTestRunner:
                     cls_list = [i.evidence.get("classification", "?") for i in issues
                                 if hasattr(i, "evidence") and isinstance(i.evidence, dict)]
                     self._failures.append(
-                        f"  FAIL [false_positive] {desc} — expected 0, got {count} {cls_list}"
+                        f"  FAIL [false_positive] {desc} - expected 0, got {count} {cls_list}"
                     )
 
         if verbose:

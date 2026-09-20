@@ -1,193 +1,93 @@
 """
 JAVA_EQ_001 — String/Object comparison with == instead of .equals() (Java)
 ---------------------------------------------------------------------------
-Detects binary_expression nodes that use `==` or `!=` to compare
-operands that are likely object references rather than primitives.
-Reference equality checks identity, not value — for Strings this is
-almost always a bug.
+Detects `binary_expression` nodes that use `==` or `!=` to compare String operands.
+In Java, `==` tests object reference identity rather than content equality.
+
+Exemptions:
+- Null comparisons: `s == null`, `s != null`
+- Primitive literal comparisons: `x == 0`, `b == true`
+- Enum constant comparisons: `token == JsonToken.NULL`
+- Class literal comparisons: `type == String.class`
 """
 
 from __future__ import annotations
 
 import re
-from typing import Iterator, List, Optional, Set, Dict, Tuple
+from typing import Iterator, List, Optional, Set
 
 from ..base_rule import BaseRule
 from ..models import CandidateIssue
 
-
-_REFERENCE_NODE_TYPES = {
-    "method_invocation",
-    "object_creation_expression",
-    "field_access",
-}
-
-_STRING_NAME_HINTS = {
-    "str", "name", "text", "msg", "message", "label",
-    "key", "value", "path", "url", "uri", "email",
-    "token", "id", "code", "description", "title", "content",
+_PRIMITIVE_TYPES = {
+    "int", "long", "double", "float", "boolean", "char", "byte", "short",
 }
 
 _ENUM_CONST_RE = re.compile(r'^[A-Z][A-Z0-9_]*$')
 
-# Primitive types that can never be String
-_PRIMITIVE_TYPES = {
-    "int", "long", "double", "float", "boolean", "char", "byte", "short",
-    "void",
-}
+
+def _is_null_node(node: dict) -> bool:
+    return (node.get("text") or "").strip() == "null" or node.get("type") == "null_literal"
 
 
-def _is_null(node: dict) -> bool:
-    return (node.get("text") or "") == "null" or node.get("type") == "null_literal"
-
-
-def _is_primitive_literal(node: dict) -> bool:
-    return node.get("type", "") in {
+def _is_primitive_or_class_literal(node: dict) -> bool:
+    ntype = node.get("type", "")
+    text = (node.get("text") or "").strip()
+    if ntype in (
         "decimal_integer_literal", "decimal_floating_point_literal",
-        "integer_literal", "floating_point_literal",
-        "true", "false", "character_literal",
-    }
+        "integer_literal", "floating_point_literal", "true", "false",
+        "character_literal",
+    ):
+        return True
+    if text.endswith(".class") or ntype == "class_literal":
+        return True
+    return False
 
 
 def _is_enum_constant(node: dict) -> bool:
-    if node.get("type") != "identifier":
-        return False
-    text = node.get("text") or ""
-    return bool(_ENUM_CONST_RE.match(text)) and len(text) > 1
-
-
-def _is_enum_field_access(node: dict) -> bool:
-    """Checks if node is a field access to an enum constant, e.g. JsonToken.NULL or Color.RED."""
-    if node.get("type") != "field_access":
-        return False
-    children = node.get("children", [])
-    if children:
-        field = children[-1]
-        text = field.get("text") or ""
+    ntype = node.get("type", "")
+    if ntype == "field_access":
+        kids = node.get("children", [])
+        if kids:
+            field_text = (kids[-1].get("text") or "").strip()
+            return bool(_ENUM_CONST_RE.match(field_text)) and len(field_text) > 1
+    if ntype == "identifier":
+        text = (node.get("text") or "").strip()
         return bool(_ENUM_CONST_RE.match(text)) and len(text) > 1
     return False
 
 
-def _is_type_name_only(node: dict) -> bool:
-    if node.get("type") != "identifier":
-        return False
-    text = node.get("text") or ""
-    return bool(re.match(r'^[A-Z][a-zA-Z0-9]+$', text))
+_STRING_HINT_RE = re.compile(
+    r'^(?:str|string|name|text|msg|message|label|key|value|path|url|uri|email|token|id|code|description|title|content|payload|response|request|body|raw|line|word|.*text|.*content|.*token|.*email|.*url|.*id|first_?name|last_?name|email_?address|.*string|.*address|.*name)$',
+    re.IGNORECASE,
+)
+
+_PRIMITIVE_NAME_RE = re.compile(
+    r'^(?:i|j|k|n|m|count|limit|age|max_?age|min_?age|size|index|idx|pos|len|length|offset|capacity|total|sum|num|number|port)$',
+    re.IGNORECASE,
+)
 
 
-def _extract_declared_type(declaration: dict) -> Optional[str]:
-    children = declaration.get("children", [])
-    if not children:
-        return None
-    type_node = next(
-        (c for c in children if c.get("type") in (
-            "type_identifier", "integral_type", "floating_point_type",
-            "boolean_type", "void_type", "generic_type", "array_type",
-            "scoped_type_identifier",
-        )),
-        None,
-    )
-    if type_node:
-        return type_node.get("text")
-    return None
-
-
-def _index_scope_declarations(ast: dict) -> Tuple[Dict[int, dict], Dict[int, Dict[str, str]]]:
-    parent_map: Dict[int, dict] = {}
-    scope_decls: Dict[int, Dict[str, str]] = {}
-
-    def _walk_and_index(node: dict, current_scope_id: int) -> None:
-        ntype = node.get("type", "")
-        new_scope_id = current_scope_id
-        if ntype in ("class_declaration", "method_declaration", "constructor_declaration", "block"):
-            new_scope_id = id(node)
-            if new_scope_id not in scope_decls:
-                scope_decls[new_scope_id] = {}
-
-        if ntype in ("local_variable_declaration", "field_declaration", "formal_parameter"):
-            dtype = _extract_declared_type(node)
-            if dtype:
-                for child in node.get("children", []):
-                    if child.get("type") in ("variable_declarator", "identifier"):
-                        vname = child.get("text", "")
-                        if child.get("type") == "variable_declarator":
-                            vkids = child.get("children", [])
-                            if vkids and vkids[0].get("type") == "identifier":
-                                vname = vkids[0].get("text", "")
-                        if vname and new_scope_id in scope_decls:
-                            scope_decls[new_scope_id][vname] = dtype
-
-        for child in node.get("children", []):
-            parent_map[id(child)] = node
-            _walk_and_index(child, new_scope_id)
-
-    _walk_and_index(ast, id(ast))
-    return parent_map, scope_decls
-
-
-def _resolve_declared_type(
-    ident_node: dict,
-    parent_map: Dict[int, dict],
-    scope_decls: Dict[int, Dict[str, str]],
-) -> Optional[str]:
-    vname = ident_node.get("text", "")
-    if not vname:
-        return None
-
-    curr = ident_node
-    while curr is not None:
-        curr_id = id(curr)
-        if curr_id in scope_decls and vname in scope_decls[curr_id]:
-            return scope_decls[curr_id][vname]
-        curr = parent_map.get(curr_id)
-    return None
-
-
-def _looks_like_object_reference(
-    node: dict,
-    declared_type: Optional[str],
-) -> bool:
+def _is_string_node(node: dict, scope_types: Dict[str, str]) -> bool:
     ntype = node.get("type", "")
-
-    # Skip enum field access (e.g. JsonToken.NULL)
-    if _is_enum_field_access(node):
-        return False
-
-    # Always a reference: method call, new expression, field access
-    if ntype in _REFERENCE_NODE_TYPES:
+    text = (node.get("text") or "").strip()
+    if ntype in ("string_literal", "string"):
         return True
-
-    # String literal
-    if ntype == "string_literal":
-        return True
-
     if ntype == "identifier":
-        text = node.get("text") or ""
-        if not text:
+        decl_type = scope_types.get(text, "")
+        if decl_type:
+            return decl_type in ("String", "java.lang.String")
+        if _PRIMITIVE_NAME_RE.match(text):
             return False
-
-        # Skip enum constants
-        if _is_enum_constant(node):
-            return False
-
-        # Check explicit declared type from lexical hierarchy
-        if declared_type:
-            if declared_type in _PRIMITIVE_TYPES:
-                return False
-            if declared_type in ("String", "java.lang.String"):
-                return True
-            if declared_type.endswith("[]") or "<" in declared_type:
-                return False
-
-        # Any uppercase-starting (non-enum) identifier
-        if text[0].isupper():
+        if _STRING_HINT_RE.match(text):
             return True
-
-        # Lowercase variable with String-hint name
-        lower = text.lower()
-        if any(hint in lower for hint in _STRING_NAME_HINTS):
+    if ntype == "method_invocation":
+        if any(m in text for m in (
+            ".toString(", ".trim(", ".substring(", ".toLowerCase(", ".toUpperCase(",
+            ".getName(", ".getTitle(", ".getContent(", ".getValue(", ".getPath(",
+            ".getEmail(", ".getToken(", ".getString(", ".readLine(", ".format("
+        )):
             return True
-
     return False
 
 
@@ -213,470 +113,110 @@ class JavaStringEquality(BaseRule):
         file_path: str,
         source_lines: List[str],
     ) -> Iterator[CandidateIssue]:
+        yield from self._analyze_scope(ast, {}, file_path, source_lines)
 
-        # Index scope hierarchy once in O(N)
-        parent_map, scope_decls = _index_scope_declarations(ast)
+    def _analyze_scope(
+        self,
+        node: dict,
+        outer_types: Dict[str, str],
+        file_path: str,
+        source_lines: List[str],
+    ) -> Iterator[CandidateIssue]:
+        scope_types = dict(outer_types)
+        ntype = node.get("type", "")
 
-        for node in self._walk(ast):
-            if node.get("type") != "binary_expression":
-                continue
+        # Extract formal parameters if method/constructor
+        if ntype in ("method_declaration", "constructor_declaration"):
+            params = next((c for c in node.get("children", []) if c.get("type") in ("formal_parameters", "parameters")), None)
+            if params:
+                for p in params.get("children", []):
+                    if p.get("type") == "formal_parameter":
+                        pkids = p.get("children", [])
+                        type_node = next((c for c in pkids if c.get("type") in ("type_identifier", "scoped_type_identifier", "integral_type", "floating_point_type", "boolean_type", "array_type")), None)
+                        ident_node = next((c for c in pkids if c.get("type") == "identifier"), None)
+                        if type_node and ident_node:
+                            vname = (ident_node.get("text") or "").strip()
+                            vtype = (type_node.get("text") or "").strip()
+                            scope_types[vname] = vtype
 
-            children = node.get("children", [])
-            if len(children) < 3:
-                continue
+        for child in node.get("children", []):
+            ctype = child.get("type", "")
 
-            operator_node = children[1]
-            op_text = operator_node.get("text") or ""
-            if op_text not in ("==", "!="):
-                continue
+            # Variable declarations
+            if ctype in ("local_variable_declaration", "field_declaration"):
+                type_node = next((c for c in child.get("children", []) if c.get("type") in ("type_identifier", "scoped_type_identifier", "integral_type", "floating_point_type", "boolean_type", "array_type")), None)
+                vtype = (type_node.get("text") or "").strip() if type_node else ""
+                for vdecl in child.get("children", []):
+                    if vdecl.get("type") == "variable_declarator":
+                        vkids = vdecl.get("children", [])
+                        if vkids and vkids[0].get("type") == "identifier":
+                            vname = (vkids[0].get("text") or "").strip()
+                            scope_types[vname] = vtype
+                    elif vdecl.get("type") == "identifier":
+                        vname = (vdecl.get("text") or "").strip()
+                        scope_types[vname] = vtype
 
-            left, right = children[0], children[2]
+            elif ctype == "binary_expression":
+                yield from self._check_binary(child, scope_types, file_path, source_lines)
+            else:
+                yield from self._analyze_scope(child, scope_types, file_path, source_lines)
 
-            # null checks are idiomatic — skip
-            if _is_null(left) or _is_null(right):
-                continue
+    def _check_binary(
+        self,
+        node: dict,
+        scope_types: Dict[str, str],
+        file_path: str,
+        source_lines: List[str],
+    ) -> Iterator[CandidateIssue]:
+        children = node.get("children", [])
+        if len(children) < 3:
+            return
 
-            # Primitive literal on either side — skip
-            if _is_primitive_literal(left) or _is_primitive_literal(right):
-                continue
+        op = (children[1].get("text") or "").strip()
+        if op not in ("==", "!="):
+            return
 
-            # Both enum constants or enum field accesses — correct Java
-            if (_is_enum_constant(left) or _is_enum_field_access(left)) and \
-               (_is_enum_constant(right) or _is_enum_field_access(right)):
-                continue
+        left = children[0]
+        right = children[2]
 
-            # If either side is an enum field access (e.g. token == JsonToken.NULL)
-            if _is_enum_field_access(left) or _is_enum_field_access(right):
-                continue
+        # 1. Null comparisons are safe
+        if _is_null_node(left) or _is_null_node(right):
+            self.record_suppression("null_comparison")
+            return
 
-            # Type-name vs enum-constant
-            if (_is_type_name_only(left) and _is_enum_constant(right)) or \
-               (_is_enum_constant(left) and _is_type_name_only(right)):
-                continue
+        # 2. Primitive or class literals are safe
+        if _is_primitive_or_class_literal(left) or _is_primitive_or_class_literal(right):
+            self.record_suppression("primitive_or_class_literal")
+            return
 
-            # Resolve declared types hierarchically in O(1)
-            dtype_left = _resolve_declared_type(left, parent_map, scope_decls) if left.get("type") == "identifier" else None
-            dtype_right = _resolve_declared_type(right, parent_map, scope_decls) if right.get("type") == "identifier" else None
+        # 3. Enum constants are safe
+        if _is_enum_constant(left) or _is_enum_constant(right):
+            self.record_suppression("enum_comparison")
+            return
 
-            # Skip if either operand is explicitly declared as a primitive
-            if (dtype_left in _PRIMITIVE_TYPES) or (dtype_right in _PRIMITIVE_TYPES):
-                continue
+        # Check if either side is a String (literal, String variable, or String-returning method)
+        left_is_str = _is_string_node(left, scope_types)
+        right_is_str = _is_string_node(right, scope_types)
 
-            # At least one operand must look like an object reference / String
-            left_is_ref = _looks_like_object_reference(left, dtype_left)
-            right_is_ref = _looks_like_object_reference(right, dtype_right)
-            if not (left_is_ref or right_is_ref):
-                continue
-
-            # Confidence calibration: HIGH if either operand is a literal string or explicit String type
-            is_string_literal = (left.get("type") == "string_literal" or right.get("type") == "string_literal")
-            is_explicit_string = (dtype_left in ("String", "java.lang.String") or dtype_right in ("String", "java.lang.String"))
-            confidence = "high" if (is_string_literal or is_explicit_string) else "medium"
-
-            op = op_text
-            suggested = ".equals()" if op == "==" else "!object.equals(other)"
+        if left_is_str or right_is_str:
+            snippet = self._snippet(node, source_lines)
+            self.record_syntax_match()
             yield self._make_issue(
                 node=node,
                 file_path=file_path,
                 source_lines=source_lines,
                 message=(
-                    f"Object compared with `{op}` checks reference identity, "
-                    f"not value equality. For Strings use `.equals()` or "
-                    f"`Objects.equals()` instead."
+                    f"String comparison using reference equality `{op}`. "
+                    f"Use `.equals()` for value equality in Java."
                 ),
                 evidence={
                     "operator": op,
-                    "left_operand": left.get("text") or "?",
-                    "right_operand": right.get("text") or "?",
-                    "suggested": suggested,
+                    "left_operand": (left.get("text") or "").strip(),
+                    "right_operand": (right.get("text") or "").strip(),
+                    "expression": snippet,
+                    "confidence": "high",
                 },
+                confidence="high",
             )
-
-"""
-JAVA_EQ_001 — String comparison with == instead of .equals() (Java)
--------------------------------------------------------------------
-Detects binary_expression nodes that use `==` or `!=` to compare
-operands where there is positive evidence that at least one operand is
-a `java.lang.String`.
-
-Reference equality on Strings checks object identity rather than value
-equality, which is almost always a bug.
-
-Suppression criteria (provably safe / intentional):
-- Either operand is null (idiomatic null check)
-- Either operand is a primitive literal or primitive type
-- Enum comparisons (both sides enum or enum constant on one side)
-- Class literal comparisons (e.g. `X.class == Y.class` or `type == SomeClass.class`)
-- Arbitrary non-String object reference comparisons where neither operand
-  has evidence of being a String.
-
-Confidence calibration:
-- HIGH: Both operands are proven Strings (e.g. string literals, variables
-  declared as String, or known String-returning methods).
-- MEDIUM: One operand is proven String and the other is a String-like variable/method.
-"""
-
-import re
-from typing import Iterator, List, Optional, Set, Dict, Tuple
-
-from ..base_rule import BaseRule
-from ..models import CandidateIssue
-
-
-# ---------------------------------------------------------------------------
-# Constants & Matchers
-# ---------------------------------------------------------------------------
-
-_KNOWN_STRING_METHODS = {
-    "tostring", "getname", "getstring", "readline", "trim", "substring",
-    "tolowercase", "touppercase", "replace", "format", "valueof", "concat",
-    "strip", "getdescription", "gettitle", "getmessage", "getpath",
-    "readutf", "readalllines", "getheader", "getproperty", "getvalue",
-}
-
-_STRING_NAME_HINTS = {
-    "str", "name", "text", "msg", "message", "label",
-    "key", "path", "url", "uri", "email",
-    "description", "title", "content", "contenttype",
-}
-
-_ENUM_CONST_RE = re.compile(r'^[A-Z][A-Z0-9_]*$')
-
-_PRIMITIVE_TYPES = {
-    "int", "long", "double", "float", "boolean", "char", "byte", "short",
-    "void", "Integer", "Long", "Double", "Float", "Boolean", "Character", "Byte", "Short",
-}
-
-
-# ---------------------------------------------------------------------------
-# Helper functions
-# ---------------------------------------------------------------------------
-
-def _is_null(node: dict) -> bool:
-    return (node.get("text") or "") == "null" or node.get("type") == "null_literal"
-
-
-def _is_primitive_literal(node: dict) -> bool:
-    return node.get("type", "") in {
-        "decimal_integer_literal", "decimal_floating_point_literal",
-        "hex_integer_literal", "octal_integer_literal", "binary_integer_literal",
-        "integer_literal", "floating_point_literal",
-        "true", "false", "character_literal",
-    }
-
-
-def _is_enum_constant(node: dict) -> bool:
-    ntype = node.get("type", "")
-    text = (node.get("text") or "").strip()
-    if ntype == "identifier":
-        return bool(_ENUM_CONST_RE.match(text)) and len(text) > 1 and not text.startswith("STR_")
-    if ntype == "field_access":
-        # e.g. JsonToken.NULL or Status.ACTIVE
-        parts = text.split(".")
-        if len(parts) >= 2 and _ENUM_CONST_RE.match(parts[-1]):
-            return True
-    return False
-
-
-def _is_class_literal(node: dict) -> bool:
-    text = (node.get("text") or "").strip()
-    if text.endswith(".class"):
-        return True
-    if node.get("type") == "field_access":
-        children = node.get("children", [])
-        if len(children) >= 2 and (children[-1].get("text") or "") == "class":
-            return True
-    return False
-
-
-def _is_string_literal(node: dict) -> bool:
-    ntype = node.get("type", "")
-    text = (node.get("text") or "").strip()
-    return ntype == "string_literal" or (text.startswith('"') and text.endswith('"'))
-
-
-def _is_known_string_method(node: dict) -> bool:
-    if node.get("type") != "method_invocation":
-        return False
-    text = (node.get("text") or "").strip()
-    # Extract method name before opening paren
-    m = re.search(r'\b([a-zA-Z0-9_]+)\s*\(', text)
-    if m:
-        method_name = m.group(1).lower()
-        if method_name in _KNOWN_STRING_METHODS:
-            return True
-    return False
-
-
-def _extract_declared_type(declaration: dict) -> Optional[str]:
-    children = declaration.get("children", [])
-    if not children:
-        return None
-    for child in children:
-        ntype = child.get("type", "")
-        if ntype in ("type_identifier", "scoped_type_identifier", "integral_type",
-                     "floating_point_type", "boolean_type", "void_type"):
-            return (child.get("text") or "").strip() or None
-        if ntype == "generic_type":
-            first = child.get("children", [{}])[0]
-            base_type = (first.get("text") or "").strip()
-            return base_type or (child.get("text") or "").strip() or None
-        if ntype == "array_type":
-            return (child.get("text") or "").strip() or None
-
-    for child in children:
-        if child.get("type") not in ("modifiers", "annotation", "marker_annotation"):
-            text = (child.get("text") or "").strip()
-            if text:
-                return text
-    return None
-
-
-def _var_names_in_declaration(declaration: dict) -> List[str]:
-    ntype = declaration.get("type", "")
-    names: List[str] = []
-    if ntype in ("local_variable_declaration", "field_declaration"):
-        for child in declaration.get("children", []):
-            if child.get("type") == "variable_declarator":
-                for c in child.get("children", []):
-                    if c.get("type") == "identifier":
-                        t = (c.get("text") or "").strip()
-                        if t:
-                            names.append(t)
-            elif child.get("type") == "identifier" and ntype == "field_declaration":
-                t = (child.get("text") or "").strip()
-                if t:
-                    names.append(t)
-    elif ntype in ("formal_parameter", "catch_formal_parameter"):
-        for child in declaration.get("children", []):
-            if child.get("type") == "identifier":
-                t = (child.get("text") or "").strip()
-                if t:
-                    names.append(t)
-    return names
-
-
-def _index_scope_declarations(ast_root: dict) -> Tuple[dict, dict]:
-    parent_map: dict = {}
-    scope_decls: dict = {}
-
-    def _walk_tree(curr: dict, parent: Optional[dict]):
-        if parent is not None:
-            parent_map[id(curr)] = parent
-
-        ntype = curr.get("type", "")
-        if ntype in ("block", "class_declaration", "interface_declaration",
-                     "method_declaration", "constructor_declaration", "module"):
-            decls: dict = {}
-            for child in curr.get("children", []):
-                ctype = child.get("type", "")
-                if ctype in ("local_variable_declaration", "field_declaration", "formal_parameter"):
-                    dtype = _extract_declared_type(child)
-                    if dtype:
-                        for vname in _var_names_in_declaration(child):
-                            decls[vname] = dtype
-                elif ctype in ("formal_parameters", "parameters"):
-                    for p in child.get("children", []):
-                        if p.get("type") in ("formal_parameter", "catch_formal_parameter"):
-                            dtype = _extract_declared_type(p)
-                            if dtype:
-                                for vname in _var_names_in_declaration(p):
-                                    decls[vname] = dtype
-            if decls:
-                scope_decls[id(curr)] = decls
-
-        for child in curr.get("children", []):
-            _walk_tree(child, curr)
-
-    _walk_tree(ast_root, None)
-    return parent_map, scope_decls
-
-
-def _resolve_declared_type(
-    ident_node: dict,
-    parent_map: dict,
-    scope_decls: dict,
-) -> Optional[str]:
-    name = (ident_node.get("text") or "").strip()
-    if not name:
-        return None
-
-    curr = parent_map.get(id(ident_node))
-    while curr is not None:
-        decls = scope_decls.get(id(curr))
-        if decls and name in decls:
-            return decls[name]
-        curr = parent_map.get(id(curr))
-    return None
-
-
-def _classify_operand_as_string(
-    node: dict,
-    declared_type: Optional[str],
-) -> Tuple[str, str]:
-    """
-    Returns (status, inferred_type_or_reason):
-      - "PROVEN_STRING": string literal, variable declared as String, or known String method
-      - "STRING_LIKE": variable with strong String naming hint
-      - "NON_STRING": primitive, enum, class literal, or declared non-String type
-      - "UNKNOWN": arbitrary reference with no String evidence
-    """
-    if _is_null(node):
-        return ("NON_STRING", "null")
-
-    if _is_primitive_literal(node):
-        return ("NON_STRING", "primitive_literal")
-
-    if _is_class_literal(node):
-        return ("NON_STRING", "Class<?>")
-
-    if _is_enum_constant(node):
-        return ("NON_STRING", "enum_constant")
-
-    if _is_string_literal(node):
-        return ("PROVEN_STRING", "String_literal")
-
-    if _is_known_string_method(node):
-        return ("PROVEN_STRING", "String_returning_method")
-
-    if declared_type:
-        if declared_type in ("String", "java.lang.String", "CharSequence"):
-            return ("PROVEN_STRING", declared_type)
-        if declared_type in _PRIMITIVE_TYPES:
-            return ("NON_STRING", declared_type)
-        if declared_type.endswith("[]") or "<" in declared_type:
-            return ("NON_STRING", declared_type)
-        # Declared as another known class (e.g. Response, List, Integer)
-        return ("NON_STRING", declared_type)
-
-    text = (node.get("text") or "").strip()
-    lower = text.lower()
-
-    if any(hint in lower for hint in _STRING_NAME_HINTS):
-        return ("STRING_LIKE", "name_hint")
-
-    return ("UNKNOWN", "unknown_reference")
-
-
-# ---------------------------------------------------------------------------
-# Rule Implementation
-# ---------------------------------------------------------------------------
-
-class JavaStringEquality(BaseRule):
-
-    LANGUAGES = ["Java"]
-
-    @property
-    def rule_id(self) -> str:
-        return "JAVA_EQ_001"
-
-    @property
-    def issue_type(self) -> str:
-        return "string_reference_equality"
-
-    @property
-    def severity(self) -> str:
-        return "high"
-
-    def analyze(
-        self,
-        ast: dict,
-        file_path: str,
-        source_lines: List[str],
-    ) -> Iterator[CandidateIssue]:
-
-        # Index scope hierarchy once in O(N)
-        parent_map, scope_decls = _index_scope_declarations(ast)
-
-        for node in self._walk(ast):
-            if node.get("type") != "binary_expression":
-                continue
-
-            children = node.get("children", [])
-            if len(children) < 3:
-                continue
-
-            operator_node = children[1]
-            op_text = (operator_node.get("text") or "").strip()
-            if op_text not in ("==", "!="):
-                continue
-
-            self.record_syntax_match()
-
-            left, right = children[0], children[2]
-
-            # 1. Idiomatic null checks -> suppress
-            if _is_null(left) or _is_null(right):
-                self.record_suppression("null_comparison")
-                continue
-
-            # 2. Primitive literals on either side -> suppress
-            if _is_primitive_literal(left) or _is_primitive_literal(right):
-                self.record_suppression("primitive_literal_comparison")
-                continue
-
-            # 3. Class literal comparisons (e.g. Type.class == Other.class) -> suppress
-            if _is_class_literal(left) or _is_class_literal(right):
-                self.record_suppression("class_literal_comparison")
-                continue
-
-            # 4. Enum constants -> suppress
-            if _is_enum_constant(left) or _is_enum_constant(right):
-                self.record_suppression("enum_comparison")
-                continue
-
-            # Resolve declared types from lexical scope hierarchy
-            dtype_left = _resolve_declared_type(left, parent_map, scope_decls) if left.get("type") == "identifier" else None
-            dtype_right = _resolve_declared_type(right, parent_map, scope_decls) if right.get("type") == "identifier" else None
-
-            # Skip if either operand is explicitly declared as primitive
-            if (dtype_left in _PRIMITIVE_TYPES) or (dtype_right in _PRIMITIVE_TYPES):
-                self.record_suppression("primitive_type_comparison")
-                continue
-
-            left_status, left_type = _classify_operand_as_string(left, dtype_left)
-            right_status, right_type = _classify_operand_as_string(right, dtype_right)
-
-            # Suppress if either operand is confirmed non-String
-            if left_status == "NON_STRING" or right_status == "NON_STRING":
-                self.record_suppression(f"non_string_operand_{left_type}_vs_{right_type}")
-                continue
-
-            # Check positive String evidence
-            confidence: Optional[str] = None
-            if left_status == "PROVEN_STRING" and right_status == "PROVEN_STRING":
-                confidence = "high"
-            elif left_status == "PROVEN_STRING" and right_status in ("STRING_LIKE", "UNKNOWN"):
-                confidence = "medium"
-            elif right_status == "PROVEN_STRING" and left_status in ("STRING_LIKE", "UNKNOWN"):
-                confidence = "medium"
-            elif left_status == "STRING_LIKE" and right_status == "STRING_LIKE":
-                confidence = "low"
-            else:
-                # Neither side has String evidence -> suppress arbitrary reference comparison
-                self.record_suppression("unproven_non_string_reference")
-                continue
-
-            suggested = ".equals()" if op_text == "==" else "!object.equals(other)"
-            left_text = (left.get("text") or "?").strip()
-            right_text = (right.get("text") or "?").strip()
-
-            yield self._make_issue(
-                node=node,
-                file_path=file_path,
-                source_lines=source_lines,
-                message=(
-                    f"String compared with `{op_text}` checks reference identity rather than "
-                    f"content equality. Use `{suggested}` or `Objects.equals()` instead."
-                ),
-                evidence={
-                    "operator": op_text,
-                    "left_operand": left_text,
-                    "left_type": left_type,
-                    "right_operand": right_text,
-                    "right_type": right_type,
-                    "suggested": suggested,
-                    "confidence": confidence,
-                },
-                confidence=confidence,
-            )
+        else:
+            self.record_suppression("non_string_reference_or_unknown")

@@ -1038,7 +1038,7 @@ class TestBugEnrichmentService(unittest.TestCase):
 
             py_file = repo_path / "calc.py"
             py_file.write_text(
-                "def divide(a, b):\n    return a / b\n",
+                "def divide(a, b):\n    return a / 0\n",
                 encoding="utf-8"
             )
 
