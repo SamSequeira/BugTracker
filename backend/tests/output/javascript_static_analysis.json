@@ -31,4 +31,34 @@
     "JS_PROMISE_001"
   ],
   "errors": []
+}{
+  "file_path": "/var/folders/_1/vmn2h0916nnghqrg_11m1kw40000gn/T/tmpw797kw24.js",
+  "language": "JavaScript",
+  "issues": [
+    {
+      "rule_id": "JS_DIV_001",
+      "issue_type": "division_by_zero",
+      "message": "Division by potentially zero value: the divisor `b` may be zero at runtime.  Add a zero-guard before dividing.",
+      "file_path": "/var/folders/_1/vmn2h0916nnghqrg_11m1kw40000gn/T/tmpw797kw24.js",
+      "line_number": 2,
+      "column": 11,
+      "code_snippet": "a / b",
+      "evidence": {
+        "operator": "/",
+        "right_operand": "b",
+        "right_node_type": "identifier",
+        "classification": "potentially_zero",
+        "confidence": "medium"
+      },
+      "severity": "high",
+      "confidence": "medium"
+    }
+  ],
+  "issue_count": 1,
+  "rules_run": [
+    "JS_DIV_001",
+    "JS_EQ_001",
+    "JS_AWA_001"
+  ],
+  "errors": []
 }

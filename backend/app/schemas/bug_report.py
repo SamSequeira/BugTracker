@@ -9,8 +9,37 @@ Similarity/Deduplication, and API/UI outputs.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 from pydantic import BaseModel, ConfigDict, Field
+
+
+# ---------------------------------------------------------------------------
+# Feature 2: Validation Status — only VERIFIED when the test harness
+# actually ran and confirmed FAIL→PASS; UNVERIFIED otherwise.
+# ---------------------------------------------------------------------------
+
+class ValidationStatus(str, Enum):
+    """
+    Represents whether an automated regression test has proven the fix.
+
+    VERIFIED   — harness ran, pre-fix FAILED and post-fix PASSED.
+    UNVERIFIED — harness not yet run, not applicable, or result inconclusive.
+    """
+    VERIFIED = "VERIFIED"
+    UNVERIFIED = "UNVERIFIED"
+
+
+class TestHarnessResultSchema(BaseModel):
+    """Serialisable view of a test harness run embedded in the bug report."""
+    generated_test_source: str = Field("", description="Generated test source code")
+    language: str = Field("unknown", description="Language of the generated test")
+    pre_fix_passed: Optional[bool] = Field(None, description="Whether the test PASSED before the fix (expect False)")
+    post_fix_passed: Optional[bool] = Field(None, description="Whether the test PASSED after the fix (expect True)")
+    validated: bool = Field(False, description="True only when pre_fix failed AND post_fix passed")
+    error: Optional[str] = Field(None, description="Harness setup/execution error if any")
+
+    model_config = ConfigDict(extra="ignore")
 
 
 class EvidenceItem(BaseModel):
@@ -167,8 +196,24 @@ class EnrichedBugReport(BaseModel):
     
     codeSnippet: List[CodeLine] = Field(default_factory=list, description="Surrounding code snippet formatted for UI")
     suggestedFix: Optional[SuggestedFix] = Field(None, description="Suggested remediation snippet and diff")
-    
+
+    # Feature 2: explicit AI confidence (from ML routing layer) and
+    # validation_status (VERIFIED only when test harness confirms FAIL→PASS).
+    ai_confidence: float = Field(
+        1.0,
+        description="ML model confidence score (0.0–1.0) from the classification/routing layer",
+    )
+    validation_status: ValidationStatus = Field(
+        ValidationStatus.UNVERIFIED,
+        description="VERIFIED when the regression test harness confirmed FAIL→PASS; UNVERIFIED otherwise",
+    )
+    test_harness_result: Optional[TestHarnessResultSchema] = Field(
+        None,
+        description="Structured pre/post fix test harness execution result (Feature 1)",
+    )
+
     explanation: BugExplanation = Field(..., description="Structured human-readable explanation answering 8 criteria")
+    human_readable_explanation: str = Field("", description="Plain text explanation narrative")
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Creation timestamp")
 
     model_config = ConfigDict(extra="ignore")
@@ -187,6 +232,8 @@ class BugReportSummaryStats(BaseModel):
     priority_p3: int = 0
     priority_p4: int = 0
     duplicates_count: int = 0
+    # Feature 2: count of bugs confirmed VERIFIED by test harness
+    verified_count: int = 0
     categories: Dict[str, int] = Field(default_factory=dict)
 
     model_config = ConfigDict(extra="ignore")

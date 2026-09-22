@@ -123,6 +123,23 @@ class CandidateIssue(Base):
         nullable=True,
     )
 
+    issue_key: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+        index=True,
+    )
+
+    security_impact: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    assigned_to_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     language: Mapped[str | None] = mapped_column(
         String(50),
         nullable=True,

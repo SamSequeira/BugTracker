@@ -31,3 +31,43 @@ email-validator==2.3.0
 aiosqlite==0.22.1
 scikit-learn
 joblib
+annotated-doc==0.0.5
+annotated-types==0.8.0
+anyio==4.14.2
+click==8.4.2
+colorama==0.4.6
+fastapi==0.141.1
+h11==0.16.0
+idna==3.18
+pydantic==2.13.4
+pydantic_core==2.46.4
+python-multipart==0.0.32
+starlette==1.6.0
+typing-inspection==0.4.3
+typing_extensions==4.16.0
+uvicorn==0.52.1
+boto3==1.43.71
+python-dotenv==1.1.1
+tree-sitter==0.26.0
+tree-sitter-python==0.25.0
+tree-sitter-javascript==0.25.0
+tree-sitter-java==0.23.5
+chromadb
+sentence-transformers
+
+SQLAlchemy==2.0.52
+asyncpg==0.31.0
+alembic==1.19.1
+PyJWT==2.11.0
+pwdlib[argon2]==0.3.0
+email-validator==2.3.0
+aiosqlite==0.22.1
+scikit-learn
+joblib
+
+# Feature orchestration — LangGraph + CrewAI
+# Versions pinned to ranges that are mutually compatible as of 2026-09.
+# crewai brings openai as a transitive dep; set OPENAI_API_KEY for LLM calls.
+# Both degrade gracefully when the env-var is absent (fallback paths used).
+langgraph>=0.2.0,<0.3.0
+crewai>=0.55.0,<0.80.0
