@@ -17,6 +17,7 @@ export default function BugDetailsDrawer() {
   const [saveStatus, setSaveStatus] = useState("Synced");
   const [sourceContext, setSourceContext] = useState(null);
   const [isLoadingContext, setIsLoadingContext] = useState(false);
+  const [sourceContextError, setSourceContextError] = useState("");
 
   // Keep local remarks in sync with activeDrawerBug or shared bugs array
   useEffect(() => {
@@ -31,20 +32,30 @@ export default function BugDetailsDrawer() {
   useEffect(() => {
     if (!activeDrawerBug?.id) {
       setSourceContext(null);
+      setSourceContextError("");
       return;
     }
 
     let isCancelled = false;
     setIsLoadingContext(true);
+    setSourceContextError("");
+
+    if (typeof apiService.getSourceContext !== "function") {
+      setSourceContext(null);
+      setSourceContextError("Source context is unavailable.");
+      setIsLoadingContext(false);
+      return;
+    }
 
     apiService
       .getSourceContext(activeDrawerBug.id, 8)
       .then((res) => {
         if (!isCancelled) {
-          if (res && res.found && Array.isArray(res.lines) && res.lines.length > 0) {
-            setSourceContext(res);
+          if (res.live && res.data?.found && Array.isArray(res.data.lines) && res.data.lines.length > 0) {
+            setSourceContext(res.data);
           } else {
             setSourceContext(null);
+            setSourceContextError(res.error || res.data?.message || "Source context is unavailable.");
           }
           setIsLoadingContext(false);
         }
@@ -52,6 +63,7 @@ export default function BugDetailsDrawer() {
       .catch(() => {
         if (!isCancelled) {
           setSourceContext(null);
+          setSourceContextError("Source context is unavailable.");
           setIsLoadingContext(false);
         }
       });
@@ -233,7 +245,13 @@ export default function BugDetailsDrawer() {
               Vulnerable Code Snippet
             </span>
             <span className="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
-              {hasContextLines ? "Source File Context" : "Database Analysis Snippet"}
+              {isLoadingContext
+                ? "Loading Source Context..."
+                : hasContextLines
+                ? "Source File Context"
+                : sourceContextError
+                ? "Source Context Unavailable"
+                : "Database Analysis Snippet"}
             </span>
           </div>
 

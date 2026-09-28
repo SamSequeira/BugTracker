@@ -1,0 +1,255 @@
+"""
+Bounded semantic LLM review that selects application code, extracts functions,
+builds context, and validates findings against actual source.
+
+Uses the semantic_pipeline module for file/function selection and evidence validation.
+Integrates with the existing deduplication engine to avoid rule/LLM overlap.
+"""
+
+import logging
+import uuid
+from pathlib import Path
+from typing import Any
+
+from data.dbconnection.session import AsyncSessionLocal
+from app.models.candidate_issues import CandidateIssue
+from app.services.llm_logic_reviewer.llm_provider import create_llm_provider
+from app.services.llm_logic_reviewer.semantic_pipeline import (
+    SemanticReviewConfig, build_context, build_detection_prompt, discover_source_files,
+    extract_functions, parse_llm_finding, validate_finding,
+)
+from app.services.llm_logic_reviewer.deduplication import get_dedup_engine
+
+logger = logging.getLogger(__name__)
+
+
+async def run_llm_logic_review(analysis_run_id: str, repository_path: str, max_functions: int | None = None) -> dict[str, Any]:
+    """Run bounded semantic review. Rules are neither invoked nor modified here."""
+    config = SemanticReviewConfig()
+    if max_functions:
+        config = SemanticReviewConfig(max_functions=max_functions)
+    
+    repo_root = Path(repository_path)
+    provider = create_llm_provider()
+    dedup_engine = get_dedup_engine()
+    
+    metrics = {
+        "files_selected": 0,
+        "functions_extracted": 0,
+        "functions_checked": 0,
+        "llm_calls_made": 0,
+        "findings_candidate": 0,
+        "findings_validated": 0,
+        "rejected_as_duplicates": 0,
+        "accepted_as_unique": 0,
+        "rule_findings": 0,
+        "llm_failures": 0,
+    }
+    
+    # Count existing rule findings
+    try:
+        async with AsyncSessionLocal() as db:
+            from sqlalchemy import select, func as db_func, cast, String
+            result = await db.execute(
+                select(db_func.count(CandidateIssue.id)).where(
+                    (CandidateIssue.analysis_run_id == analysis_run_id) &
+                    ((CandidateIssue.rule_id.isnot(None)) |
+                     (cast(CandidateIssue.evidence["source"], String) == '"rule"'))
+                )
+            )
+            metrics["rule_findings"] = result.scalar() or 0
+            logger.info("Found %d existing rule-based findings", metrics["rule_findings"])
+    except Exception as e:
+        logger.warning("Could not count rule findings: %s", e)
+    
+    # Phase 1: File selection
+    logger.info("Phase 1: Discovering application source files in %s", repo_root)
+    selected_files = discover_source_files(repo_root, config)
+    metrics["files_selected"] = len(selected_files)
+    logger.info("Selected %d files for semantic review", len(selected_files))
+    
+    # Phase 2: Function extraction
+    all_functions = []
+    for selected_file in selected_files:
+        try:
+            functions = extract_functions(selected_file)
+            all_functions.extend(functions)
+            metrics["functions_extracted"] += len(functions)
+        except Exception as e:
+            logger.warning("Failed to extract functions from %s: %s", selected_file.relative_path, e)
+    
+    logger.info("Extracted %d functions total", len(all_functions))
+    
+    # Phase 3-9: Process each function through the bounded pipeline
+    functions_to_check = all_functions[:config.max_functions] if config.max_functions else all_functions
+    
+    for function in functions_to_check:
+        metrics["functions_checked"] += 1
+        
+        try:
+            # Phase 3: Context extraction
+            context = build_context(function, all_functions, config)
+            
+            # Phase 4: Pre-filter (conservative - only skip truly unsuitable functions)
+            # For now, no aggressive pre-filtering to ensure we do not miss bugs
+            
+            # Phase 5: LLM detector
+            prompt = build_detection_prompt(function, context)
+            metrics["llm_calls_made"] += 1
+            
+            try:
+                response_dict = provider.generate(prompt); response = response_dict.get("response", "")
+            except Exception as e:
+                metrics["llm_failures"] += 1
+                logger.warning("LLM call failed for %s: %s", function.qualified_name, e)
+                continue
+            
+            # Phase 6: Parse LLM response
+            candidate = parse_llm_finding(response)
+            if not candidate:
+                continue
+            
+            if not candidate.get("bug_found", False):
+                continue
+            
+            metrics["findings_candidate"] += 1
+            
+            # Phase 7: Evidence validation
+            validation_status, validation_reason = validate_finding(candidate, function)
+            
+            if validation_status != "SUPPORTED":
+                logger.debug("Rejected finding for %s: %s", function.qualified_name, validation_reason or validation_status)
+                continue
+            
+            metrics["findings_validated"] += 1
+            
+            # Phase 8: Deduplication
+            func_name = function.name
+            llm_finding = {
+                "title": candidate.get("title", f"Semantic bug in {func_name}()"),
+                "description": candidate.get("description", ""),
+                "file_path": function.file_path,
+                "line": function.start_line,
+                "line_end": function.end_line,
+                "symbol": function.name,
+                "category": candidate.get("bug_type", "semantic_bug"),
+                "root_cause": candidate.get("reasoning", ""),
+                "evidence": candidate.get("evidence", ""),
+            }
+            
+            try:
+                async with AsyncSessionLocal() as db:
+                    duplicate_rule = await _check_duplicate(
+                        db, analysis_run_id, function.file_path, llm_finding, dedup_engine
+                    )
+                
+                if duplicate_rule:
+                    metrics["rejected_as_duplicates"] += 1
+                    logger.info(
+                        "Dedup: LLM '%s' at %s::%s matches rule '%s'",
+                        llm_finding["title"][:60],
+                        function.file_path,
+                        function.name,
+                        duplicate_rule.get("title", "unknown")[:60],
+                    )
+                    continue
+            except Exception as e:
+                logger.warning("Dedup check failed for %s: %s (proceeding)", function.qualified_name, e)
+            
+            # Phase 9: Final findings - save to database
+            metrics["accepted_as_unique"] += 1
+            
+            issue = CandidateIssue(
+                id=str(uuid.uuid4()),
+                analysis_run_id=analysis_run_id,
+                title=llm_finding["title"],
+                description=llm_finding["description"],
+                file_path=function.file_path,
+                line_number=function.start_line,
+                severity="high" if candidate.get("confidence", 0) >= 0.85 else "medium",
+                urgency="needs_review",
+                issue_type="semantic_bug",
+                message=llm_finding["description"],
+                code_snippet=function.source,
+                evidence={
+                    "source": "semantic_llm",
+                    "confidence": candidate.get("confidence", 0.0),
+                    "category": candidate.get("bug_type", "semantic_bug"),
+                    "function_name": function.name,
+                    "evidence": candidate.get("evidence", ""),
+                    "reasoning": candidate.get("reasoning", ""),
+                    "expected_behavior": candidate.get("expected_behavior", ""),
+                    "actual_behavior": candidate.get("actual_behavior", ""),
+                    "relevant_code": candidate.get("relevant_code", ""),
+                },
+            )
+            
+            try:
+                async with AsyncSessionLocal() as db:
+                    db.add(issue)
+                    await db.commit()
+                logger.info(
+                    "Saved unique LLM finding: %s::%s (%s)",
+                    function.file_path, function.name, candidate.get("bug_type", "semantic_bug")
+                )
+            except Exception as e:
+                logger.error("Failed to save finding for %s: %s", function.qualified_name, e)
+        
+        except Exception as e:
+            logger.warning("Error processing function %s: %s", function.qualified_name, e)
+            continue
+    
+    # Log final metrics
+    logger.info("")
+    logger.info("=" * 90)
+    logger.info("BOUNDED SEMANTIC LLM REVIEW â€” FINAL METRICS")
+    logger.info("=" * 90)
+    logger.info("FILES: Selected %d application/business-logic files", metrics["files_selected"])
+    logger.info("FUNCTIONS: Extracted %d, Checked %d", metrics["functions_extracted"], metrics["functions_checked"])
+    logger.info("LLM CALLS: Made %d calls", metrics["llm_calls_made"])
+    logger.info("FINDINGS: %d candidates, %d validated, %d duplicates, %d unique saved", 
+                metrics["findings_candidate"], metrics["findings_validated"], 
+                metrics["rejected_as_duplicates"], metrics["accepted_as_unique"])
+    logger.info("EXISTING RULES: %d rule-based findings already present", metrics["rule_findings"])
+    logger.info("=" * 90)
+    logger.info("")
+    
+    return metrics
+
+
+async def _check_duplicate(
+    db_session,
+    analysis_run_id: str,
+    file_path: str,
+    llm_finding: dict,
+    dedup_engine,
+) -> dict | None:
+    """Check for deduplication against rule findings in the same file."""
+    from sqlalchemy import select, cast, String
+    
+    rule_candidates = await db_session.execute(
+        select(CandidateIssue).where(
+            (CandidateIssue.analysis_run_id == analysis_run_id) &
+            (CandidateIssue.file_path == file_path) &
+            ((CandidateIssue.rule_id.isnot(None)) |
+             (cast(CandidateIssue.evidence["source"], String) == '"rule"'))
+        )
+    )
+    
+    rule_findings = []
+    for issue in rule_candidates.scalars():
+        rule_findings.append({
+            "id": issue.id,
+            "rule_id": issue.rule_id,
+            "title": issue.title,
+            "description": issue.description or "",
+            "file_path": issue.file_path,
+            "line": issue.line_number,
+            "symbol": getattr(issue, "symbol", ""),
+            "category": issue.issue_type or "unknown",
+        })
+    
+    if not rule_findings:
+        return None
+    
+    return dedup_engine.find_duplicate(llm_finding, rule_findings)

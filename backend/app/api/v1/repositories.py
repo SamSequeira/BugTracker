@@ -108,7 +108,16 @@ async def _run_analysis_for_repository(repository_id: str, repository_name: str)
             )
             return
 
-        # PHASE 3: Persist all architecture entities and mark completed
+        # PHASE 3: Bounded semantic LLM review. It is intentionally isolated:
+        # deterministic analysis and persistence continue if a provider is unavailable.
+        try:
+            from app.services.llm_logic_reviewer.reviewer import run_llm_logic_review
+            semantic_metrics = await run_llm_logic_review(analysis_run_id, str(repository_path))
+            logger.info("semantic_llm: %d files, %d functions, %d calls, %d findings (run %s)", semantic_metrics.get("files_selected", 0), semantic_metrics.get("functions_checked", 0), semantic_metrics.get("llm_calls_made", 0), semantic_metrics.get("accepted_as_unique", 0), analysis_run_id)
+        except Exception as exc:
+            logger.error("semantic_llm: failed for run %s; continuing static pipeline: %s", analysis_run_id, exc)
+
+        # PHASE 4: Persist all architecture entities and mark completed
         try:
             await repository_analysis_service.complete_analysis_run(
                 db, analysis_run_id, analysis_result,
@@ -325,7 +334,16 @@ async def analyze_repository(
             detail=f"Analysis failed: {str(error)}",
         ) from error
 
-    # PHASE 3: PERSIST FINDINGS & COMPLETE ANALYSIS RUN
+    # PHASE 3: BOUNDED SEMANTIC LLM REVIEW
+    try:
+        from app.services.llm_logic_reviewer.reviewer import run_llm_logic_review
+        semantic_metrics = await run_llm_logic_review(analysis_run_id, str(repository_path))
+        analysis_result["semantic_llm"] = semantic_metrics
+    except Exception as error:
+        logger.error("semantic_llm: failed for run %s; continuing static pipeline: %s", analysis_run_id, error)
+        analysis_result["semantic_llm"] = {"error": str(error), "accepted_as_unique": 0}
+
+    # PHASE 4: PERSIST FINDINGS & COMPLETE ANALYSIS RUN
     try:
         updated_analysis_run = await repository_analysis_service.complete_analysis_run(
             db,

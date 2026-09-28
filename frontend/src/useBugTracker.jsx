@@ -121,7 +121,15 @@ export function BugTrackerProvider({ children }) {
 
   // Listen to API Live/Demo status changes
   useEffect(() => {
-    const unsub = apiService.onStatusChange((live) => setIsLive(live));
+    const unsub = apiService.onStatusChange((live) => {
+      setIsLive(live);
+      // Clear backend unavailable error when backend becomes available
+      if (live) {
+        setScanError((currentError) =>
+          currentError?.type === "no_backend" ? null : currentError
+        );
+      }
+    });
     return unsub;
   }, []);
 

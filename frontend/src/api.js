@@ -336,6 +336,19 @@ class ApiService {
     }
   }
 
+  // GET /api/v1/candidate-issues/{issueId}/context
+  async getSourceContext(issueId, contextLines = 15) {
+    if (!issueId) return { live: false, data: null, error: "No issue ID" };
+    try {
+      const data = await this.request(
+        `/candidate-issues/${encodeURIComponent(issueId)}/context?context_lines=${contextLines}`
+      );
+      return { live: true, data };
+    } catch (err) {
+      return { live: false, data: null, error: err.message };
+    }
+  }
+
   // PATCH /api/v1/candidate-issues/{id}/status
   async resolveBug(bugId, nextStatus) {
     try {
