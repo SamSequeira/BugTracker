@@ -533,9 +533,33 @@ class TestPythonAssertInCode:
 class TestPythonMutableDefaultArg:
 
     def test_suppressions(self):
-        # Immutable defaults
+        # Immutable defaults: int, str, bool, None, tuple, float
         res = _analyze("""
-        def query(name, limit=10, active=True, extra=None):
+        def query(name, limit=10, active=True, extra=None, ratio=1.5, pair=(1, 2)):
+            pass
+
+        def f_int(value=0):
+            return value
+
+        def f_str(value="test"):
+            return value
+
+        def f_none(value=None):
+            return value
+
+        def f_bool(value=True):
+            return value
+
+        def f_tuple(value=(1, 2)):
+            return value
+        """, "Python")
+        mut_issues = [i for i in res["issues"] if i["rule_id"] == "PY_MUT_001"]
+        assert len(mut_issues) == 0
+
+    def test_suppressions_typed(self):
+        # Typed immutable defaults
+        res = _analyze("""
+        def query(name: str, limit: int = 0, active: bool = True, extra: str = "test", val: tuple = (1, 2), item: object = None):
             pass
         """, "Python")
         mut_issues = [i for i in res["issues"] if i["rule_id"] == "PY_MUT_001"]
@@ -552,6 +576,40 @@ class TestPythonMutableDefaultArg:
         assert len(mut_issues) == 1
         assert "target=[]" in mut_issues[0]["code_snippet"]
         assert mut_issues[0]["evidence"]["confidence"] == "high"
+
+    def test_detections_list_literal(self):
+        res = _analyze("""
+        def f(items=[]):
+            return items
+        """, "Python")
+        mut_issues = [i for i in res["issues"] if i["rule_id"] == "PY_MUT_001"]
+        assert len(mut_issues) == 1
+        assert mut_issues[0]["evidence"]["parameter"] == "items"
+
+    def test_detections_set_constructor(self):
+        res = _analyze("""
+        def f(tags=set()):
+            return tags
+        """, "Python")
+        mut_issues = [i for i in res["issues"] if i["rule_id"] == "PY_MUT_001"]
+        assert len(mut_issues) == 1
+        assert mut_issues[0]["evidence"]["parameter"] == "tags"
+
+    def test_detections_typed_defaults_benchmark(self):
+        # Specifically tests BUG-PY-007 and BUG-PY-008
+        res = _analyze("""
+        def append_audit_event(event: str, events: list = []) -> list:
+            events.append(event)
+            return events
+
+        def merge_tags(tags: set = set()) -> set:
+            tags.add("processed")
+            return tags
+        """, "Python")
+        mut_issues = [i for i in res["issues"] if i["rule_id"] == "PY_MUT_001"]
+        assert len(mut_issues) == 2
+        params = {i["evidence"]["parameter"] for i in mut_issues}
+        assert params == {"events", "tags"}
 
 
 # ===========================================================================

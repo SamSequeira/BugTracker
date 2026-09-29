@@ -306,6 +306,10 @@ def register_all_tests(runner: AdversarialAuditRunner):
                     "def f(x=set()):\n    pass\n", 1)
     runner.run_case("positive", "PY_MUT: aliased global list def f(x=GLOBAL_LIST)", r, lang,
                     "DEFAULT_ITEMS = []\ndef f(x=DEFAULT_ITEMS):\n    pass\n", 1)
+    runner.run_case("positive", "PY_MUT: typed list default def f(event: str, events: list = [])", r, lang,
+                    "def append_audit_event(event: str, events: list = []) -> list:\n    events.append(event)\n    return events\n", 1)
+    runner.run_case("positive", "PY_MUT: typed set constructor default def f(tags: set = set())", r, lang,
+                    "def merge_tags(tags: set = set()) -> set:\n    tags.add('processed')\n    return tags\n", 1)
 
     # Negative
     runner.run_case("negative", "PY_MUT: safe None default def f(x=None)", r, lang,
@@ -314,6 +318,8 @@ def register_all_tests(runner: AdversarialAuditRunner):
                     "def f(x=()):\n    pass\n", 0)
     runner.run_case("negative", "PY_MUT: immutable int/string default def f(x=0, y='init')", r, lang,
                     "def f(x=0, y='init'):\n    pass\n", 0)
+    runner.run_case("negative", "PY_MUT: typed immutable defaults def f(x: int = 0, y: str = 'init')", r, lang,
+                    "def f(x: int = 0, y: str = 'init', z: tuple = (1, 2)):\n    pass\n", 0)
     runner.run_case("negative", "PY_MUT: variable reassigned to immutable before func def", r, lang,
                     "a = []\na = 1\ndef f(x=a):\n    pass\n", 0)
 

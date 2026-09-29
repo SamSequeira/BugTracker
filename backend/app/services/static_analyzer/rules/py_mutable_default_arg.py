@@ -86,10 +86,10 @@ class PythonMutableDefaultArg(BaseRule):
 
             # Check function definitions and lambdas
             if ntype in ("function_definition", "async_function_definition", "lambda"):
-                params = next((c for c in child.get("children", []) if c.get("type") == "parameters"), None)
+                params = next((c for c in child.get("children", []) if c.get("type") in ("parameters", "lambda_parameters")), None)
                 if params:
                     for p in params.get("children", []):
-                        if p.get("type") == "default_parameter":
+                        if p.get("type") in ("default_parameter", "typed_default_parameter"):
                             kids = p.get("children", [])
                             if len(kids) >= 3:
                                 param_name = (kids[0].get("text") or "").strip()
@@ -134,5 +134,5 @@ class PythonMutableDefaultArg(BaseRule):
 
                 # Recurse into nested scope
                 yield from self._analyze_scope(child, mutability, file_path, source_lines)
-            elif ntype in ("class_definition", "block"):
+            else:
                 yield from self._analyze_scope(child, mutability, file_path, source_lines)
