@@ -191,7 +191,7 @@ export function BugTrackerProvider({ children }) {
       stopPolling();
 
       const POLL_INTERVAL_MS = 2000;
-      const POLL_TIMEOUT_MS = 5 * 60 * 1000;
+      const POLL_TIMEOUT_MS = 10 * 60 * 1000;
       const startedAt = Date.now();
 
       pollingRef.current = setInterval(async () => {
@@ -204,7 +204,7 @@ export function BugTrackerProvider({ children }) {
           setScanStage("");
           setScanError({
             message:
-              "Analysis timed out after 5 minutes. The repository may be too large.",
+              "Analysis timed out after 10 minutes. The repository may be too large.",
             type: "unknown",
           });
           return;

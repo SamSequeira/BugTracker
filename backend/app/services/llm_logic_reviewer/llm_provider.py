@@ -708,11 +708,22 @@ def create_llm_provider(
         OPENAI_TIMEOUT_SECONDS
     """
 
+    # Auto-load the project .env so provider settings are always available
+    # regardless of whether the caller has already loaded dotenv.
+    try:
+        from dotenv import load_dotenv as _load_dotenv
+        import pathlib as _pathlib
+        _env_file = _pathlib.Path(__file__).resolve().parents[4] / ".env"
+        if _env_file.is_file():
+            _load_dotenv(_env_file, override=False)
+    except Exception:
+        pass
+
     primary_type = (
         provider_type
         or os.getenv(
             "LLM_PROVIDER",
-            "gemini",
+            "ollama",
         )
     ).strip().lower()
 

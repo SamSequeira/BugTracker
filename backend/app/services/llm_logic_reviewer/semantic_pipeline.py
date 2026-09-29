@@ -24,12 +24,16 @@ from __future__ import annotations
 
 import ast
 import json
+import logging
 import os
 import re
 import textwrap
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
+
+logger = logging.getLogger(__name__)
+
 
 
 # =============================================================================
@@ -86,13 +90,160 @@ EXCLUDED_PARTS = frozenset(
         "docs",
         "site-packages",
         ".pytest_cache",
+        ".tox",
+        ".mypy_cache",
+        ".ruff_cache",
+        ".idea",
+        ".vscode",
+        "htmlcov",
     }
 )
 
 
 SOURCE_SUFFIXES = {
     ".py": "python",
+    ".js": "javascript",
+    ".java": "java",
 }
+
+
+# =============================================================================
+# Tree-sitter parser infrastructure
+# =============================================================================
+
+_PARSERS: dict[str, Any] = {}
+
+
+def _get_parser(language: str) -> Any | None:
+    norm_lang = language.lower()
+    if norm_lang in _PARSERS:
+        return _PARSERS[norm_lang]
+
+    # Reusing existing parser setup from ast_generator.py
+    try:
+        from app.services.ast_generator import ASTGenerator
+
+        gen = ASTGenerator()
+        for k, v in gen._parsers.items():
+            _PARSERS[k.lower()] = v
+        if norm_lang in _PARSERS:
+            return _PARSERS[norm_lang]
+    except Exception:
+        pass
+
+    # Direct tree-sitter initialization fallback
+    try:
+        from tree_sitter import Language, Parser
+
+        if norm_lang == "python":
+            import tree_sitter_python as mod
+        elif norm_lang == "javascript":
+            import tree_sitter_javascript as mod
+        elif norm_lang == "java":
+            import tree_sitter_java as mod
+        else:
+            return None
+
+        try:
+            lang_obj = Language(mod.language())
+        except TypeError:
+            lang_obj = Language(mod.language(), norm_lang)
+
+        parser = Parser()
+        if hasattr(parser, "set_language"):
+            parser.set_language(lang_obj)
+        else:
+            parser.language = lang_obj
+
+        _PARSERS[norm_lang] = parser
+        return parser
+    except Exception:
+        return None
+
+
+def _validate_syntax(source: str, language: str, filename: str = "") -> bool:
+    """Validate source code syntax using the appropriate parser."""
+    if language == "python":
+        try:
+            ast.parse(source, filename=filename)
+            return True
+        except SyntaxError:
+            return False
+
+    parser = _get_parser(language)
+    if parser is None:
+        return False
+
+    try:
+        tree = parser.parse(source.encode("utf-8"))
+        root = tree.root_node
+        if root is None or root.type == "ERROR":
+            return False
+        return not root.has_error
+    except Exception:
+        return False
+
+
+def _has_executable_definitions(source: str, language: str) -> bool:
+    """Check if source contains executable function/method/class definitions."""
+    if language == "python":
+        try:
+            tree = ast.parse(source)
+            return any(
+                isinstance(
+                    node,
+                    (
+                        ast.FunctionDef,
+                        ast.AsyncFunctionDef,
+                        ast.ClassDef,
+                    ),
+                )
+                for node in ast.walk(tree)
+            )
+        except SyntaxError:
+            return False
+
+    parser = _get_parser(language)
+    if parser is None:
+        return False
+
+    try:
+        tree = parser.parse(source.encode("utf-8"))
+        root = tree.root_node
+        if root is None:
+            return False
+
+        if language == "javascript":
+            target_types = {
+                "function_declaration",
+                "generator_function_declaration",
+                "method_definition",
+                "class_declaration",
+                "arrow_function",
+                "function_expression",
+            }
+        elif language == "java":
+            target_types = {
+                "method_declaration",
+                "constructor_declaration",
+                "class_declaration",
+                "interface_declaration",
+                "enum_declaration",
+                "record_declaration",
+            }
+        else:
+            return False
+
+        stack = [root]
+        while stack:
+            n = stack.pop()
+            if n.type in target_types:
+                return True
+            stack.extend(n.children)
+        return False
+    except Exception:
+        return False
+
 
 
 # =============================================================================
@@ -168,6 +319,10 @@ class SemanticReviewConfig:
         )
     )
 
+# Maximum size for a single source file (10MB in characters, ~10MB assuming mostly ASCII)
+MAX_INDIVIDUAL_FILE_CHARS = 10_000_000
+
+
 
 # =============================================================================
 # Data structures
@@ -241,6 +396,7 @@ def discover_source_files(
         return []
 
     candidates: list[SelectedFile] = []
+    seen_paths: set[Path] = set()
 
     for path in sorted(
         root_path.rglob("*"),
@@ -255,6 +411,12 @@ def discover_source_files(
             continue
 
         relative = path.relative_to(root_path)
+
+        # Skip duplicate paths (symlinks, hardlinks)
+        resolved_path = path.resolve()
+        if resolved_path in seen_paths:
+            continue
+        seen_paths.add(resolved_path)
 
         parts = {
             part.lower()
@@ -280,6 +442,12 @@ def discover_source_files(
         if lower_name.endswith("_test.py"):
             continue
 
+        if lower_name.endswith((".test.js", ".spec.js", "_test.js")):
+            continue
+
+        if lower_name.endswith(("test.java", "tests.java", "testcase.java")):
+            continue
+
         # -------------------------------------------------------------
         # File size
         # -------------------------------------------------------------
@@ -292,7 +460,7 @@ def discover_source_files(
         if file_size == 0:
             continue
 
-        if file_size > config.max_source_chars:
+        if file_size > MAX_INDIVIDUAL_FILE_CHARS:
             continue
 
         # -------------------------------------------------------------
@@ -314,12 +482,13 @@ def discover_source_files(
         # Syntax validation
         # -------------------------------------------------------------
 
-        try:
-            tree = ast.parse(
-                source,
-                filename=str(path),
-            )
-        except SyntaxError:
+        language = SOURCE_SUFFIXES[suffix]
+
+        if not _validate_syntax(
+            source,
+            language,
+            filename=str(path),
+        ):
             continue
 
         reasons: list[str] = []
@@ -344,6 +513,8 @@ def discover_source_files(
             "manage",
             "wsgi",
             "asgi",
+            "index",
+            "application",
         }:
             reasons.append(
                 "application-entry hint"
@@ -353,29 +524,23 @@ def discover_source_files(
         # Executable definitions
         # -------------------------------------------------------------
 
-        if any(
-            isinstance(
-                node,
-                (
-                    ast.FunctionDef,
-                    ast.AsyncFunctionDef,
-                    ast.ClassDef,
-                ),
-            )
-            for node in ast.walk(tree)
-        ):
+        if _has_executable_definitions(source, language):
             reasons.append(
                 "executable definitions"
             )
 
+        # Files without specific hints get lower priority but are still included
         if not reasons:
-            continue
+            if language == "python":
+                reasons.append("executable-python-file")
+            else:
+                reasons.append(f"executable-{language}-file")
 
         candidates.append(
             SelectedFile(
                 path=path,
                 relative_path=relative.as_posix(),
-                language=SOURCE_SUFFIXES[suffix],
+                language=language,
                 source_chars=len(source),
                 selection_reasons=tuple(reasons),
             )
@@ -387,8 +552,12 @@ def discover_source_files(
 
     candidates.sort(
         key=lambda item: (
-            "application-directory hint"
-            not in item.selection_reasons,
+            "application-directory hint" not in item.selection_reasons,
+            "application-entry hint" not in item.selection_reasons,
+            (
+                "executable-python-file" in item.selection_reasons
+                or f"executable-{item.language}-file" in item.selection_reasons
+            ),
             item.relative_path.lower(),
         )
     )
@@ -648,6 +817,472 @@ def _referenced_module_names(node: ast.AST) -> set[str]:
     return (loaded - (stored - declared_global)) | (stored & declared_global)
 
 
+def _extract_js_functions(
+    selected_file: SelectedFile,
+) -> list[ExtractedFunction]:
+    """
+    Extract JavaScript functions, async functions, arrow functions, and class methods using tree-sitter.
+    """
+    try:
+        source = selected_file.path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return []
+
+    lines = source.splitlines()
+    parser = _get_parser("javascript")
+    if parser is None:
+        return []
+
+    try:
+        tree = parser.parse(source.encode("utf-8"))
+    except Exception:
+        return []
+
+    root = tree.root_node
+    if root is None:
+        return []
+
+    def _get_node_source(n) -> str:
+        s_line = n.start_point[0]
+        e_line = n.end_point[0]
+        return "\n".join(lines[s_line : e_line + 1])
+
+    # 1. Imports
+    imports_list: list[str] = []
+    for child in root.children:
+        if child.type == "import_statement":
+            imports_list.append(_get_node_source(child))
+        elif child.type in ("variable_declaration", "lexical_declaration"):
+            child_text = child.text.decode("utf-8", errors="replace") if child.text else ""
+            if "require(" in child_text:
+                imports_list.append(_get_node_source(child))
+    imports = tuple(imports_list)
+
+    # 2. Module definitions (top-level constants/variables/classes)
+    module_defs: list[tuple[str, str, str]] = []
+    seen_defs: set[str] = set()
+    for child in root.children:
+        if child.type == "class_declaration":
+            name_node = child.child_by_field_name("name")
+            if name_node and name_node.text:
+                c_name = name_node.text.decode("utf-8", errors="replace")
+                if c_name not in seen_defs:
+                    seen_defs.add(c_name)
+                    module_defs.append(("class", c_name, _get_node_source(child)))
+        elif child.type in ("variable_declaration", "lexical_declaration"):
+            for declarator in child.children:
+                if declarator.type == "variable_declarator":
+                    val = declarator.child_by_field_name("value")
+                    if val and val.type not in ("arrow_function", "function_expression", "generator_function"):
+                        name_node = declarator.child_by_field_name("name")
+                        if name_node and name_node.text:
+                            v_name = name_node.text.decode("utf-8", errors="replace")
+                            if v_name not in seen_defs:
+                                seen_defs.add(v_name)
+                                module_defs.append(("variable", v_name, _get_node_source(child)))
+
+    def _get_js_parameters(param_node) -> tuple[str, ...]:
+        if not param_node:
+            return ()
+        if param_node.type == "identifier":
+            return (param_node.text.decode("utf-8", errors="replace"),)
+        params: list[str] = []
+        for p in param_node.children:
+            if p.type == "identifier":
+                params.append(p.text.decode("utf-8", errors="replace"))
+            elif p.type == "assignment_pattern":
+                left = p.child_by_field_name("left")
+                if left and left.text:
+                    params.append(left.text.decode("utf-8", errors="replace"))
+            elif p.type == "rest_pattern":
+                arg = p.child_by_field_name("argument")
+                if arg and arg.text:
+                    params.append("..." + arg.text.decode("utf-8", errors="replace"))
+                elif p.text:
+                    params.append(p.text.decode("utf-8", errors="replace"))
+            elif p.type in ("object_pattern", "array_pattern") and p.text:
+                params.append(p.text.decode("utf-8", errors="replace"))
+        return tuple(params)
+
+    def _is_js_async(n) -> bool:
+        for child in n.children:
+            if child.type == "async":
+                return True
+        return False
+
+    def _get_js_decorators(n) -> tuple[str, ...]:
+        decs: list[str] = []
+        for child in n.children:
+            if child.type == "decorator" and child.text:
+                decs.append(child.text.decode("utf-8", errors="replace"))
+        return tuple(decs)
+
+    def _get_called_names(n) -> tuple[str, ...]:
+        calls: set[str] = set()
+        stack = [n]
+        while stack:
+            curr = stack.pop()
+            if curr.type == "call_expression":
+                fn = curr.child_by_field_name("function")
+                if fn:
+                    if fn.type == "identifier" and fn.text:
+                        calls.add(fn.text.decode("utf-8", errors="replace"))
+                    elif fn.type == "member_expression":
+                        prop = fn.child_by_field_name("property")
+                        if prop and prop.type in ("property_identifier", "identifier") and prop.text:
+                            calls.add(prop.text.decode("utf-8", errors="replace"))
+            elif curr.type == "new_expression":
+                ctor = curr.child_by_field_name("constructor")
+                if ctor and ctor.type == "identifier" and ctor.text:
+                    calls.add(ctor.text.decode("utf-8", errors="replace"))
+            stack.extend(curr.children)
+        return tuple(sorted(calls))
+
+    results: list[ExtractedFunction] = []
+    seen: set[tuple[str, int]] = set()
+
+    def _visit(node, class_name: str | None = None, class_source: str | None = None):
+        if node.type == "class_declaration":
+            name_node = node.child_by_field_name("name")
+            c_name = name_node.text.decode("utf-8", errors="replace") if (name_node and name_node.text) else "AnonymousClass"
+            c_src = _get_node_source(node)
+            body = node.child_by_field_name("body")
+            if body:
+                for child in body.children:
+                    _visit(child, class_name=c_name, class_source=c_src)
+            return
+
+        if node.type == "method_definition":
+            name_node = node.child_by_field_name("name")
+            m_name = name_node.text.decode("utf-8", errors="replace") if (name_node and name_node.text) else "anonymous"
+            q_name = f"{class_name}.{m_name}" if class_name else m_name
+            start_line = node.start_point[0] + 1
+            key = (q_name, start_line)
+            if key not in seen:
+                seen.add(key)
+                fn_source = _get_node_source(node)
+                params = _get_js_parameters(node.child_by_field_name("parameters"))
+                results.append(
+                    ExtractedFunction(
+                        file_path=selected_file.relative_path,
+                        language="javascript",
+                        name=m_name,
+                        class_name=class_name,
+                        qualified_name=q_name,
+                        start_line=start_line,
+                        end_line=node.end_point[0] + 1,
+                        source=fn_source,
+                        parameters=params,
+                        is_async=_is_js_async(node),
+                        decorators=_get_js_decorators(node),
+                        called_names=_get_called_names(node),
+                        imports=imports,
+                        class_source=class_source,
+                        module_definitions=tuple(
+                            (kind, d_name, d_src)
+                            for kind, d_name, d_src in module_defs
+                            if re.search(r"\b" + re.escape(d_name) + r"\b", fn_source)
+                            and not (kind == "class" and d_name == class_name)
+                        ),
+                    )
+                )
+            body = node.child_by_field_name("body")
+            if body:
+                for child in body.children:
+                    _visit(child, class_name=class_name, class_source=class_source)
+            return
+
+        if node.type in ("function_declaration", "generator_function_declaration"):
+            name_node = node.child_by_field_name("name")
+            fn_name = name_node.text.decode("utf-8", errors="replace") if (name_node and name_node.text) else "anonymous"
+            q_name = f"{class_name}.{fn_name}" if class_name else fn_name
+            start_line = node.start_point[0] + 1
+            key = (q_name, start_line)
+            if key not in seen:
+                seen.add(key)
+                fn_source = _get_node_source(node)
+                params = _get_js_parameters(node.child_by_field_name("parameters"))
+                results.append(
+                    ExtractedFunction(
+                        file_path=selected_file.relative_path,
+                        language="javascript",
+                        name=fn_name,
+                        class_name=class_name,
+                        qualified_name=q_name,
+                        start_line=start_line,
+                        end_line=node.end_point[0] + 1,
+                        source=fn_source,
+                        parameters=params,
+                        is_async=_is_js_async(node),
+                        decorators=_get_js_decorators(node),
+                        called_names=_get_called_names(node),
+                        imports=imports,
+                        class_source=class_source,
+                        module_definitions=tuple(
+                            (kind, d_name, d_src)
+                            for kind, d_name, d_src in module_defs
+                            if re.search(r"\b" + re.escape(d_name) + r"\b", fn_source)
+                            and not (kind == "class" and d_name == class_name)
+                        ),
+                    )
+                )
+            body = node.child_by_field_name("body")
+            if body:
+                for child in body.children:
+                    _visit(child, class_name=class_name, class_source=class_source)
+            return
+
+        if node.type == "variable_declarator":
+            val = node.child_by_field_name("value")
+            if val and val.type in ("arrow_function", "function_expression", "generator_function"):
+                name_node = node.child_by_field_name("name")
+                fn_name = name_node.text.decode("utf-8", errors="replace") if (name_node and name_node.text) else "anonymous"
+                q_name = f"{class_name}.{fn_name}" if class_name else fn_name
+                parent = node.parent
+                decl_node = parent if parent and parent.type in ("lexical_declaration", "variable_declaration") else node
+                if decl_node.parent and decl_node.parent.type == "export_statement":
+                    decl_node = decl_node.parent
+                start_line = decl_node.start_point[0] + 1
+                key = (q_name, start_line)
+                if key not in seen:
+                    seen.add(key)
+                    fn_source = _get_node_source(decl_node)
+                    param_node = val.child_by_field_name("parameters") or val.child_by_field_name("parameter")
+                    params = _get_js_parameters(param_node)
+                    results.append(
+                        ExtractedFunction(
+                            file_path=selected_file.relative_path,
+                            language="javascript",
+                            name=fn_name,
+                            class_name=class_name,
+                            qualified_name=q_name,
+                            start_line=start_line,
+                            end_line=decl_node.end_point[0] + 1,
+                            source=fn_source,
+                            parameters=params,
+                            is_async=_is_js_async(val),
+                            decorators=(),
+                            called_names=_get_called_names(val),
+                            imports=imports,
+                            class_source=class_source,
+                            module_definitions=tuple(
+                                (kind, d_name, d_src)
+                                for kind, d_name, d_src in module_defs
+                                if re.search(r"\b" + re.escape(d_name) + r"\b", fn_source)
+                                and not (kind == "class" and d_name == class_name)
+                            ),
+                        )
+                    )
+                body = val.child_by_field_name("body")
+                if body:
+                    if body.type == "statement_block":
+                        for child in body.children:
+                            _visit(child, class_name=class_name, class_source=class_source)
+                    else:
+                        _visit(body, class_name=class_name, class_source=class_source)
+                return
+
+        for child in node.children:
+            _visit(child, class_name=class_name, class_source=class_source)
+
+    for child in root.children:
+        _visit(child)
+
+    results.sort(
+        key=lambda function: (
+            function.file_path.lower(),
+            function.start_line,
+            function.qualified_name.lower(),
+        )
+    )
+    return results
+
+
+def _extract_java_functions(
+    selected_file: SelectedFile,
+) -> list[ExtractedFunction]:
+    """
+    Extract Java methods and constructors from classes, interfaces, records, and enums using tree-sitter.
+    """
+    try:
+        source = selected_file.path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return []
+
+    lines = source.splitlines()
+    parser = _get_parser("java")
+    if parser is None:
+        return []
+
+    try:
+        tree = parser.parse(source.encode("utf-8"))
+    except Exception:
+        return []
+
+    root = tree.root_node
+    if root is None:
+        return []
+
+    def _get_node_source(n) -> str:
+        s_line = n.start_point[0]
+        e_line = n.end_point[0]
+        return "\n".join(lines[s_line : e_line + 1])
+
+    # 1. Imports
+    imports_list: list[str] = []
+    for child in root.children:
+        if child.type == "import_declaration":
+            imports_list.append(_get_node_source(child))
+    imports = tuple(imports_list)
+
+    def _get_java_parameters(param_node) -> tuple[str, ...]:
+        if not param_node:
+            return ()
+        params: list[str] = []
+        for p in param_node.children:
+            if p.type in ("formal_parameter", "spread_parameter"):
+                name_node = p.child_by_field_name("name")
+                if name_node and name_node.text:
+                    params.append(name_node.text.decode("utf-8", errors="replace"))
+                else:
+                    for sub in p.children:
+                        if sub.type == "identifier" and sub.text:
+                            params.append(sub.text.decode("utf-8", errors="replace"))
+                            break
+        return tuple(params)
+
+    def _get_java_annotations(node) -> tuple[str, ...]:
+        annotations: list[str] = []
+        modifiers = node.child_by_field_name("modifiers")
+        if modifiers:
+            for child in modifiers.children:
+                if child.type in ("annotation", "marker_annotation") and child.text:
+                    annotations.append(child.text.decode("utf-8", errors="replace"))
+        return tuple(annotations)
+
+    def _get_java_called_names(node) -> tuple[str, ...]:
+        calls: set[str] = set()
+        stack = [node]
+        while stack:
+            curr = stack.pop()
+            if curr.type == "method_invocation":
+                name_node = curr.child_by_field_name("name")
+                if name_node and name_node.text:
+                    calls.add(name_node.text.decode("utf-8", errors="replace"))
+            elif curr.type == "object_creation_expression":
+                type_node = curr.child_by_field_name("type")
+                if type_node and type_node.text:
+                    calls.add(type_node.text.decode("utf-8", errors="replace"))
+            stack.extend(curr.children)
+        return tuple(sorted(calls))
+
+    results: list[ExtractedFunction] = []
+    seen: set[tuple[str, int]] = set()
+
+    def _visit(
+        node,
+        class_name: str | None = None,
+        class_source: str | None = None,
+        class_fields: tuple[tuple[str, str, str], ...] = (),
+    ):
+        if node.type in (
+            "class_declaration",
+            "record_declaration",
+            "enum_declaration",
+            "interface_declaration",
+        ):
+            name_node = node.child_by_field_name("name")
+            c_name = name_node.text.decode("utf-8", errors="replace") if (name_node and name_node.text) else "UnknownClass"
+            c_src = _get_node_source(node)
+            body = node.child_by_field_name("body")
+
+            fields_list: list[tuple[str, str, str]] = []
+            if body:
+                for child in body.children:
+                    if child.type == "field_declaration":
+                        f_src = _get_node_source(child)
+                        for sub in child.children:
+                            if sub.type == "variable_declarator":
+                                v_name_node = sub.child_by_field_name("name")
+                                if v_name_node and v_name_node.text:
+                                    fields_list.append(("field", v_name_node.text.decode("utf-8", errors="replace"), f_src))
+
+            if body:
+                for child in body.children:
+                    _visit(
+                        child,
+                        class_name=c_name,
+                        class_source=c_src,
+                        class_fields=tuple(fields_list),
+                    )
+            return
+
+        if node.type in ("method_declaration", "constructor_declaration"):
+            # Only extract methods/constructors with an implementation body
+            body = node.child_by_field_name("body")
+            if not body:
+                return
+
+            name_node = node.child_by_field_name("name")
+            m_name = name_node.text.decode("utf-8", errors="replace") if (name_node and name_node.text) else "unknown"
+            q_name = f"{class_name}.{m_name}" if class_name else m_name
+            start_line = node.start_point[0] + 1
+            key = (q_name, start_line)
+            if key not in seen:
+                seen.add(key)
+                fn_source = _get_node_source(node)
+                params = _get_java_parameters(node.child_by_field_name("parameters"))
+                annotations = _get_java_annotations(node)
+                calls = _get_java_called_names(node)
+
+                matching_fields = tuple(
+                    (kind, f_name, f_src)
+                    for kind, f_name, f_src in class_fields
+                    if re.search(r"\b" + re.escape(f_name) + r"\b", fn_source)
+                )
+
+                results.append(
+                    ExtractedFunction(
+                        file_path=selected_file.relative_path,
+                        language="java",
+                        name=m_name,
+                        class_name=class_name,
+                        qualified_name=q_name,
+                        start_line=start_line,
+                        end_line=node.end_point[0] + 1,
+                        source=fn_source,
+                        parameters=params,
+                        is_async=False,
+                        decorators=annotations,
+                        called_names=calls,
+                        imports=imports,
+                        class_source=class_source,
+                        module_definitions=matching_fields,
+                    )
+                )
+            return
+
+        for child in node.children:
+            _visit(
+                child,
+                class_name=class_name,
+                class_source=class_source,
+                class_fields=class_fields,
+            )
+
+    for child in root.children:
+        _visit(child)
+
+    results.sort(
+        key=lambda function: (
+            function.file_path.lower(),
+            function.start_line,
+            function.qualified_name.lower(),
+        )
+    )
+    return results
+
+
 def extract_functions(
     selected_file: SelectedFile,
 ) -> list[ExtractedFunction]:
@@ -661,6 +1296,11 @@ def extract_functions(
 
     No semantic filtering is performed here.
     """
+    if selected_file.language == "javascript":
+        return _extract_js_functions(selected_file)
+
+    if selected_file.language == "java":
+        return _extract_java_functions(selected_file)
 
     source = selected_file.path.read_text(
         encoding="utf-8"
@@ -876,9 +1516,11 @@ def build_context(
     Priority:
 
         1. target function
-        2. imports
-        3. containing class
-        4. direct local callees
+        2. module-level definitions
+        3. imports
+        4. containing class
+        5. direct local callees
+        6. direct local callers
 
     The target function is always preserved completely.
 
@@ -1007,20 +1649,22 @@ def build_context(
     # Direct local callees
     # -----------------------------------------------------------------
 
+    added_callees: set[str] = set()
+
     if config.max_context_depth >= 1:
 
-        local_functions = {
-            function.name: function
-            for function in all_functions
+        local_functions: dict[str, ExtractedFunction] = {}
+        for function in all_functions:
             if (
-                function.file_path
-                == target.file_path
-                and function.qualified_name
-                != target.qualified_name
-            )
-        }
-
-        added_callees: set[str] = set()
+                function.file_path == target.file_path
+                and function.qualified_name != target.qualified_name
+            ):
+                if (
+                    function.name not in local_functions
+                    or (target.class_name and function.class_name == target.class_name)
+                ):
+                    local_functions[function.name] = function
+                local_functions[function.qualified_name] = function
 
         for called_name in target.called_names:
 
@@ -1077,6 +1721,76 @@ def build_context(
                 + 2
             )
 
+    # -----------------------------------------------------------------
+    # Direct local callers
+    # -----------------------------------------------------------------
+
+    if config.max_context_depth >= 1:
+
+        local_callers = sorted(
+            [
+                fn
+                for fn in all_functions
+                if (
+                    fn.file_path == target.file_path
+                    and fn.qualified_name != target.qualified_name
+                    and fn.qualified_name not in added_callees
+                    and (
+                        target.name in fn.called_names
+                        or target.qualified_name in fn.called_names
+                    )
+                )
+            ],
+            key=lambda item: (item.start_line, item.qualified_name.lower()),
+        )
+
+        added_callers: set[str] = set()
+
+        for caller in local_callers:
+
+            if caller.qualified_name in added_callers:
+                continue
+
+            block = (
+                f"DIRECT LOCAL CALLER "
+                f"{caller.qualified_name} "
+                f"({caller.start_line}-"
+                f"{caller.end_line})\n"
+                f"{caller.source}"
+            )
+
+            if (
+                used
+                + len(block)
+                + 2
+                > config.max_context_chars
+            ):
+                return ContextPackage(
+                    text="\n\n".join(
+                        sections
+                    ),
+                    included=tuple(
+                        included
+                    ),
+                    truncated=True,
+                )
+
+            sections.append(block)
+
+            included.append(
+                "direct_caller:"
+                + caller.qualified_name
+            )
+
+            added_callers.add(
+                caller.qualified_name
+            )
+
+            used += (
+                len(block)
+                + 2
+            )
+
     return ContextPackage(
         text="\n\n".join(
             sections
@@ -1089,26 +1803,35 @@ def build_context(
 
 
 # =============================================================================
-# Component 5 — LLM semantic detection prompt
+# Component 4 — Prompt construction
 # =============================================================================
+
+def _format_language_name(language: str) -> str:
+    """Format language identifier into canonical display name."""
+    mapping = {
+        "python": "Python",
+        "javascript": "JavaScript",
+        "java": "Java",
+    }
+    return mapping.get(language.lower(), language.capitalize())
+
 
 def _build_compact_prompt(
     target: ExtractedFunction,
     context: ContextPackage,
 ) -> str:
     """
-    Short prompt for small local models (SEMANTIC_PROMPT_MODE=compact).
+    Component 4: Compact prompt for smaller local models (SEMANTIC_PROMPT_MODE=compact).
 
-    Design for a 3B model:
-    - code first, short instructions, no long essay
-    - target lines are numbered so start_line/end_line can be exact
-    - the model first writes a short trace ("reasoning") and only then decides
-    - a concrete checklist of common bug patterns (generic, not app-specific)
-    - explicit "not a bug" rules to reduce false alarms
-    - relevant_code must be ONE line copied exactly, so Component 7 can match it
-    Output keys are identical to the full prompt, so the parser and
-    validate_finding() work unchanged.
+    Supports Python, JavaScript, and Java.
+    - Explicit LANGUAGE declaration
+    - Target identification (file, language, function, qualified name, line range, parameters, async, decorators)
+    - Numbered target source code for exact line numbers
+    - Context package from Component 3 preserved without duplicate target source
+    - Language-specific & general semantic defect checklist
+    - Strict JSON output format matching Component 6/7 expectations
     """
+    lang_display = _format_language_name(target.language)
 
     numbered = "\n".join(
         f"{number}: {line}"
@@ -1118,73 +1841,116 @@ def _build_compact_prompt(
         )
     )
 
+    # Extract non-target context sections from context.text to avoid repeating target source
     index = context.text.find(target.source)
-
     if index >= 0:
         other = context.text[index + len(target.source):].strip()
     else:
-        other = context.text
+        other = context.text.strip()
 
     decorators = (
-        "\n".join("@" + d for d in target.decorators)
+        "\n".join("@" + d if not d.startswith("@") else d for d in target.decorators)
         if target.decorators
         else "(none)"
     )
 
+    params_str = ", ".join(target.parameters) if target.parameters else "(none)"
+
     other_block = (
         f"""
-CONTEXT FROM THE SAME FILE (read it to understand the target; never report a bug that is only in this context):
+CONTEXT FROM THE SAME FILE (Module definitions, imports, class context, direct callees, direct callers):
 {other}
 """
         if other
         else ""
     )
 
-    return f"""You are a careful Python code reviewer. Decide if ONE function contains a real bug.
+    # Language-specific semantic bug checklist
+    lang_lower = target.language.lower()
+    if lang_lower == "python":
+        lang_checklist = (
+            "- Mutable default arguments (e.g. def fn(val=[]) or val={}) mutated or returned\n"
+            "- Missing await on coroutine/async calls causing unawaited coroutine objects\n"
+            "- Unhandled None attribute or subscript access without prior check\n"
+            "- Dict key or list index access without boundary/membership check\n"
+            "- Bare except or exception handler that swallows errors and leaves broken state"
+        )
+    elif lang_lower == "javascript":
+        lang_checklist = (
+            "- Missing await on Promise (floating promise, returning raw Promise instead of resolved value)\n"
+            "- Loose equality (== or !=) causing unexpected type coercion pitfalls instead of strict (=== / !==)\n"
+            "- Property access on null or undefined without optional chaining or guard\n"
+            "- Incorrect 'this' context binding in callbacks, event handlers, or arrow functions\n"
+            "- Array mutating methods (e.g. sort, reverse, splice) modifying shared state unexpectedly\n"
+            "- Callback / Promise chaining resolution order or unhandled rejection"
+        )
+    elif lang_lower == "java":
+        lang_checklist = (
+            "- Object identity comparison (== or !=) instead of .equals() for Strings, Longs, or Objects\n"
+            "- NullPointerException on method calls or auto-unboxing of null wrappers (Integer, Long, Boolean)\n"
+            "- Off-by-one errors in loop conditions or collection/array index boundaries\n"
+            "- Unclosed AutoCloseable resources (streams, connections) not using try-with-resources\n"
+            "- Contract mismatches between caller expectations and method return values"
+        )
+    else:
+        lang_checklist = (
+            "- Incorrect return-value usage, missing null checks, contract mismatches, or resource lifecycle leaks"
+        )
 
+    return f"""You are a careful {lang_display} code reviewer. Decide if ONE function contains a real semantic bug.
+
+LANGUAGE: {lang_display}
 FILE: {target.file_path}
-FUNCTION: {target.qualified_name}  (lines {target.start_line}-{target.end_line})
-DECORATORS:
+FUNCTION: {target.name}
+QUALIFIED NAME: {target.qualified_name}
+LINES: {target.start_line}-{target.end_line}
+PARAMETERS: {params_str}
+ASYNC: {target.is_async}
+DECORATORS/ANNOTATIONS:
 {decorators}
 
-TARGET FUNCTION (each line starts with its line number and a colon; the number is NOT part of the code):
+TARGET FUNCTION SOURCE (each line starts with its 1-indexed line number and colon; the number is NOT part of the code):
 {numbered}
 {other_block}
-HOW TO REVIEW
-1. From the function name and code, say in one sentence what it should do.
-2. Trace it with a normal input, then with an empty, zero or missing input.
-3. Compare the code against these common bug patterns:
-- a sign, operator or comparison that does the opposite of what the function's purpose needs (adds where it should subtract, > instead of <, and instead of or)
-- steps in the wrong order (for example limiting, slicing or paginating BEFORE filtering)
-- division, len(), [0] or max()/min() on a value that can be 0 or empty, with no guard
-- a mutable default argument (=[] or ={{}}) that the function changes or returns
-- a shared module-level dict/list/cache that is read or filled here but never cleared or refreshed when the data changes
-- a bare "except:" or an except block that hides the error and carries on as if it worked
-- the wrong variable used or returned, a missing await, a resource not closed
-4. Report a bug ONLY if you can point to one exact line of the TARGET FUNCTION and give a concrete input for which the result is wrong.
+HOW TO REVIEW:
+1. Reason according to {lang_display}'s syntax, semantics, and standard runtime rules.
+2. From the function name and code, state in one sentence what it should accomplish.
+3. Trace it with normal inputs, then with empty, zero, null/None, or boundary inputs.
+4. Compare against common semantic defects:
+- An operator, sign, or comparison that does the opposite of the function's purpose (> vs <, + vs -, &&/and vs ||/or)
+- Steps in the wrong order (e.g. pagination/slicing before filtering, or using state before updating it)
+- Division by zero, empty collection access (e.g. [0] or .get(0)), or missing null/None guard
+- Wrong variable or parameter passed to a function/method call
+- Wrong variable returned or return value ignored
+- State update or mutation on the wrong object or with incorrect values
+{lang_checklist}
 
 NOT A BUG (answer bug_found=false):
-- code that already guards the case (an if/else, "or", max(1, x), a try/except that handles the error properly)
-- style, naming, missing docs, missing features, missing tests, performance
-- anything you cannot see in the code above; never invent fields, functions or behaviour
-- normal framework code (dependency injection, generators that yield and then close, routers, app setup)
+- Code that already guards the case (if/else, null/None checks, try-catch/except)
+- Obvious syntax errors, formatting, indentation, naming style, missing docstrings, or general code quality
+- Hypothetical requirements not visible in the code; never invent fields, functions, or application requirements
+- Normal framework/library idioms and dependency injection
+- It is acceptable and expected to return bug_found=false. Never manufacture a bug merely because the function looks unusual.
 
-Reply with ONE JSON object and nothing else (no markdown, no code fences).
-Use exactly these keys, in this order:
-"reasoning": 2-3 short sentences: what the function should do, what the code does for a normal and for an empty/zero input, and your verdict. Write this first.
-"bug_found": true or false
-"bug_type": short category, or "" if no bug
-"title": short title, or "" if no bug
-"description": what is wrong, or "" if no bug
-"file": "{target.file_path}"
-"start_line": the line number shown before the first buggy line, or 0 if no bug
-"end_line": the line number shown before the last buggy line, or 0 if no bug
-"evidence": the ONE buggy line copied exactly from the code, without its line number, or "" if no bug
-"expected_behavior": what should happen, or "" if no bug
-"actual_behavior": what happens instead, or "" if no bug
-"confidence": number from 0.0 to 1.0, or 0 if no bug
-"relevant_code": the same ONE buggy line copied exactly, without its line number, or "" if no bug
-""".strip()
+REPLY WITH EXACTLY ONE JSON OBJECT AND NOTHING ELSE (no markdown fences, no code blocks, no text before or after).
+Use exactly these keys:
+{{
+  "reasoning": "2-3 short sentences: what the function should do, what it does for a test input, and your verdict. Write this first.",
+  "bug_found": true or false,
+  "confidence": number from 0.0 to 1.0 (0.0 if no bug, >= 0.70 required for bug_found=true),
+  "bug_type": "short category name, or null if no bug",
+  "title": "short concrete title, or null if no bug",
+  "description": "precise explanation of the defect, or null if no bug",
+  "file": "{target.file_path}",
+  "buggy_line": the line number shown before the buggy line (between {target.start_line} and {target.end_line}), or null if no bug,
+  "start_line": the line number shown before the first buggy line (between {target.start_line} and {target.end_line}), or 0 if no bug,
+  "end_line": the line number shown before the last buggy line (between {target.start_line} and {target.end_line}), or 0 if no bug,
+  "evidence": "the ONE buggy line copied exactly from the TARGET FUNCTION without line number, or null if no bug",
+  "relevant_code": "the same ONE buggy line copied exactly from the TARGET FUNCTION without line number, or null if no bug",
+  "expected_behavior": "what should happen, or null if no bug",
+  "actual_behavior": "what happens instead, or null if no bug",
+  "suggested_fix": "short description of the correction, or null if no bug"
+}}""".strip()
 
 
 def build_detection_prompt(
@@ -1217,8 +1983,11 @@ def build_detection_prompt(
     if os.getenv("SEMANTIC_PROMPT_MODE", "compact").strip().lower() == "compact":
         return _build_compact_prompt(target, context)
 
+    lang_display = _format_language_name(target.language)
     return f"""
-You are a precise semantic bug detector for Python source code.
+LANGUAGE: {lang_display}
+
+You are a precise semantic bug detector for {lang_display} source code.
 
 Your job is to find REAL bugs in the TARGET FUNCTION.
 
@@ -1800,6 +2569,149 @@ SOURCE / CONTEXT
 
 {context.text}
 """.strip()
+
+
+# =============================================================================
+# Component 5 — LLM invocation
+# =============================================================================
+
+def invoke_llm(
+    prompt: str,
+    provider: Any | None = None,
+    target: ExtractedFunction | None = None,
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """
+    Component 5: Invoke the configured LLM provider with the prompt from Component 4.
+
+    Responsibilities:
+    - Receive prompt from Component 4 and invoke configured LLM provider.
+    - Support existing Ollama, Gemini, Groq, OpenAI, and OmniRoute setups.
+    - Preserve all provider configuration (model, endpoint, timeout, temperature, env vars).
+    - Perform exactly ONE LLM invocation per review request.
+    - Catch provider errors, timeouts, connection failures, and empty responses safely.
+    - Preserve raw LLM response long enough for Component 6 to parse.
+    - Perform NO response parsing (preserves strict component separation).
+    - Provide lightweight logging without leaking sensitive source code.
+
+    Returns:
+        dict with:
+            "response": str (raw LLM output, or empty string on error)
+            "error": str | None (error message if failed, else None)
+            "meta": dict (optional metadata from provider)
+    """
+    target_info = (
+        f"{target.qualified_name} ({target.language})"
+        if target
+        else "unknown target"
+    )
+
+    if not isinstance(prompt, str) or not prompt.strip():
+        logger.warning("Component 5: Empty prompt for %s", target_info)
+        return {
+            "response": "",
+            "error": "Prompt is empty.",
+        }
+
+    # Use supplied provider or initialize from existing configuration
+    if provider is None:
+        try:
+            from app.services.llm_logic_reviewer.llm_provider import create_llm_provider
+            provider = create_llm_provider()
+        except Exception as exc:
+            err_msg = f"Failed to initialize LLM provider: {exc}"
+            logger.error("Component 5: %s for %s", err_msg, target_info)
+            return {
+                "response": "",
+                "error": err_msg,
+            }
+
+    provider_name = type(provider).__name__
+    model_name = getattr(provider, "model", getattr(provider, "primary_model", "configured model"))
+
+    logger.info(
+        "Component 5: Invoking %s (%s) for %s [chars=%d]",
+        provider_name,
+        model_name,
+        target_info,
+        len(prompt),
+    )
+
+    try:
+        result = provider.generate(prompt, **kwargs)
+    except Exception as exc:
+        err_msg = f"LLM provider {provider_name} raised an exception: {exc}"
+        logger.warning("Component 5: %s for %s", err_msg, target_info)
+        return {
+            "response": "",
+            "error": err_msg,
+        }
+
+    if not isinstance(result, dict):
+        err_msg = f"LLM provider {provider_name} returned non-dict result: {type(result)}"
+        logger.warning("Component 5: %s for %s", err_msg, target_info)
+        return {
+            "response": "",
+            "error": err_msg,
+        }
+
+    raw_response = result.get("response", "")
+    error = result.get("error")
+
+    if not isinstance(raw_response, str):
+        raw_response = str(raw_response or "")
+
+    if error and not raw_response.strip():
+        logger.warning(
+            "Component 5: Provider %s reported error for %s: %s",
+            provider_name,
+            target_info,
+            error,
+        )
+        return {
+            "response": "",
+            "error": str(error),
+            "meta": result.get("meta", {}),
+        }
+
+    if not raw_response.strip():
+        err_msg = f"LLM provider {provider_name} returned an empty response."
+        logger.warning("Component 5: %s for %s", err_msg, target_info)
+        return {
+            "response": "",
+            "error": err_msg,
+            "meta": result.get("meta", {}),
+        }
+
+    logger.info(
+        "Component 5: Successfully received %d chars from %s for %s",
+        len(raw_response),
+        provider_name,
+        target_info,
+    )
+
+    return {
+        "response": raw_response,
+        "error": error,
+        "meta": result.get("meta", {}),
+    }
+
+
+async def invoke_llm_async(
+    prompt: str,
+    provider: Any | None = None,
+    target: ExtractedFunction | None = None,
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Async-compatible wrapper for invoke_llm running in a worker thread."""
+    import asyncio
+    return await asyncio.to_thread(
+        invoke_llm,
+        prompt,
+        provider=provider,
+        target=target,
+        **kwargs,
+    )
 
 
 # =============================================================================

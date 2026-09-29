@@ -475,14 +475,20 @@ export default function TabRepositoryScanner() {
           </div>
         </div>
 
-        <div className="bg-[#131B2E] border border-amber-500/20 rounded-xl p-5 space-y-1 shadow-md">
-          <div className="flex items-center justify-between text-xs text-slate-400">
-            <span>Open High Issues</span>
-            <span className="p-1.5 bg-amber-500/10 text-amber-400 rounded-lg">⚠️</span>
-          </div>
-          <div className="text-2xl font-bold text-amber-400 font-mono">{stats.openHigh ?? highUnresolvedCount ?? 0}</div>
-          <div className="text-[11px] text-amber-300">Requires high-priority remediation</div>
-        </div>
+<div className="bg-[#131B2E] border border-red-500/20 rounded-xl p-5 space-y-1 shadow-md"> 
+  <div className="flex items-center justify-between text-xs text-slate-400"> 
+    <span>Open High Issues</span> 
+    <span className="p-1.5 bg-red-500/10 text-red-400 rounded-lg">⚠️</span> 
+  </div> 
+
+  <div className="text-2xl font-bold text-red-400 font-mono">
+    {stats.openHigh ?? highUnresolvedCount ?? 0}
+  </div> 
+
+  <div className="text-[11px] text-red-300">
+    Requires high-priority remediation
+  </div> 
+</div>
 
         <div className="bg-[#131B2E] border border-emerald-500/20 rounded-xl p-5 space-y-1 shadow-md">
           <div className="flex items-center justify-between text-xs text-slate-400">

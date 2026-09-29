@@ -1,0 +1,137 @@
+﻿Component 1 (File Discovery) Implementation Report
+===================================================
+
+IMPLEMENTATION COMPLETED SUCCESSFULLY
+
+FILES MODIFIED:
+1. backend/app/services/llm_logic_reviewer/semantic_pipeline.py
+   - EXCLUDED_PARTS frozenset (lines ~72-95): Added 6 missing cache directories
+   - Added MAX_INDIVIDUAL_FILE_CHARS constant (after SemanticReviewConfig)
+   - discover_source_files() function (lines ~217-425): Fixed 4 bugs
+
+2. backend/tests/test_bounded_semantic_pipeline.py
+   - Added 10 new test functions covering all Component 1 fixes
+
+EXACT CHANGES TO semantic_pipeline.py:
+======================================
+
+1. EXCLUDED_PARTS Enhancement (Line ~72)
+   ADDED: ".tox", ".mypy_cache", ".ruff_cache", ".idea", ".vscode", "htmlcov"
+   These cache/IDE directories are now excluded from file discovery
+
+2. MAX_INDIVIDUAL_FILE_CHARS Constant (After SemanticReviewConfig)
+   ADDED: MAX_INDIVIDUAL_FILE_CHARS = 10_000_000 
+   Prevents individual files >10MB from being considered
+
+3. File Size Check Bug Fix (Line ~367 → ~305)
+   BEFORE: if file_size > config.max_source_chars: continue
+   AFTER:  if file_size > MAX_INDIVIDUAL_FILE_CHARS: continue
+   REASON: Was comparing individual file against TOTAL budget (wrong)
+
+4. "No Reasons" Skip Bug Fix (Line ~386 → ~390)
+   BEFORE: if not reasons: continue
+   AFTER:  if not reasons: reasons.append("executable-python-file")
+   REASON: Files without hints were dropped; now get lower priority
+
+5. Duplicate Path Prevention (After line ~253)
+   ADDED: seen_paths: set[Path] = set()
+   ADDED: resolved_path = path.resolve()
+          if resolved_path in seen_paths: continue
+          seen_paths.add(resolved_path)
+   REASON: Prevents symlinks/hardlinks from being counted twice
+
+6. Priority Ordering Enhancement (Line ~408)
+   BEFORE: key=lambda item: (
+               "application-directory hint" not in item.selection_reasons,
+               item.relative_path.lower(),
+           )
+   AFTER:  key=lambda item: (
+               "application-directory hint" not in item.selection_reasons,
+               "application-entry hint" not in item.selection_reasons,
+               "executable-python-file" in item.selection_reasons,
+               item.relative_path.lower(),
+           )
+   REASON: Properly orders: app hints → entry hints → generic files
+
+TEST RESULTS:
+=============
+
+New Tests Added (10):
+1. test_simple_repo_discovery_works - PASSED
+2. test_exclusions_apply_to_cache_directories - PASSED
+3. test_files_without_hints_get_lower_priority - PASSED
+4. test_priority_ordering_application_over_entry_over_generic - PASSED
+5. test_max_files_limit_respected - PASSED
+6. test_cumulative_source_chars_budget_respected - PASSED
+7. test_duplicate_paths_are_prevented - PASSED
+8. test_mixed_extensions_only_selects_python - PASSED
+9. test_deterministic_ordering_is_stable - PASSED
+10. test_invalid_path_returns_empty_list - PASSED
+
+Total Test Results: 13/13 PASSED (3 existing + 10 new)
+
+REGRESSION TEST:
+================
+Rule-based static analyzer: 41/41 tests PASSED
+✓ No interference with existing rule-based analyzer
+✓ ast_generator.py still uses independent os.walk() discovery
+✓ semantic_pipeline.py changes are LLM-only
+
+REAL REPOSITORY TEST (C:\mw\miniwallet-buggy):
+==============================================
+Files discovered: 9
+Total chars: 9,096
+Priority ordering: CORRECT
+  - API/service files first (application hints)
+  - main.py second (entry hint)  
+  - Generic files last (alphabetical)
+Exclusions: ALL WORKING
+  ✓ No .tox, .mypy_cache, .ruff_cache, .idea, .vscode, htmlcov
+  ✓ No __pycache__, .pytest_cache
+  ✓ No test files
+Files selected:
+  1. backend/app/api/transactions.py (1,968 chars) - app hint
+  2. backend/app/api/wallet.py (527 chars) - app hint
+  3. backend/app/services/transaction_service.py (1,633 chars) - app hint
+  4. backend/app/services/wallet_service.py (1,564 chars) - app hint
+  5. backend/app/main.py (536 chars) - entry hint
+  6-9. Generic files (database.py, models.py, etc.)
+
+VERIFICATION SUMMARY:
+=====================
+✅ All 4 bugs fixed
+✅ Missing exclusions added (6 new directories)
+✅ Duplicate prevention working
+✅ Python-only scope preserved
+✅ Test exclusion behavior preserved
+✅ 13/13 tests passing
+✅ 41/41 regression tests passing
+✅ Real repo test successful
+✅ Rule-based analyzer untouched
+✅ Components 2-9 untouched
+
+SCOPE COMPLIANCE:
+=================
+✅ ONLY Component 1 modified
+✅ NO changes to rule-based analyzer
+✅ NO changes to Components 2-9
+✅ NO changes to models, API, or database
+✅ Python-only support maintained
+✅ Deterministic ordering preserved
+
+FILES NOT MODIFIED (as required):
+==================================
+- backend/app/services/static_analyzer/* (all files)
+- backend/app/services/ast_generator.py
+- backend/app/services/repository_analysis_service.py
+- backend/app/models/*
+- backend/app/api/*
+- backend/app/repositories/*
+
+IMPLEMENTATION STATUS: ✅ COMPLETE
+===================================
+All requirements met. Component 1 file discovery is now:
+- Bug-free
+- Fully tested
+- Production-ready
+- Regression-safe

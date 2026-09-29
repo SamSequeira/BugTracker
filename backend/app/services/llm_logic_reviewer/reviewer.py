@@ -1,4 +1,3 @@
-﻿
 """
 Bounded semantic LLM review pipeline.
 
@@ -14,6 +13,7 @@ Pipeline:
     Component 9  - Persist accepted finding
 
 The pipeline is intentionally sequential:
+
     file -> function -> context -> LLM -> parse -> validate -> persist
 
 No component runs concurrently.
@@ -31,7 +31,9 @@ from typing import Any
 from data.dbconnection.session import AsyncSessionLocal
 from app.models.candidate_issues import CandidateIssue
 
-from app.services.llm_logic_reviewer.llm_provider import create_llm_provider
+from app.services.llm_logic_reviewer.llm_provider import (
+    create_llm_provider,
+)
 
 from app.services.llm_logic_reviewer.semantic_pipeline import (
     SemanticReviewConfig,
@@ -55,7 +57,7 @@ async def run_llm_logic_review(
     """
     Run the complete bounded semantic LLM review pipeline.
 
-    The execution order is strictly:
+    Execution order:
 
         1. Discover files
         2. Extract functions
@@ -81,9 +83,9 @@ async def run_llm_logic_review(
     print(f"Analysis ID: {analysis_run_id}")
     print("=" * 80)
 
-    # ------------------------------------------------------------------
-    # Configuration
-    # ------------------------------------------------------------------
+    # ==================================================================
+    # CONFIGURATION
+    # ==================================================================
 
     config = SemanticReviewConfig()
 
@@ -109,9 +111,9 @@ async def run_llm_logic_review(
             f"Repository path is not a directory: {repo_root}"
         )
 
-    # ------------------------------------------------------------------
-    # Metrics
-    # ------------------------------------------------------------------
+    # ==================================================================
+    # METRICS
+    # ==================================================================
 
     metrics: dict[str, Any] = {
         # Component 1
@@ -150,17 +152,18 @@ async def run_llm_logic_review(
         "persistence_failures": 0,
     }
 
-    # ------------------------------------------------------------------
-    # Create provider ONCE.
-    #
-    # Important:
-    # The provider must not be recreated for every function.
-    # ------------------------------------------------------------------
+    # ==================================================================
+    # CREATE LLM PROVIDER ONCE
+    # ==================================================================
 
     try:
         provider = create_llm_provider()
+
     except Exception as exc:
-        logger.exception("Failed to initialize LLM provider")
+        logger.exception(
+            "Failed to initialize LLM provider"
+        )
+
         raise RuntimeError(
             f"Could not initialize LLM provider: {exc}"
         ) from exc
@@ -186,17 +189,27 @@ async def run_llm_logic_review(
             repo_root,
             config,
         )
+
     except Exception as exc:
-        logger.exception("Source file discovery failed")
+        logger.exception(
+            "Source file discovery failed"
+        )
+
         raise RuntimeError(
             f"Component 1 failed during source discovery: {exc}"
         ) from exc
 
+    metrics["files_discovered"] = len(selected_files)
     metrics["files_selected"] = len(selected_files)
 
-    print(f"Files selected: {len(selected_files)}")
+    print(
+        f"Files selected: {len(selected_files)}"
+    )
 
-    for index, selected_file in enumerate(selected_files, start=1):
+    for index, selected_file in enumerate(
+        selected_files,
+        start=1,
+    ):
         print(
             f"  [{index}] "
             f"{selected_file.relative_path} "
@@ -204,9 +217,14 @@ async def run_llm_logic_review(
         )
 
     if not selected_files:
+
         print()
-        print("No eligible application source files were found.")
-        print("Stopping semantic pipeline.")
+        print(
+            "No eligible application source files were found."
+        )
+        print(
+            "Stopping semantic pipeline."
+        )
 
         return metrics
 
@@ -225,8 +243,12 @@ async def run_llm_logic_review(
     for selected_file in selected_files:
 
         try:
-            functions = extract_functions(selected_file)
+            functions = extract_functions(
+                selected_file
+            )
+
         except Exception as exc:
+
             logger.warning(
                 "Function extraction failed for %s: %s",
                 selected_file.relative_path,
@@ -237,6 +259,7 @@ async def run_llm_logic_review(
                 f"  ERROR: Could not extract functions from "
                 f"{selected_file.relative_path}"
             )
+
             continue
 
         all_functions.extend(functions)
@@ -246,27 +269,39 @@ async def run_llm_logic_review(
             f"{len(functions)} functions"
         )
 
-    metrics["functions_extracted"] = len(all_functions)
+    metrics["functions_extracted"] = len(
+        all_functions
+    )
 
     print()
-    print(f"Total functions extracted: {len(all_functions)}")
+    print(
+        f"Total functions extracted: "
+        f"{len(all_functions)}"
+    )
 
     if not all_functions:
-        print("No functions were extracted.")
-        print("Stopping semantic pipeline.")
+
+        print(
+            "No functions were extracted."
+        )
+        print(
+            "Stopping semantic pipeline."
+        )
 
         return metrics
 
-    # ------------------------------------------------------------------
-    # Apply global function limit ONCE.
-    #
-    # This guarantees that Components 3-9 only operate on the exact
-    # bounded function set.
-    # ------------------------------------------------------------------
+    # ==================================================================
+    # APPLY GLOBAL FUNCTION LIMIT ONCE
+    # ==================================================================
 
     if config.max_functions > 0:
-        functions_to_check = all_functions[: config.max_functions]
+
+        functions_to_check = all_functions[
+            : config.max_functions
+        ]
+
     else:
+
         functions_to_check = all_functions
 
     print(
@@ -277,8 +312,8 @@ async def run_llm_logic_review(
     # ==================================================================
     # COMPONENTS 3-9
     #
-    # Each function passes through the COMPLETE pipeline before the next
-    # function starts.
+    # Each function passes through the complete pipeline before the
+    # next function starts.
     # ==================================================================
 
     for function_index, function in enumerate(
@@ -296,11 +331,18 @@ async def run_llm_logic_review(
         )
         print("-" * 80)
 
-        print(f"File      : {function.file_path}")
-        print(f"Function  : {function.qualified_name}")
+        print(
+            f"File      : {function.file_path}"
+        )
+
+        print(
+            f"Function  : {function.qualified_name}"
+        )
+
         print(
             f"Lines     : "
-            f"{function.start_line}-{function.end_line}"
+            f"{function.start_line}-"
+            f"{function.end_line}"
         )
 
         # ==============================================================
@@ -309,22 +351,30 @@ async def run_llm_logic_review(
         # ==============================================================
 
         print()
-        print("[COMPONENT 3] Building context...")
+        print(
+            "[COMPONENT 3] Building context..."
+        )
 
         try:
+
             context = build_context(
                 function,
                 all_functions,
                 config,
             )
+
         except Exception as exc:
+
             logger.warning(
                 "Context building failed for %s: %s",
                 function.qualified_name,
                 exc,
             )
 
-            print(f"  FAILED: {exc}")
+            print(
+                f"  FAILED: {exc}"
+            )
+
             continue
 
         metrics["contexts_built"] += 1
@@ -333,67 +383,82 @@ async def run_llm_logic_review(
             f"  Context sections: "
             f"{', '.join(context.included)}"
         )
+
         print(
-            f"  Context chars: {len(context.text)}"
+            f"  Context chars: "
+            f"{len(context.text)}"
         )
+
         print(
-            f"  Context truncated: {context.truncated}"
+            f"  Context truncated: "
+            f"{context.truncated}"
         )
 
         # ==============================================================
         # COMPONENT 4
-        # PRE-FILTER
+        # CONSERVATIVE PRE-FILTER
         # ==============================================================
 
         print()
-        print("[COMPONENT 4] Pre-filter...")
+        print(
+            "[COMPONENT 4] Pre-filter..."
+        )
 
         """
-        IMPORTANT:
+        The pre-filter intentionally remains conservative.
 
-        We intentionally keep this conservative.
+        The LLM is responsible for detecting semantic bugs that
+        deterministic rules may miss.
 
-        The purpose of the LLM is to find semantic bugs that deterministic
-        rules may miss.
+        Therefore functions are NOT rejected merely because they:
 
-        Therefore we DO NOT reject functions simply because they:
             - are short
-            - have no obvious bug
-            - don't contain a particular keyword
-            - don't contain a particular AST pattern
+            - contain no obvious bug
+            - lack specific keywords
+            - lack a specific AST pattern
 
-        Every extracted function is currently allowed through.
-
-        This prevents Component 4 from becoming another bug detector and
-        accidentally filtering out useful semantic candidates.
+        Every extracted function currently passes through.
         """
 
         metrics["functions_prefiltered"] += 1
 
-        print("  Decision: PASS")
-        print("  Reason  : Conservative semantic review")
+        print(
+            "  Decision: PASS"
+        )
+
+        print(
+            "  Reason  : Conservative semantic review"
+        )
 
         # ==============================================================
         # COMPONENT 5
-        # LLM DETECTION
+        # LLM SEMANTIC DETECTION
         # ==============================================================
 
         print()
-        print("[COMPONENT 5] Sending function to LLM...")
+        print(
+            "[COMPONENT 5] Sending function to LLM..."
+        )
 
         try:
+
             prompt = build_detection_prompt(
                 function,
                 context,
             )
+
         except Exception as exc:
+
             logger.warning(
                 "Prompt construction failed for %s: %s",
                 function.qualified_name,
                 exc,
             )
 
-            print(f"  Prompt construction FAILED: {exc}")
+            print(
+                f"  Prompt construction FAILED: {exc}"
+            )
+
             continue
 
         metrics["llm_calls_made"] += 1
@@ -403,17 +468,20 @@ async def run_llm_logic_review(
         )
 
         try:
+
             # ----------------------------------------------------------
-            # IMPORTANT:
-            # This is intentionally a normal synchronous provider call.
+            # Synchronous provider call.
             #
-            # Therefore function N must finish its LLM call before
-            # function N+1 starts.
+            # Function N must finish its LLM call before function N+1
+            # starts.
             # ----------------------------------------------------------
 
-            response_dict = provider.generate(prompt)
+            response_dict = provider.generate(
+                prompt
+            )
 
         except Exception as exc:
+
             metrics["llm_failures"] += 1
 
             logger.warning(
@@ -422,10 +490,21 @@ async def run_llm_logic_review(
                 exc,
             )
 
-            print(f"  LLM FAILED: {exc}")
+            print(
+                f"  LLM FAILED: {exc}"
+            )
+
             continue
 
-        if not isinstance(response_dict, dict):
+        # --------------------------------------------------------------
+        # Validate provider result
+        # --------------------------------------------------------------
+
+        if not isinstance(
+            response_dict,
+            dict,
+        ):
+
             metrics["llm_failures"] += 1
 
             print(
@@ -435,10 +514,17 @@ async def run_llm_logic_review(
 
             continue
 
-        response = response_dict.get("response", "")
-        provider_error = response_dict.get("error")
+        response = response_dict.get(
+            "response",
+            "",
+        )
+
+        provider_error = response_dict.get(
+            "error"
+        )
 
         if provider_error and not response:
+
             metrics["llm_failures"] += 1
 
             logger.warning(
@@ -447,10 +533,17 @@ async def run_llm_logic_review(
                 provider_error,
             )
 
-            print(f"  LLM FAILED: {provider_error}")
+            print(
+                f"  LLM FAILED: {provider_error}"
+            )
+
             continue
 
-        if not isinstance(response, str):
+        if not isinstance(
+            response,
+            str,
+        ):
+
             metrics["llm_failures"] += 1
 
             print(
@@ -461,9 +554,13 @@ async def run_llm_logic_review(
             continue
 
         if not response.strip():
+
             metrics["llm_failures"] += 1
 
-            print("  LLM FAILED: empty response")
+            print(
+                "  LLM FAILED: empty response"
+            )
+
             continue
 
         print(
@@ -474,16 +571,30 @@ async def run_llm_logic_review(
         response_preview = response.strip()
 
         if len(response_preview) > 1000:
-            response_preview = response_preview[:1000] + "\n..."
+
+            response_preview = (
+                response_preview[:1000]
+                + "\n..."
+            )
 
         print()
-        print("  LLM response:")
-        print("  " + "-" * 70)
+        print(
+            "  LLM response:"
+        )
+
+        print(
+            "  " + "-" * 70
+        )
 
         for line in response_preview.splitlines():
-            print(f"  {line}")
 
-        print("  " + "-" * 70)
+            print(
+                f"  {line}"
+            )
+
+        print(
+            "  " + "-" * 70
+        )
 
         # ==============================================================
         # COMPONENT 6
@@ -491,11 +602,18 @@ async def run_llm_logic_review(
         # ==============================================================
 
         print()
-        print("[COMPONENT 6] Parsing LLM response...")
+        print(
+            "[COMPONENT 6] Parsing LLM response..."
+        )
 
         try:
-            candidate = parse_llm_finding(response)
+
+            candidate = parse_llm_finding(
+                response
+            )
+
         except Exception as exc:
+
             logger.warning(
                 "LLM response parser crashed for %s: %s",
                 function.qualified_name,
@@ -504,15 +622,20 @@ async def run_llm_logic_review(
 
             metrics["parse_failures"] += 1
 
-            print(f"  Parser FAILED: {exc}")
+            print(
+                f"  Parser FAILED: {exc}"
+            )
+
             continue
 
         if candidate is None:
+
             metrics["parse_failures"] += 1
 
             print(
                 "  Parse result: FAILED"
             )
+
             print(
                 "  Reason: response was not a valid "
                 "single JSON object"
@@ -522,7 +645,9 @@ async def run_llm_logic_review(
 
         metrics["responses_parsed"] += 1
 
-        print("  Parse result: SUCCESS")
+        print(
+            "  Parse result: SUCCESS"
+        )
 
         print(
             f"  bug_found: "
@@ -544,9 +669,9 @@ async def run_llm_logic_review(
             f"{candidate.get('confidence', '')}"
         )
 
-        # --------------------------------------------------------------
-        # If the LLM explicitly says no bug, stop this function here.
-        # --------------------------------------------------------------
+        # ==============================================================
+        # NO BUG
+        # ==============================================================
 
         if candidate.get("bug_found") is False:
 
@@ -555,24 +680,41 @@ async def run_llm_logic_review(
                 "  RESULT: LLM found no concrete semantic bug."
             )
 
+            print()
+            print(
+                f"FUNCTION {function_index}/"
+                f"{len(functions_to_check)} COMPLETE"
+            )
+
             continue
+
+        # ==============================================================
+        # CANDIDATE FINDING
+        # ==============================================================
 
         metrics["findings_candidate"] += 1
 
         # ==============================================================
         # COMPONENT 7
-        # EVIDENCE VALIDATION
+        # VALIDATE FINDING AGAINST SOURCE
         # ==============================================================
 
         print()
-        print("[COMPONENT 7] Validating finding...")
+        print(
+            "[COMPONENT 7] Validating finding..."
+        )
 
         try:
-            validation_status, validation_reason = validate_finding(
-                candidate,
-                function,
+
+            validation_status, validation_reason = (
+                validate_finding(
+                    candidate,
+                    function,
+                )
             )
+
         except Exception as exc:
+
             logger.warning(
                 "Finding validation crashed for %s: %s",
                 function.qualified_name,
@@ -582,18 +724,22 @@ async def run_llm_logic_review(
             metrics["findings_rejected"] += 1
 
             print(
-                f"  Validation FAILED with exception: {exc}"
+                f"  Validation FAILED with exception: "
+                f"{exc}"
             )
 
             continue
 
         print(
-            f"  Validation status: {validation_status}"
+            f"  Validation status: "
+            f"{validation_status}"
         )
 
         if validation_reason:
+
             print(
-                f"  Reason: {validation_reason}"
+                f"  Reason: "
+                f"{validation_reason}"
             )
 
         # --------------------------------------------------------------
@@ -604,6 +750,12 @@ async def run_llm_logic_review(
 
             print(
                 "  RESULT: No bug."
+            )
+
+            print()
+            print(
+                f"FUNCTION {function_index}/"
+                f"{len(functions_to_check)} COMPLETE"
             )
 
             continue
@@ -620,14 +772,16 @@ async def run_llm_logic_review(
                 "  RESULT: REJECTED."
             )
 
+            print()
+            print(
+                f"FUNCTION {function_index}/"
+                f"{len(functions_to_check)} COMPLETE"
+            )
+
             continue
 
         # --------------------------------------------------------------
         # UNCERTAIN
-        #
-        # For the current pipeline we do NOT persist uncertain findings.
-        # This keeps the database clean while we are validating the
-        # pipeline itself.
         # --------------------------------------------------------------
 
         if validation_status == "UNCERTAIN":
@@ -639,10 +793,16 @@ async def run_llm_logic_review(
                 "  RESULT: REJECTED as UNCERTAIN."
             )
 
+            print()
+            print(
+                f"FUNCTION {function_index}/"
+                f"{len(functions_to_check)} COMPLETE"
+            )
+
             continue
 
         # --------------------------------------------------------------
-        # SUPPORTED
+        # UNKNOWN VALIDATION STATUS
         # --------------------------------------------------------------
 
         if validation_status != "SUPPORTED":
@@ -654,7 +814,17 @@ async def run_llm_logic_review(
                 "returned an unknown status."
             )
 
+            print()
+            print(
+                f"FUNCTION {function_index}/"
+                f"{len(functions_to_check)} COMPLETE"
+            )
+
             continue
+
+        # --------------------------------------------------------------
+        # SUPPORTED
+        # --------------------------------------------------------------
 
         metrics["findings_validated"] += 1
 
@@ -673,13 +843,10 @@ async def run_llm_logic_review(
         )
 
         """
-        Deduplication is intentionally disabled for this stage.
+        Deduplication is intentionally disabled.
 
-        Therefore every finding that passes Component 7 proceeds directly
-        to Component 9.
-
-        This makes it easier to independently verify Components 1-7 and
-        persistence without the deduplication engine affecting results.
+        Every finding that passes Component 7 proceeds directly to
+        Component 9.
         """
 
         # ==============================================================
@@ -702,23 +869,37 @@ async def run_llm_logic_review(
         )
 
         try:
-            confidence = float(confidence)
-        except (TypeError, ValueError):
+
+            confidence = float(
+                confidence
+            )
+
+        except (
+            TypeError,
+            ValueError,
+        ):
+
             confidence = 0.0
 
-        # Keep confidence bounded.
+        # Keep confidence bounded between 0 and 1.
+
         confidence = max(
             0.0,
-            min(1.0, confidence),
+            min(
+                1.0,
+                confidence,
+            ),
         )
 
         # ==============================================================
         # COMPONENT 9
-        # PERSIST
+        # PERSIST ACCEPTED FINDING
         # ==============================================================
 
         print()
-        print("[COMPONENT 9] Persisting finding...")
+        print(
+            "[COMPONENT 9] Persisting finding..."
+        )
 
         issue = CandidateIssue(
             id=str(uuid.uuid4()),
@@ -738,38 +919,52 @@ async def run_llm_logic_review(
             code_snippet=function.source,
             evidence={
                 "source": "semantic_llm",
+
                 "confidence": confidence,
+
                 "category": candidate.get(
                     "bug_type",
                     "semantic_bug",
                 ),
+
                 "function_name": function.name,
-                "qualified_name": function.qualified_name,
+
+                "qualified_name": (
+                    function.qualified_name
+                ),
+
                 "file": function.file_path,
+
                 "start_line": candidate.get(
                     "start_line",
                     function.start_line,
                 ),
+
                 "end_line": candidate.get(
                     "end_line",
                     function.end_line,
                 ),
+
                 "evidence": candidate.get(
                     "evidence",
                     "",
                 ),
+
                 "reasoning": candidate.get(
                     "reasoning",
                     "",
                 ),
+
                 "expected_behavior": candidate.get(
                     "expected_behavior",
                     "",
                 ),
+
                 "actual_behavior": candidate.get(
                     "actual_behavior",
                     "",
                 ),
+
                 "relevant_code": candidate.get(
                     "relevant_code",
                     "",
@@ -778,11 +973,15 @@ async def run_llm_logic_review(
         )
 
         try:
+
             async with AsyncSessionLocal() as db:
+
                 db.add(issue)
+
                 await db.commit()
 
         except Exception as exc:
+
             metrics["persistence_failures"] += 1
 
             logger.exception(
@@ -821,11 +1020,9 @@ async def run_llm_logic_review(
             f"{candidate.get('start_line', function.start_line)}"
         )
 
-        # --------------------------------------------------------------
-        # Function complete.
-        #
-        # ONLY NOW does the pipeline move to the next function.
-        # --------------------------------------------------------------
+        # ==============================================================
+        # FUNCTION COMPLETE
+        # ==============================================================
 
         print()
         print(
@@ -845,6 +1042,10 @@ async def run_llm_logic_review(
     print()
     print("COMPONENT 1 — FILE DISCOVERY")
     print(
+        f"  Files discovered     : "
+        f"{metrics['files_discovered']}"
+    )
+    print(
         f"  Files selected       : "
         f"{metrics['files_selected']}"
     )
@@ -854,6 +1055,10 @@ async def run_llm_logic_review(
     print(
         f"  Functions extracted  : "
         f"{metrics['functions_extracted']}"
+    )
+    print(
+        f"  Functions checked    : "
+        f"{metrics['functions_checked']}"
     )
 
     print()
@@ -913,7 +1118,9 @@ async def run_llm_logic_review(
 
     print()
     print("COMPONENT 8 — DEDUPLICATION")
-    print("  Status               : SKIPPED")
+    print(
+        "  Status               : SKIPPED"
+    )
 
     print()
     print("COMPONENT 9 — PERSISTENCE")
@@ -930,4 +1137,3 @@ async def run_llm_logic_review(
     print("=" * 80)
 
     return metrics
-
