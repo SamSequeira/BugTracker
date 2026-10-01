@@ -51,8 +51,8 @@ function mapBackendCandidateIssueToUiBug(issue, index = 0) {
     issue.confidence !== undefined && issue.confidence !== null && issue.confidence !== "medium"
       ? issue.confidence
       : evidence.confidence !== undefined && evidence.confidence !== null
-      ? evidence.confidence
-      : issue.confidence || "medium";
+        ? evidence.confidence
+        : issue.confidence || "medium";
 
   // Suggested Fix (normalize to { remove, add, note } object or string)
   let suggestedFix = null;
@@ -107,8 +107,8 @@ function mapBackendCandidateIssueToUiBug(issue, index = 0) {
     rawPrio === "high" || rawPrio === "p1"
       ? "P1 • Fix now"
       : rawPrio === "low" || rawPrio === "p3" || rawPrio === "p4"
-      ? "P3 • Backlog"
-      : "P2 • Fix this week";
+        ? "P3 • Backlog"
+        : "P2 • Fix this week";
 
   const engineers = ["Alex Mercer", "Sarah Chen", "David Kumar", "Elena Rostova", "Marcus Vance"];
 
@@ -336,11 +336,11 @@ export function BugTrackerProvider({ children }) {
             prev.map((item) =>
               item.repository_id === repositoryId
                 ? {
-                    ...item,
-                    status: (candidate_issues_count ?? 0) > 0 ? `${candidate_issues_count} issues` : "Clean",
-                    badgeColor: (candidate_issues_count ?? 0) > 0 ? "bg-amber-500" : "bg-emerald-500",
-                    totalBugs: candidate_issues_count ?? 0,
-                  }
+                  ...item,
+                  status: (candidate_issues_count ?? 0) > 0 ? `${candidate_issues_count} issues` : "Clean",
+                  badgeColor: (candidate_issues_count ?? 0) > 0 ? "bg-amber-500" : "bg-emerald-500",
+                  totalBugs: candidate_issues_count ?? 0,
+                }
                 : item
             )
           );
@@ -542,7 +542,7 @@ export function BugTrackerProvider({ children }) {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ repository_url: targetUrl }),
-            signal: AbortSignal.timeout(120000),
+            signal: AbortSignal.timeout(600000),
           });
 
           if (!cloneRes.ok) {
@@ -555,7 +555,7 @@ export function BugTrackerProvider({ children }) {
         } catch (err) {
           if (err.name === "TimeoutError" || err.name === "AbortError") {
             throw Object.assign(
-              new Error("Repository download timed out after 2 minutes."),
+              new Error("Repository download timed out after 10 minutes."),
               { type: "unknown" }
             );
           }
@@ -609,7 +609,7 @@ export function BugTrackerProvider({ children }) {
           const uploadRes = await fetch(`${apiService.getBaseUrl()}/repositories/upload`, {
             method: "POST",
             body: targetInput,
-            signal: AbortSignal.timeout(120000),
+            signal: AbortSignal.timeout(100000),
           });
 
           if (!uploadRes.ok) {
@@ -770,8 +770,8 @@ export function BugTrackerProvider({ children }) {
       nextSeverity.toLowerCase() === "low"
         ? "Low"
         : nextSeverity.toLowerCase() === "medium"
-        ? "Medium"
-        : "High";
+          ? "Medium"
+          : "High";
 
     setBugs((prevBugs) =>
       prevBugs.map((b) => (b.id === bugId ? { ...b, severity: formattedSev } : b))

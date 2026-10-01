@@ -347,11 +347,10 @@ export default function TabAiArchitecture() {
                   key={cat}
                   type="button"
                   onClick={() => setSelectedFileFilter(cat)}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                    selectedFileFilter === cat
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${selectedFileFilter === cat
                       ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
                       : "bg-[#0B0F17] text-slate-400 hover:text-white border border-slate-800"
-                  }`}
+                    }`}
                 >
                   {cat}
                 </button>
@@ -404,7 +403,7 @@ export default function TabAiArchitecture() {
                   <div
                     key={fileItem.id || fileItem.file}
                     onClick={() => handleCardClick(fileItem)}
-                    className="bg-[#0B0F17] hover:bg-slate-800/80 border border-slate-800 hover:border-cyan-500/40 rounded-xl p-4.5 space-y-3 cursor-pointer transition-all flex flex-col justify-between group shadow-sm"
+                    className="bg-[#0B0F17] hover:bg-slate-800/80 border border-slate-800 hover:border-cyan-500/40 rounded-xl p-4 space-y-3 cursor-pointer transition-all flex flex-col justify-between group shadow-sm"
                   >
                     <div className="space-y-2">
                       <div className="flex items-start justify-between gap-2">
