@@ -30,6 +30,7 @@ from typing import Any
 
 from data.dbconnection.session import AsyncSessionLocal
 from app.models.candidate_issues import CandidateIssue
+from app.models.issue_recommendation import IssueRecommendation
 
 from app.services.llm_logic_reviewer.llm_provider import (
     create_llm_provider,
@@ -361,6 +362,7 @@ async def run_llm_logic_review(
                 function,
                 all_functions,
                 config,
+                repo_root=str(repo_root),
             )
 
         except Exception as exc:
@@ -901,13 +903,19 @@ async def run_llm_logic_review(
             "[COMPONENT 9] Persisting finding..."
         )
 
+        exact_line = (
+            candidate.get("buggy_line")
+            or candidate.get("start_line")
+            or function.start_line
+        )
+
         issue = CandidateIssue(
             id=str(uuid.uuid4()),
             analysis_run_id=analysis_run_id,
             title=issue_title,
             description=issue_description,
             file_path=function.file_path,
-            line_number=function.start_line,
+            line_number=exact_line,
             severity=(
                 "high"
                 if confidence >= 0.85
@@ -927,6 +935,11 @@ async def run_llm_logic_review(
                     "semantic_bug",
                 ),
 
+                "bug_type": candidate.get(
+                    "bug_type",
+                    "semantic_bug",
+                ),
+
                 "function_name": function.name,
 
                 "qualified_name": (
@@ -934,6 +947,12 @@ async def run_llm_logic_review(
                 ),
 
                 "file": function.file_path,
+
+                "function_start_line": function.start_line,
+
+                "function_end_line": function.end_line,
+
+                "buggy_line": candidate.get("buggy_line"),
 
                 "start_line": candidate.get(
                     "start_line",
@@ -969,6 +988,11 @@ async def run_llm_logic_review(
                     "relevant_code",
                     "",
                 ),
+
+                "suggested_fix": candidate.get(
+                    "suggested_fix",
+                    "",
+                ),
             },
         )
 
@@ -977,6 +1001,19 @@ async def run_llm_logic_review(
             async with AsyncSessionLocal() as db:
 
                 db.add(issue)
+
+                suggested_fix_text = candidate.get("suggested_fix")
+                if suggested_fix_text and str(suggested_fix_text).strip():
+                    rec = IssueRecommendation(
+                        id=str(uuid.uuid4()),
+                        candidate_issue_id=issue.id,
+                        recommendation=str(suggested_fix_text).strip(),
+                        diff_remove=candidate.get("relevant_code") or candidate.get("evidence") or None,
+                        diff_add=str(suggested_fix_text).strip(),
+                        fix_type="ai_patch",
+                        priority_order=1,
+                    )
+                    db.add(rec)
 
                 await db.commit()
 

@@ -573,7 +573,15 @@ async def get_repository_analysis_status(
         duration = (datetime.now(timezone.utc) - latest_run.started_at).total_seconds()
 
     high_open_issues_count = 0
+    total_candidate_issues_count = 0
     if latest_run.status == "completed":
+        total_stmt = (
+            select(func.count(CandidateIssue.id))
+            .where(CandidateIssue.analysis_run_id == latest_run.id)
+        )
+        total_result = await db.execute(total_stmt)
+        total_candidate_issues_count = total_result.scalar() or 0
+
         high_stmt = (
             select(func.count(CandidateIssue.id))
             .outerjoin(IssueStatus, CandidateIssue.id == IssueStatus.candidate_issue_id)
@@ -595,7 +603,7 @@ async def get_repository_analysis_status(
         status=latest_run.status,
         total_files=latest_run.total_files or 0,
         supported_files=latest_run.supported_files or 0,
-        candidate_issues_count=latest_run.candidate_issues_count or 0,
+        candidate_issues_count=total_candidate_issues_count,
         high_open_issues=high_open_issues_count,
         started_at=latest_run.started_at,
         completed_at=latest_run.completed_at,
@@ -797,6 +805,22 @@ async def list_repository_candidate_issues(
                 "add": rec.diff_add or "",
                 "note": rec.recommendation or "",
             }
+        elif isinstance(issue.evidence, dict) and issue.evidence.get("suggested_fix"):
+            raw_fix = issue.evidence.get("suggested_fix")
+            if isinstance(raw_fix, dict):
+                suggested_fix = raw_fix
+            elif isinstance(raw_fix, str) and raw_fix.strip():
+                suggested_fix = {
+                    "remove": issue.evidence.get("relevant_code") or issue.evidence.get("evidence") or "",
+                    "add": raw_fix.strip(),
+                    "note": raw_fix.strip(),
+                }
+
+        confidence_val = (
+            issue.evidence.get("confidence")
+            if isinstance(issue.evidence, dict) and issue.evidence.get("confidence") is not None
+            else getattr(issue, "confidence", None) or "medium"
+        )
 
         items.append({
             "id": issue.id,
@@ -813,6 +837,8 @@ async def list_repository_candidate_issues(
             "code_snippet": issue.code_snippet or "",
             "severity": issue.severity,
             "urgency": issue.urgency,
+            "confidence": confidence_val,
+            "evidence": issue.evidence or {},
             "status": issue.status.status if issue.status else "open",
             "security_impact": getattr(issue, "security_impact", None) or (issue.evidence.get("security_impact", "") if isinstance(getattr(issue, "evidence", None), dict) else "") or "",
             "engineer_notes": issue.verification_notes or (getattr(issue.status, "remarks", "") if issue.status else "") or "",

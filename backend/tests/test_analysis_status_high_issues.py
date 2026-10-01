@@ -175,3 +175,63 @@ async def test_analysis_status_high_open_issues_count(client: AsyncClient, api_d
     assert resp.status_code == 200
     data = resp.json()
     assert data["high_open_issues"] == 0
+
+
+@pytest.mark.asyncio
+async def test_analysis_status_3_high_open_issues(client: AsyncClient, api_db: AsyncSession):
+    """
+    Verify:
+    When DB contains 3 CandidateIssue records for a repository and all 3 are High/open:
+    - candidate_issues_count (Total Vulnerabilities) = 3
+    - high_open_issues (Open High Issues) = 3
+    """
+    repo = Repository(
+        id=str(uuid.uuid4()),
+        name="test-repo-3-high",
+        s3_key="repositories/test-repo-3-high.zip",
+    )
+    api_db.add(repo)
+    await api_db.flush()
+
+    run = AnalysisRun(
+        id=str(uuid.uuid4()),
+        repository_id=repo.id,
+        status="completed",
+        total_files=5,
+        supported_files=5,
+        candidate_issues_count=0,  # e.g. stale snapshot before issues added
+        started_at=datetime.now(timezone.utc),
+        completed_at=datetime.now(timezone.utc),
+    )
+    api_db.add(run)
+    await api_db.flush()
+
+    for i in range(3):
+        issue_id = str(uuid.uuid4())
+        issue = CandidateIssue(
+            id=issue_id,
+            analysis_run_id=run.id,
+            title=f"Semantic High Issue {i+1}",
+            description=f"Semantic defect {i+1}",
+            file_path="app/main.py",
+            line_number=20 + i,
+            severity="high",
+            urgency="needs_review",
+        )
+        status = IssueStatus(
+            id=str(uuid.uuid4()),
+            candidate_issue_id=issue_id,
+            status="open",
+        )
+        api_db.add(issue)
+        api_db.add(status)
+
+    await api_db.commit()
+
+    resp = await client.get(f"/api/v1/repositories/{repo.id}/analysis-status")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "completed"
+    assert data["candidate_issues_count"] == 3
+    assert data["high_open_issues"] == 3
+

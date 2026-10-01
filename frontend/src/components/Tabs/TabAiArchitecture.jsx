@@ -4,6 +4,13 @@ import { createPortal } from "react-dom";
 import { useBugTracker } from "../../useBugTracker.jsx";
 import { apiService } from "../../api.js";
 
+// Helper to extract source file name from full filesystem path
+function getBaseFileName(filePath) {
+  if (!filePath || typeof filePath !== "string") return "";
+  const parts = filePath.split(/[/\\]/);
+  return parts[parts.length - 1] || filePath;
+}
+
 // ---------------------------------------------------------------------------
 // Map a backend ArchitectureTopologyResponse → the shape the existing UI uses
 // ---------------------------------------------------------------------------
@@ -401,8 +408,11 @@ export default function TabAiArchitecture() {
                   >
                     <div className="space-y-2">
                       <div className="flex items-start justify-between gap-2">
-                        <span className="font-mono text-xs font-bold text-white group-hover:text-cyan-300 transition-colors truncate">
-                          {fileItem.file}
+                        <span
+                          className="font-mono text-xs font-bold text-white group-hover:text-cyan-300 transition-colors truncate"
+                          title={fileItem.file}
+                        >
+                          {getBaseFileName(fileItem.file)}
                         </span>
                         <span
                           className={`text-[10px] font-semibold px-2 py-0.5 rounded border shrink-0 ${fileItem.statusColor}`}
@@ -453,9 +463,12 @@ export default function TabAiArchitecture() {
             <div className="flex items-start justify-between border-b border-slate-800 p-6 pb-4 shrink-0">
               <div className="flex-1 min-w-0 pr-3">
                 <h3 className="text-base font-bold text-white font-mono break-all leading-snug">
-                  {selectedFileModal.file}
+                  {getBaseFileName(selectedFileModal.file)}
                 </h3>
-                <span className="text-xs text-slate-400">
+                <p className="text-[11px] text-slate-400 font-mono break-all mt-0.5">
+                  {selectedFileModal.file}
+                </p>
+                <span className="text-xs text-slate-400 mt-1 block">
                   {selectedFileModal.language} • {selectedFileModal.lines} lines
                 </span>
               </div>

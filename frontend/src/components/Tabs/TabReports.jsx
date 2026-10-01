@@ -191,7 +191,7 @@ export default function TabReports() {
                         {bug.id}
                       </td>
                       <td className="py-3 px-3 font-mono text-slate-300 whitespace-nowrap">
-                        {bug.file}:{bug.line}
+                        {bug.file}:{bug.lineRange || bug.line}
                       </td>
                       <td className="py-3 px-3 font-medium text-white max-w-xs">
                         {bug.title}

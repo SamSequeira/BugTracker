@@ -363,6 +363,10 @@ class ContextPackage:
     text: str
     included: tuple[str, ...]
     truncated: bool
+    # Metadata added in context v2 — all fields have defaults for backward compat
+    omitted: tuple[str, ...] = ()
+    unresolved_symbols: tuple[str, ...] = ()
+    cross_file_resolved: tuple[str, ...] = ()
 
 
 # =============================================================================
@@ -1502,6 +1506,595 @@ def extract_functions(
 
 
 # =============================================================================
+# Context-building helpers (added for context-quality improvement)
+# =============================================================================
+
+import sys as _sys
+
+
+# Standard library module names (top-level packages only, sampled)
+_STDLIB_TOP: frozenset[str] = frozenset({
+    "abc", "ast", "asyncio", "base64", "binascii", "builtins", "cgi", "codecs",
+    "collections", "concurrent", "contextlib", "copy", "csv", "dataclasses",
+    "datetime", "decimal", "difflib", "email", "enum", "errno", "fnmatch",
+    "functools", "gc", "glob", "gzip", "hashlib", "heapq", "hmac", "html",
+    "http", "importlib", "inspect", "io", "ipaddress", "itertools", "json",
+    "keyword", "linecache", "locale", "logging", "lzma", "math", "mimetypes",
+    "multiprocessing", "numbers", "operator", "os", "pathlib", "pickle",
+    "platform", "pprint", "queue", "random", "re", "secrets", "select",
+    "shlex", "shutil", "signal", "socket", "socketserver", "sqlite3", "ssl",
+    "stat", "string", "struct", "subprocess", "sys", "tarfile", "tempfile",
+    "textwrap", "threading", "time", "timeit", "token", "tokenize", "traceback",
+    "types", "typing", "unicodedata", "unittest", "urllib", "uuid", "warnings",
+    "weakref", "xml", "xmlrpc", "zipfile", "zipimport", "zlib",
+})
+
+# Augment with runtime stdlib set if available
+try:
+    import sys as _sys_rt
+    if hasattr(_sys_rt, "stdlib_module_names"):
+        _STDLIB_TOP = _STDLIB_TOP | _sys_rt.stdlib_module_names  # type: ignore[attr-defined]
+except Exception:
+    pass
+
+
+def _top_package(module_path: str) -> str:
+    """Return the top-level package name from a dotted import path."""
+    return module_path.split(".")[0] if module_path else ""
+
+
+def _classify_imports_python(
+    import_stmts: tuple[str, ...],
+    repo_root: str | None = None,
+) -> dict[str, list[str]]:
+    """
+    Classify Python import statements into four buckets.
+
+    Returns a dict with keys:
+        "stdlib"       - standard library
+        "local"        - local project (starts with 'app', 'backend', relative, or
+                         top-level package exists as directory under repo_root)
+        "third_party"  - everything else
+        "unknown"      - unparseable lines
+    """
+    buckets: dict[str, list[str]] = {
+        "stdlib": [],
+        "local": [],
+        "third_party": [],
+        "unknown": [],
+    }
+
+    # Common local project root package names
+    local_hints: set[str] = {"app", "backend", "core", "api", "services", "models",
+                              "routers", "data", "config", "utils", "helpers",
+                              "schemas", "db", "repositories"}
+
+    for stmt in import_stmts:
+        try:
+            node = ast.parse(stmt.strip(), mode="single").body[0]
+        except (SyntaxError, IndexError):
+            buckets["unknown"].append(stmt)
+            continue
+
+        if isinstance(node, ast.ImportFrom):
+            module = node.module or ""
+            # Relative import → always local
+            if node.level and node.level > 0:
+                buckets["local"].append(stmt)
+                continue
+            top = _top_package(module)
+        elif isinstance(node, ast.Import):
+            top = _top_package(node.names[0].name if node.names else "")
+            module = top
+        else:
+            buckets["unknown"].append(stmt)
+            continue
+
+        if not top:
+            buckets["unknown"].append(stmt)
+        elif top in _STDLIB_TOP:
+            buckets["stdlib"].append(stmt)
+        elif top in local_hints:
+            buckets["local"].append(stmt)
+        elif repo_root:
+            # Check if the top-level package exists as a directory
+            pkg_dir = Path(repo_root) / top
+            if pkg_dir.is_dir():
+                buckets["local"].append(stmt)
+            else:
+                buckets["third_party"].append(stmt)
+        else:
+            buckets["third_party"].append(stmt)
+
+    return buckets
+
+
+def _return_flow_python(source: str) -> list[str]:
+    """
+    Deterministically extract what a Python function returns.
+
+    Returns a list of short descriptive strings such as:
+        "None (implicit)"
+        "variable: active_counts"
+        "literal: False"
+        "call: expense_service.create_expense(...)"
+        "multiple return branches"
+    """
+    try:
+        tree = ast.parse(textwrap.dedent(source))
+    except SyntaxError:
+        return []
+
+    # The outer function node
+    func_nodes = [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+    if not func_nodes:
+        return []
+    func = func_nodes[0]
+
+    returns: list[str] = []
+    seen: set[str] = set()
+
+    def _describe_return(value: ast.expr | None) -> str:
+        if value is None:
+            return "None (explicit)"
+        if isinstance(value, ast.Constant):
+            return f"literal: {repr(value.value)}"
+        if isinstance(value, ast.Name):
+            return f"variable: {value.id}"
+        if isinstance(value, ast.Tuple):
+            parts = [_describe_return(e) for e in value.elts[:3]]
+            return "tuple: (" + ", ".join(parts) + (")" if len(value.elts) <= 3 else ", ...)")
+        if isinstance(value, ast.Dict):
+            return "dict literal"
+        if isinstance(value, ast.List):
+            return "list literal"
+        if isinstance(value, ast.Call):
+            if isinstance(value.func, ast.Name):
+                return f"call: {value.func.id}(...)"
+            if isinstance(value.func, ast.Attribute):
+                prefix = ""
+                if isinstance(value.func.value, ast.Name):
+                    prefix = value.func.value.id + "."
+                return f"call: {prefix}{value.func.attr}(...)"
+            return "call expression"
+        if isinstance(value, ast.Attribute):
+            if isinstance(value.value, ast.Name):
+                return f"attribute: {value.value.id}.{value.attr}"
+        if isinstance(value, ast.IfExp):
+            return "conditional expression"
+        return "expression"
+
+    # Walk only the direct body of the function (don't descend into nested functions)
+    def _walk_body(stmts):
+        for stmt in stmts:
+            if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue  # skip nested
+            if isinstance(stmt, ast.Return):
+                desc = _describe_return(stmt.value)
+                if desc not in seen:
+                    seen.add(desc)
+                    returns.append(desc)
+            # recurse into branches
+            for child_list in [
+                getattr(stmt, "body", []),
+                getattr(stmt, "orelse", []),
+                getattr(stmt, "finalbody", []),
+            ]:
+                if isinstance(child_list, list):
+                    _walk_body(child_list)
+            for handler in getattr(stmt, "handlers", []):
+                _walk_body(getattr(handler, "body", []))
+
+    _walk_body(func.body)
+
+    # Implicit None
+    if not returns:
+        returns.append("None (implicit)")
+    elif len(returns) > 1:
+        returns.append("multiple return branches")
+
+    return returns
+
+
+def _param_usage_python(source: str, params: tuple[str, ...], start_line: int = 1) -> dict[str, list[str]]:
+    """
+    For each parameter, return a list of usage facts deterministically derived from AST.
+
+    Facts have the form:
+        "read at line N"
+        "passed to call_name(...)"
+        "used in arithmetic at line N"
+        "used in comparison at line N"
+        "subscripted at line N"
+        "attribute access: param.attr at line N"
+    """
+    usage: dict[str, list[str]] = {p: [] for p in params}
+    if not params:
+        return usage
+
+    try:
+        tree = ast.parse(textwrap.dedent(source))
+    except SyntaxError:
+        return usage
+
+    param_set = set(params)
+    line_offset = start_line - 1  # AST lines are 1-based from dedented source
+
+    for node in ast.walk(tree):
+        # Skip nested function defs
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            pass  # we still walk inside — we just want to label them
+
+        # Detect parameter reads inside Call arguments
+        if isinstance(node, ast.Call):
+            call_name = ""
+            if isinstance(node.func, ast.Name):
+                call_name = node.func.id
+            elif isinstance(node.func, ast.Attribute):
+                if isinstance(node.func.value, ast.Name):
+                    call_name = node.func.value.id + "." + node.func.attr
+                else:
+                    call_name = node.func.attr
+            for arg in list(node.args) + [kw.value for kw in node.keywords]:
+                if isinstance(arg, ast.Name) and arg.id in param_set:
+                    fact = f"passed to {call_name}(...)"
+                    if fact not in usage[arg.id]:
+                        usage[arg.id].append(fact)
+
+        # Arithmetic usage
+        if isinstance(node, ast.BinOp):
+            for side in (node.left, node.right):
+                if isinstance(side, ast.Name) and side.id in param_set:
+                    line = getattr(side, "lineno", None)
+                    label = f"used in arithmetic"
+                    if line:
+                        label += f" at line {line + line_offset}"
+                    if label not in usage[side.id]:
+                        usage[side.id].append(label)
+
+        # Comparison usage
+        if isinstance(node, ast.Compare):
+            if isinstance(node.left, ast.Name) and node.left.id in param_set:
+                line = getattr(node.left, "lineno", None)
+                label = f"used in comparison"
+                if line:
+                    label += f" at line {line + line_offset}"
+                if label not in usage[node.left.id]:
+                    usage[node.left.id].append(label)
+
+        # Subscript
+        if isinstance(node, ast.Subscript):
+            if isinstance(node.value, ast.Name) and node.value.id in param_set:
+                line = getattr(node.value, "lineno", None)
+                label = "subscripted"
+                if line:
+                    label += f" at line {line + line_offset}"
+                if label not in usage[node.value.id]:
+                    usage[node.value.id].append(label)
+
+        # Attribute access
+        if isinstance(node, ast.Attribute):
+            if isinstance(node.value, ast.Name) and node.value.id in param_set:
+                line = getattr(node.value, "lineno", None)
+                label = f"attribute access: {node.value.id}.{node.attr}"
+                if line:
+                    label += f" at line {line + line_offset}"
+                if label not in usage[node.value.id]:
+                    usage[node.value.id].append(label)
+
+    # Add "read at line N" for any param referenced with ast.Name Load that isn't covered above
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load) and node.id in param_set:
+            line = getattr(node, "lineno", None)
+            if line:
+                label = f"read at line {line + line_offset}"
+                if not any(f"line {line + line_offset}" in f for f in usage[node.id]):
+                    if len(usage[node.id]) < 6:  # cap to avoid noise
+                        usage[node.id].append(label)
+
+    return usage
+
+
+def _local_symbol_table_python(source: str, start_line: int = 1) -> list[tuple[str, list[str]]]:
+    """
+    Build a compact symbol table for local variables inside a function.
+
+    Returns a list of (name, [facts]) where facts are things like:
+        "assigned at line N"
+        "value from call: foo(...)"
+        "used at line N"
+
+    Only variables that are locally assigned AND used are included.
+    Parameters are excluded (handled separately).
+    Skips dunder names and private names starting with __.
+    """
+    try:
+        tree = ast.parse(textwrap.dedent(source))
+    except SyntaxError:
+        return []
+
+    func_nodes = [n for n in ast.walk(tree)
+                  if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+    if not func_nodes:
+        return []
+    func = func_nodes[0]
+
+    param_names: set[str] = {
+        a.arg for a in (
+            list(func.args.posonlyargs)
+            + list(func.args.args)
+            + list(func.args.kwonlyargs)
+            + ([func.args.vararg] if func.args.vararg else [])
+            + ([func.args.kwarg] if func.args.kwarg else [])
+        )
+    }
+
+    line_offset = start_line - 1
+    assigns: dict[str, list[str]] = {}
+    reads: dict[str, list[int]] = {}
+
+    def _call_desc(node: ast.expr) -> str:
+        if isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name):
+                return f"call: {node.func.id}(...)"
+            if isinstance(node.func, ast.Attribute):
+                if isinstance(node.func.value, ast.Name):
+                    return f"call: {node.func.value.id}.{node.func.attr}(...)"
+                return f"call: {node.func.attr}(...)"
+        if isinstance(node, ast.Constant):
+            return f"constant: {repr(node.value)}"
+        if isinstance(node, ast.Name):
+            return f"variable: {node.id}"
+        return "expression"
+
+    for node in ast.walk(func):
+        if isinstance(node, ast.Assign):
+            line = getattr(node, "lineno", None)
+            for tgt in node.targets:
+                for name in _target_names(tgt):
+                    if name in param_names or name.startswith("__"):
+                        continue
+                    facts = assigns.setdefault(name, [])
+                    label = "assigned"
+                    if line:
+                        label += f" at line {line + line_offset}"
+                    value_desc = _call_desc(node.value)
+                    label += f", value from {value_desc}"
+                    if label not in facts:
+                        facts.append(label)
+
+        elif isinstance(node, ast.AnnAssign) and node.value:
+            line = getattr(node, "lineno", None)
+            for name in _target_names(node.target):
+                if name in param_names or name.startswith("__"):
+                    continue
+                facts = assigns.setdefault(name, [])
+                label = "assigned"
+                if line:
+                    label += f" at line {line + line_offset}"
+                value_desc = _call_desc(node.value)
+                label += f", value from {value_desc}"
+                if label not in facts:
+                    facts.append(label)
+
+        elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
+            if node.id in param_names or node.id.startswith("__"):
+                continue
+            line = getattr(node, "lineno", None)
+            if line:
+                reads.setdefault(node.id, []).append(line + line_offset)
+
+    # Build result: only symbols that have both an assignment AND at least one read
+    result: list[tuple[str, list[str]]] = []
+    for name, assign_facts in assigns.items():
+        read_lines = reads.get(name, [])
+        if not read_lines:
+            continue  # assigned but never read — skip
+        facts = list(assign_facts)
+        # Add up to 3 read-line references
+        for rl in sorted(set(read_lines))[:3]:
+            facts.append(f"read at line {rl}")
+        result.append((name, facts))
+
+    return result
+
+
+def _compact_class_summary(class_source: str, target_name: str) -> str:
+    """
+    Produce a compact summary of a containing class:
+    - class signature
+    - class-level attributes
+    - field assignments from __init__ (brief)
+    - signatures of all methods (not bodies), EXCEPT the target itself
+
+    This avoids flooding the context budget with irrelevant method bodies.
+    """
+    if not class_source:
+        return ""
+
+    try:
+        tree = ast.parse(textwrap.dedent(class_source))
+    except SyntaxError:
+        return class_source[:800] + "\n  ... (class body truncated)"
+
+    class_nodes = [n for n in ast.walk(tree) if isinstance(n, ast.ClassDef)]
+    if not class_nodes:
+        return class_source[:800] + "\n  ... (class body truncated)"
+
+    cls = class_nodes[0]
+    lines: list[str] = []
+
+    # Class header (decorators + class line)
+    if cls.decorator_list:
+        for dec in cls.decorator_list:
+            lines.append(f"@{ast.unparse(dec)}")
+    bases = ", ".join(ast.unparse(b) for b in cls.bases) if cls.bases else ""
+    lines.append(f"class {cls.name}({bases}):" if bases else f"class {cls.name}:")
+
+    # Class-level attributes
+    for item in cls.body:
+        if isinstance(item, (ast.Assign, ast.AnnAssign)):
+            try:
+                lines.append(f"    {ast.unparse(item)}")
+            except Exception:
+                pass
+
+    # Collect field hints from __init__ (self.x = ...)
+    init_fields: list[str] = []
+    for method in cls.body:
+        if isinstance(method, (ast.FunctionDef, ast.AsyncFunctionDef)) and method.name == "__init__":
+            for stmt in method.body:
+                if isinstance(stmt, ast.Assign):
+                    for tgt in stmt.targets:
+                        if isinstance(tgt, ast.Attribute) and isinstance(tgt.value, ast.Name) and tgt.value.id == "self":
+                            init_fields.append(f"  self.{tgt.attr}")
+                elif isinstance(stmt, ast.AnnAssign):
+                    if isinstance(stmt.target, ast.Attribute) and isinstance(stmt.target.value, ast.Name) and stmt.target.value.id == "self":
+                        init_fields.append(f"  self.{stmt.target.attr}")
+            break
+
+    if init_fields:
+        lines.append("  # Fields (from __init__):")
+        lines.extend(init_fields[:8])  # cap at 8 fields
+        if len(init_fields) > 8:
+            lines.append(f"  # ... {len(init_fields) - 8} more fields")
+
+    # Method signatures (exclude target)
+    method_sigs: list[str] = []
+    for method in cls.body:
+        if isinstance(method, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            if method.name == target_name:
+                continue  # skip the target itself
+            try:
+                sig = ast.unparse(method.args)
+                async_prefix = "async " if isinstance(method, ast.AsyncFunctionDef) else ""
+                dec_str = ""
+                if method.decorator_list:
+                    decs = ", ".join(f"@{ast.unparse(d)}" for d in method.decorator_list[:2])
+                    dec_str = f"  {decs}\n"
+                method_sigs.append(f"{dec_str}  {async_prefix}def {method.name}({sig}): ...")
+            except Exception:
+                method_sigs.append(f"  def {method.name}(...): ...")
+        elif isinstance(method, ast.ClassVar if hasattr(ast, 'ClassVar') else type(None)):
+            pass
+
+    if method_sigs:
+        lines.append("  # Methods:")
+        lines.extend(method_sigs[:12])  # cap at 12 method signatures
+        if len(method_sigs) > 12:
+            lines.append(f"  # ... {len(method_sigs) - 12} more methods")
+
+    return "\n".join(lines)
+
+
+def _resolve_cross_file_callee(
+    called_name: str,
+    target_imports: tuple[str, ...],
+    repo_root: str | None,
+) -> tuple[str | None, str | None, str | None]:
+    """
+    Try to resolve a called name to a local project function definition.
+
+    Heuristic:
+    1. Scan import statements for `called_name` or a module that exports it.
+    2. Map the module to a file path under repo_root.
+    3. Parse that file, find the function, return (file_path, qualified_name, source).
+
+    Returns:
+        (file_relative_path, qualified_name, source) if resolved
+        (None, None, None)                           if not resolved
+    """
+    if not repo_root or not called_name:
+        return None, None, None
+
+    repo_path = Path(repo_root)
+
+    # Determine the unqualified name to look up
+    # called_name may be "module.func" or just "func"
+    parts = called_name.rsplit(".", 1)
+    func_name = parts[-1]
+    module_hint = parts[0] if len(parts) == 2 else None
+
+    # Build candidate file paths from imports
+    candidate_files: list[Path] = []
+
+    for stmt in target_imports:
+        try:
+            node = ast.parse(stmt.strip(), mode="single").body[0]
+        except (SyntaxError, IndexError):
+            continue
+
+        if isinstance(node, ast.ImportFrom):
+            module = (node.module or "").replace(".", "/")
+            names = [alias.name for alias in node.names]
+            asnames = {alias.asname or alias.name: alias.name for alias in node.names}
+
+            # Direct: from module import func_name
+            if func_name in names or func_name in asnames:
+                for suffix in (".py", "/__init__.py"):
+                    candidate = repo_path / (module + suffix)
+                    if candidate.exists():
+                        candidate_files.append(candidate)
+
+            # Submodule imported: from services import expense_service
+            for name in names:
+                sub = (module + "/" + name).replace("//", "/").strip("/")
+                for suffix in (".py", "/__init__.py"):
+                    candidate = repo_path / (sub + suffix)
+                    if candidate.exists():
+                        candidate_files.append(candidate)
+
+            # Dotted module file: from services.expense_service import ...
+            if module:
+                for suffix in (".py", "/__init__.py"):
+                    candidate = repo_path / (module + suffix)
+                    if candidate.exists():
+                        candidate_files.append(candidate)
+
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                mod_path = alias.name.replace(".", "/")
+                for suffix in (".py", "/__init__.py"):
+                    candidate = repo_path / (mod_path + suffix)
+                    if candidate.exists():
+                        candidate_files.append(candidate)
+
+    # Search each candidate file for the function
+    seen_files: set[Path] = set()
+    for fpath in candidate_files:
+        resolved = fpath.resolve()
+        if resolved in seen_files:
+            continue
+        seen_files.add(resolved)
+        try:
+            src = fpath.read_text(encoding="utf-8", errors="replace")
+            ftree = ast.parse(src)
+            lines = src.splitlines()
+            for fn_node in ast.walk(ftree):
+                if isinstance(fn_node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    if fn_node.name == func_name:
+                        fn_src = "\n".join(lines[fn_node.lineno - 1 : fn_node.end_lineno])
+                        rel = str(fpath.relative_to(repo_path)).replace("\\", "/")
+                        qname = fn_node.name
+                        for parent in ast.walk(ftree):
+                            if isinstance(parent, ast.ClassDef):
+                                if any(
+                                    isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef))
+                                    and child.name == fn_node.name
+                                    for child in parent.body
+                                ):
+                                    qname = f"{parent.name}.{fn_node.name}"
+                        return rel, qname, fn_src
+        except Exception:
+            continue
+
+    return None, None, None
+
+
+# =============================================================================
+# Component 3 — Context construction
+# =============================================================================
+# =============================================================================
 # Component 3 — Context construction
 # =============================================================================
 
@@ -1509,25 +2102,54 @@ def build_context(
     target: ExtractedFunction,
     all_functions: Iterable[ExtractedFunction],
     config: SemanticReviewConfig | None = None,
+    repo_root: str | None = None,
 ) -> ContextPackage:
     """
-    Build bounded local context.
+    Build bounded, priority-ordered, evidence-first local context for the LLM.
 
-    Priority:
+    Priority order (highest → lowest):
+        1. Complete target function (never truncated)
+        2. Direct local callees (same file, actually called by target)
+        3. Direct local callers (same file, actually call the target)
+        4. Cross-file project callees (resolved from imports)
+        5. Module-level symbols directly referenced by target
+        6. Containing class summary (compact — only fields + method signatures)
+        7. Classified imports
+        8. Return-value flow summary
+        9. Parameter usage summary
+        10. Local symbol table
 
-        1. target function
-        2. module-level definitions
-        3. imports
-        4. containing class
-        5. direct local callees
-        6. direct local callers
-
-    The target function is always preserved completely.
-
-    Cross-file dependencies are intentionally excluded.
+    Backward-compatible: new repo_root param defaults to None.
+    Existing ContextPackage fields (text, included, truncated) are unchanged.
+    New optional ContextPackage fields: omitted, unresolved_symbols, cross_file_resolved.
     """
 
     config = config or SemanticReviewConfig()
+
+    budget = config.max_context_chars
+    sections: list[str] = []
+    included: list[str] = []
+    omitted: list[str] = []
+    unresolved_symbols: list[str] = []
+    cross_file_resolved: list[str] = []
+    truncated = False
+
+    def _remaining() -> int:
+        used = sum(len(s) + 2 for s in sections)
+        return budget - used
+
+    def _add(section_text: str, label: str) -> bool:
+        """Attempt to add a section. Returns True if added."""
+        needed = len(section_text) + 2
+        if _remaining() >= needed:
+            sections.append(section_text)
+            included.append(label)
+            return True
+        return False
+
+    # =========================================================================
+    # PRIORITY 1: Target function (NEVER truncated)
+    # =========================================================================
 
     target_header = (
         f"TARGET FUNCTION "
@@ -1536,197 +2158,61 @@ def build_context(
         f"{target.start_line}-"
         f"{target.end_line})"
     )
+    target_block = target_header + "\n" + target.source
+    sections.append(target_block)
+    included.append("target_function")
 
-    sections = [
-        target_header
-        + "\n"
-        + target.source
-    ]
-
-    included = [
-        "target_function"
-    ]
-
-    used = len(
-        sections[0]
-    )
-
-    # -----------------------------------------------------------------
-    # Module-level definitions used by the target (globals, caches,
-    # constants, model classes defined in the same file)
-    # -----------------------------------------------------------------
-
-    skipped_module_definition = False
-
-    for kind, def_name, def_source in target.module_definitions:
-
-        block = (
-            f"MODULE-LEVEL {kind.upper()} USED BY TARGET: {def_name}\n"
-            + def_source
-        )
-
-        if (
-            used
-            + len(block)
-            + 2
-            <= config.max_context_chars
-        ):
-            sections.append(block)
-
-            included.append(
-                "module_def:"
-                + def_name
-            )
-
-            used += (
-                len(block)
-                + 2
-            )
-        else:
-            skipped_module_definition = True
-
-    # -----------------------------------------------------------------
-    # Imports
-    # -----------------------------------------------------------------
-
-    if target.imports:
-
-        imports_text = "\n".join(
-            target.imports
-        )
-
-        block = (
-            "RELEVANT IMPORTS\n"
-            + imports_text
-        )
-
-        if (
-            used
-            + len(block)
-            + 2
-            <= config.max_context_chars
-        ):
-            sections.append(block)
-
-            included.append(
-                "imports"
-            )
-
-            used += (
-                len(block)
-                + 2
-            )
-
-    # -----------------------------------------------------------------
-    # Containing class
-    # -----------------------------------------------------------------
-
-    if target.class_source:
-
-        block = (
-            "CONTAINING CLASS\n"
-            + target.class_source
-        )
-
-        if (
-            used
-            + len(block)
-            + 2
-            <= config.max_context_chars
-        ):
-            sections.append(block)
-
-            included.append(
-                "containing_class"
-            )
-
-            used += (
-                len(block)
-                + 2
-            )
-
-    # -----------------------------------------------------------------
-    # Direct local callees
-    # -----------------------------------------------------------------
+    # =========================================================================
+    # PRIORITY 2: Direct local callees (same file, directly called)
+    # =========================================================================
 
     added_callees: set[str] = set()
 
     if config.max_context_depth >= 1:
-
         local_functions: dict[str, ExtractedFunction] = {}
-        for function in all_functions:
+        for fn in all_functions:
             if (
-                function.file_path == target.file_path
-                and function.qualified_name != target.qualified_name
+                fn.file_path == target.file_path
+                and fn.qualified_name != target.qualified_name
             ):
                 if (
-                    function.name not in local_functions
-                    or (target.class_name and function.class_name == target.class_name)
+                    fn.name not in local_functions
+                    or (target.class_name and fn.class_name == target.class_name)
                 ):
-                    local_functions[function.name] = function
-                local_functions[function.qualified_name] = function
+                    local_functions[fn.name] = fn
+                local_functions[fn.qualified_name] = fn
 
         for called_name in target.called_names:
-
-            dependency = local_functions.get(
-                called_name
-            )
-
-            if dependency is None:
+            dep = local_functions.get(called_name)
+            if dep is None:
+                continue
+            if dep.qualified_name in added_callees:
                 continue
 
-            if (
-                dependency.qualified_name
-                in added_callees
-            ):
-                continue
+            sig_params = ", ".join(dep.parameters) if dep.parameters else ""
+            async_pfx = "async " if dep.is_async else ""
+            sig = f"{async_pfx}def {dep.name}({sig_params})"
 
             block = (
-                f"DIRECT LOCAL CALLEE "
-                f"{dependency.qualified_name} "
-                f"({dependency.start_line}-"
-                f"{dependency.end_line})\n"
-                f"{dependency.source}"
+                f"DIRECT LOCAL CALLEE\n"
+                f"Name: {dep.qualified_name}\n"
+                f"File: {dep.file_path}\n"
+                f"Lines: {dep.start_line}-{dep.end_line}\n"
+                f"\nSource:\n{dep.source}"
             )
 
-            if (
-                used
-                + len(block)
-                + 2
-                > config.max_context_chars
-            ):
-                return ContextPackage(
-                    text="\n\n".join(
-                        sections
-                    ),
-                    included=tuple(
-                        included
-                    ),
-                    truncated=True,
-                )
+            if _add(block, f"direct_callee:{dep.qualified_name}"):
+                added_callees.add(dep.qualified_name)
+            else:
+                omitted.append(f"direct_callee:{dep.qualified_name} (budget)")
+                truncated = True
 
-            sections.append(block)
-
-            included.append(
-                "direct_callee:"
-                + dependency.qualified_name
-            )
-
-            added_callees.add(
-                dependency.qualified_name
-            )
-
-            used += (
-                len(block)
-                + 2
-            )
-
-    # -----------------------------------------------------------------
-    # Direct local callers
-    # -----------------------------------------------------------------
+    # =========================================================================
+    # PRIORITY 3: Direct local callers (same file)
+    # =========================================================================
 
     if config.max_context_depth >= 1:
-
+        added_callers: set[str] = set()
         local_callers = sorted(
             [
                 fn
@@ -1741,70 +2227,233 @@ def build_context(
                     )
                 )
             ],
-            key=lambda item: (item.start_line, item.qualified_name.lower()),
+            key=lambda fn: (fn.start_line, fn.qualified_name.lower()),
         )
 
-        added_callers: set[str] = set()
-
         for caller in local_callers:
-
             if caller.qualified_name in added_callers:
                 continue
 
-            block = (
-                f"DIRECT LOCAL CALLER "
-                f"{caller.qualified_name} "
-                f"({caller.start_line}-"
-                f"{caller.end_line})\n"
-                f"{caller.source}"
-            )
+            # Caller contract evidence: how does the caller use the return value?
+            caller_contract: list[str] = []
+            if target.language == "python":
+                try:
+                    caller_tree = ast.parse(textwrap.dedent(caller.source))
+                    target_call_names = {target.name, target.qualified_name}
+                    for node in ast.walk(caller_tree):
+                        if isinstance(node, ast.Assign):
+                            if isinstance(node.value, ast.Call):
+                                fn_node = node.value.func
+                                call_name = ""
+                                if isinstance(fn_node, ast.Name):
+                                    call_name = fn_node.id
+                                elif isinstance(fn_node, ast.Attribute):
+                                    call_name = fn_node.attr
+                                if call_name in target_call_names or target.name in call_name:
+                                    for tgt_node in node.targets:
+                                        for tgt_name in _target_names(tgt_node):
+                                            caller_contract.append(f"return value assigned to `{tgt_name}`")
+                                            # Check how tgt_name is used later
+                                            for sub in ast.walk(caller_tree):
+                                                if isinstance(sub, ast.Subscript):
+                                                    if isinstance(sub.value, ast.Name) and sub.value.id == tgt_name:
+                                                        try:
+                                                            key = ast.unparse(sub.slice)
+                                                            caller_contract.append(f"caller accesses `{tgt_name}[{key}]`")
+                                                        except Exception:
+                                                            pass
+                                                elif isinstance(sub, ast.Attribute):
+                                                    if isinstance(sub.value, ast.Name) and sub.value.id == tgt_name:
+                                                        caller_contract.append(f"caller accesses `{tgt_name}.{sub.attr}`")
+                except Exception:
+                    pass
 
-            if (
-                used
-                + len(block)
-                + 2
-                > config.max_context_chars
-            ):
-                return ContextPackage(
-                    text="\n\n".join(
-                        sections
-                    ),
-                    included=tuple(
-                        included
-                    ),
-                    truncated=True,
+            contract_str = ""
+            if caller_contract:
+                contract_str = "\nCALLER CONTRACT EVIDENCE:\n" + "\n".join(
+                    f"- {c}" for c in caller_contract[:5]
                 )
 
-            sections.append(block)
-
-            included.append(
-                "direct_caller:"
-                + caller.qualified_name
+            block = (
+                f"DIRECT LOCAL CALLER\n"
+                f"Name: {caller.qualified_name}\n"
+                f"File: {caller.file_path}\n"
+                f"Lines: {caller.start_line}-{caller.end_line}\n"
+                f"\nSource:\n{caller.source}"
+                f"{contract_str}"
             )
 
-            added_callers.add(
-                caller.qualified_name
+            if _add(block, f"direct_caller:{caller.qualified_name}"):
+                added_callers.add(caller.qualified_name)
+            else:
+                omitted.append(f"direct_caller:{caller.qualified_name} (budget)")
+                truncated = True
+
+    # =========================================================================
+    # PRIORITY 4: Cross-file local project callee resolution
+    # =========================================================================
+
+    # Only attempt for Python (deterministic AST-based resolution)
+    if target.language == "python" and repo_root and config.max_context_depth >= 1:
+        for called_name in target.called_names:
+            # Skip if already covered by same-file callees
+            if any(called_name in lbl for lbl in included if lbl.startswith("direct_callee:")):
+                continue
+            # Only try dotted names (module.func pattern)
+            if "." not in called_name and called_name not in {
+                n.split(".")[-1] for n in (target.called_names or ())
+            }:
+                pass  # try anyway for plain names referenced via imports
+
+            rel, qname, fn_src = _resolve_cross_file_callee(
+                called_name, target.imports, repo_root
             )
 
-            used += (
-                len(block)
-                + 2
+            if rel and fn_src:
+                block = (
+                    f"CROSS-FILE LOCAL CALLEE\n"
+                    f"Symbol: {called_name}\n"
+                    f"Resolved to: {qname}\n"
+                    f"File: {rel}\n"
+                    f"\nSource:\n{fn_src}"
+                )
+                if _add(block, f"cross_file_callee:{called_name}"):
+                    cross_file_resolved.append(f"{called_name} -> {rel}:{qname}")
+                else:
+                    omitted.append(f"cross_file_callee:{called_name} (budget)")
+                    truncated = True
+            else:
+                # Mark as unresolved so the prompt can instruct the model correctly
+                unresolved_symbols.append(called_name)
+
+    # =========================================================================
+    # PRIORITY 5: Module-level definitions used by target
+    # =========================================================================
+
+    skipped_module_def = False
+    for kind, def_name, def_source in target.module_definitions:
+        block = (
+            f"MODULE-LEVEL SYMBOL USED BY TARGET\n"
+            f"Name: {def_name}\n"
+            f"Type: {kind}\n"
+            f"\nSource:\n{def_source}"
+        )
+        if not _add(block, f"module_def:{def_name}"):
+            skipped_module_def = True
+            omitted.append(f"module_def:{def_name} (budget)")
+            truncated = True
+
+    # =========================================================================
+    # PRIORITY 6: Containing class — compact summary only
+    # =========================================================================
+
+    if target.class_source:
+        compact_cls = _compact_class_summary(target.class_source, target.name)
+        block = f"CONTAINING CLASS\n{compact_cls}"
+        if not _add(block, "containing_class"):
+            omitted.append("containing_class (budget)")
+            truncated = True
+
+    # =========================================================================
+    # PRIORITY 7: Classified imports
+    # =========================================================================
+
+    if target.imports and target.language == "python":
+        classified = _classify_imports_python(target.imports, repo_root)
+        import_lines: list[str] = ["RELEVANT IMPORTS"]
+
+        if classified["stdlib"]:
+            import_lines.append("STANDARD LIBRARY:")
+            import_lines.extend(f"  {s}" for s in classified["stdlib"])
+
+        if classified["local"]:
+            import_lines.append("LOCAL PROJECT:")
+            import_lines.extend(f"  {s}" for s in classified["local"])
+
+        if classified["third_party"]:
+            import_lines.append("THIRD PARTY (external - behavior not available in repository):")
+            import_lines.extend(f"  {s}" for s in classified["third_party"])
+
+        if classified["unknown"]:
+            import_lines.append("UNKNOWN:")
+            import_lines.extend(f"  {s}" for s in classified["unknown"])
+
+        # Mark unresolved symbols that came from local imports
+        for sym in list(unresolved_symbols):
+            import_lines.append(f"UNRESOLVED LOCAL SYMBOL: {sym} (source not found in project)")
+
+        block = "\n".join(import_lines)
+        if not _add(block, "imports"):
+            # Fall back to plain import list if classified version doesn't fit
+            plain = "RELEVANT IMPORTS\n" + "\n".join(target.imports)
+            if not _add(plain, "imports"):
+                omitted.append("imports (budget)")
+    elif target.imports:
+        plain = "RELEVANT IMPORTS\n" + "\n".join(target.imports)
+        if not _add(plain, "imports"):
+            omitted.append("imports (budget)")
+
+    # =========================================================================
+    # PRIORITY 8: Return-value flow (Python only)
+    # =========================================================================
+
+    if target.language == "python" and _remaining() > 200:
+        ret_flows = _return_flow_python(target.source)
+        if ret_flows:
+            block = "TARGET RETURN FLOW\nReturns:\n" + "\n".join(
+                f"- {r}" for r in ret_flows
             )
+            _add(block, "return_flow")
+
+    # =========================================================================
+    # PRIORITY 9: Parameter usage (Python only)
+    # =========================================================================
+
+    if target.language == "python" and target.parameters and _remaining() > 300:
+        param_usage = _param_usage_python(target.source, target.parameters, target.start_line)
+        usage_lines: list[str] = ["PARAMETER USAGE"]
+        for param in target.parameters:
+            facts = param_usage.get(param, [])
+            if facts:
+                usage_lines.append(f"`{param}`")
+                usage_lines.extend(f"  - {f}" for f in facts[:5])
+        if len(usage_lines) > 1:
+            block = "\n".join(usage_lines)
+            _add(block, "param_usage")
+
+    # =========================================================================
+    # PRIORITY 10: Local symbol table (Python only)
+    # =========================================================================
+
+    if target.language == "python" and _remaining() > 300:
+        sym_table = _local_symbol_table_python(target.source, target.start_line)
+        if sym_table:
+            sym_lines: list[str] = ["LOCAL SYMBOLS"]
+            for sym_name, facts in sym_table[:8]:  # cap at 8 symbols
+                sym_lines.append(f"`{sym_name}`")
+                sym_lines.extend(f"  - {f}" for f in facts[:4])
+            block = "\n".join(sym_lines)
+            _add(block, "local_symbols")
+
+    # =========================================================================
+    # Context limit notice
+    # =========================================================================
+
+    if omitted:
+        notice_parts = ["CONTEXT LIMIT NOTICE: The following lower-priority context was omitted:"]
+        notice_parts.extend(f"- {item}" for item in omitted[:10])
+        notice = "\n".join(notice_parts)
+        _add(notice, "context_limit_notice")
 
     return ContextPackage(
-        text="\n\n".join(
-            sections
-        ),
-        included=tuple(
-            included
-        ),
-        truncated=skipped_module_definition,
+        text="\n\n".join(sections),
+        included=tuple(included),
+        truncated=truncated or skipped_module_def,
+        omitted=tuple(omitted),
+        unresolved_symbols=tuple(unresolved_symbols),
+        cross_file_resolved=tuple(cross_file_resolved),
     )
 
-
-# =============================================================================
-# Component 4 — Prompt construction
-# =============================================================================
 
 def _format_language_name(language: str) -> str:
     """Format language identifier into canonical display name."""
@@ -1828,6 +2477,8 @@ def _build_compact_prompt(
     - Target identification (file, language, function, qualified name, line range, parameters, async, decorators)
     - Numbered target source code for exact line numbers
     - Context package from Component 3 preserved without duplicate target source
+    - Full 10-step SEMANTIC REASONING PROCEDURE + A-K bug categories + SELF-CHECK
+    - VERY IMPORTANT DECISION RULE: no bug_found=false after describing a real defect
     - Language-specific & general semantic defect checklist
     - Strict JSON output format matching Component 6/7 expectations
     """
@@ -1841,12 +2492,31 @@ def _build_compact_prompt(
         )
     )
 
-    # Extract non-target context sections from context.text to avoid repeating target source
-    index = context.text.find(target.source)
-    if index >= 0:
-        other = context.text[index + len(target.source):].strip()
+    # Build context block that excludes the target function body to avoid duplication.
+    # Strategy: locate the TARGET FUNCTION header in context.text, then skip past it and
+    # the target source to obtain the remaining context sections.
+    target_header = (
+        f"TARGET FUNCTION "
+        f"{target.qualified_name} "
+        f"({target.file_path}:"
+        f"{target.start_line}-"
+        f"{target.end_line})"
+    )
+    header_idx = context.text.find(target_header)
+    if header_idx >= 0:
+        after_header = context.text[header_idx + len(target_header):]
+        src_idx = after_header.find(target.source)
+        if src_idx >= 0:
+            other = after_header[src_idx + len(target.source):].strip()
+        else:
+            other = after_header.strip()
     else:
-        other = context.text.strip()
+        # Fallback: strip first occurrence of the raw source text
+        idx = context.text.find(target.source)
+        if idx >= 0:
+            other = context.text[idx + len(target.source):].strip()
+        else:
+            other = context.text.strip()
 
     decorators = (
         "\n".join("@" + d if not d.startswith("@") else d for d in target.decorators)
@@ -1858,7 +2528,7 @@ def _build_compact_prompt(
 
     other_block = (
         f"""
-CONTEXT FROM THE SAME FILE (Module definitions, imports, class context, direct callees, direct callers):
+CONTEXT FROM THE SAME FILE (module definitions, imports, class, direct callees/callers):
 {other}
 """
         if other
@@ -1912,30 +2582,60 @@ DECORATORS/ANNOTATIONS:
 TARGET FUNCTION SOURCE (each line starts with its 1-indexed line number and colon; the number is NOT part of the code):
 {numbered}
 {other_block}
-HOW TO REVIEW:
-1. Reason according to {lang_display}'s syntax, semantics, and standard runtime rules.
-2. From the function name and code, state in one sentence what it should accomplish.
-3. Trace it with normal inputs, then with empty, zero, null/None, or boundary inputs.
-4. Compare against common semantic defects:
-- An operator, sign, or comparison that does the opposite of the function's purpose (> vs <, + vs -, &&/and vs ||/or)
-- Steps in the wrong order (e.g. pagination/slicing before filtering, or using state before updating it)
-- Division by zero, empty collection access (e.g. [0] or .get(0)), or missing null/None guard
-- Wrong variable or parameter passed to a function/method call
-- Wrong variable returned or return value ignored
-- State update or mutation on the wrong object or with incorrect values
+SEMANTIC REASONING PROCEDURE — perform all steps internally before producing JSON:
+
+STEP 1: State in one sentence what this function should accomplish.
+STEP 2: Identify the key inputs and the expected output.
+STEP 3: Trace the most important value from input to transformation to output.
+STEP 4: Inspect every condition (if/else, comparisons, operators). Are they reversed or checking the wrong variable?
+STEP 5: Inspect arithmetic and aggregation. Wrong operand, sign, formula, or accumulation?
+STEP 6: Inspect state mutations. Is the wrong object mutated? Mutation done at wrong time?
+STEP 7: Inspect loops and collections. Which elements actually reach the result? Off-by-one? Wrong filter?
+STEP 8: Inspect exception/early-return paths. Is broken state silently returned as success?
+STEP 9: Inspect the return value. Is the computed value actually returned, or a stale/wrong variable?
+STEP 10: Ask "Can I give a concrete input or execution path that produces incorrect behavior?"
+  YES: report the strongest concrete bug (bug_found=true, confidence >= 0.70).
+  NO:  bug_found=false.
+
+SEMANTIC BUG CATEGORIES — check each one:
+A. WRONG CONDITIONS: inverted comparison (> vs <), wrong variable in condition, unreachable valid branch
+B. WRONG ARITHMETIC: wrong operand/variable/sign, incorrect formula, off-by-one, accumulating wrong values
+C. WRONG DATA FLOW: stale value used, variable overwritten too early, calculated value ignored, wrong variable returned
+D. COLLECTION BUGS: wrong filtering, off-by-one indexing, wrong first/last element, skipped elements
+E. RETURN-VALUE BUGS: computed result ignored, wrong variable returned, inconsistent type/value across branches
+F. EXCEPTION/ERROR FLOW: exception swallowed and success returned, invalid value used after exception
+G. MUTABLE DEFAULT ARGUMENTS: mutable default mutated and persisted across calls (Python)
+H. ASYNC BUGS: coroutine created but never awaited, async result treated as final value
+I. STATE/MUTATION BUGS: object modified too early, shared state changed unexpectedly, update on wrong branch
+J. VALIDATION/BUSINESS LOGIC: explicit contradiction between validation and calculation in the supplied code
+K. RESOURCE LIFECYCLE: resource created but not released, cleanup skipped on a demonstrated path
 {lang_checklist}
+
+VERY IMPORTANT DECISION RULE:
+If your reasoning identifies a CONCRETE mismatch between expected and actual behavior caused by a specific
+statement, then bug_found MUST be true. Do NOT describe a real defect in reasoning and then output bug_found=false.
 
 NOT A BUG (answer bug_found=false):
 - Code that already guards the case (if/else, null/None checks, try-catch/except)
-- Obvious syntax errors, formatting, indentation, naming style, missing docstrings, or general code quality
+- Style: formatting, naming, indentation, missing docstrings, general code quality
 - Hypothetical requirements not visible in the code; never invent fields, functions, or application requirements
 - Normal framework/library idioms and dependency injection
-- It is acceptable and expected to return bug_found=false. Never manufacture a bug merely because the function looks unusual.
+- Returning bug_found=false is perfectly acceptable. Never manufacture a bug because the function looks unusual.
+
+SELF-CHECK (only when considering bug_found=true):
+[ ] Concrete behavioral defect with a specific execution path identified.
+[ ] Defect is visible in the supplied code, not invented.
+[ ] relevant_code is copied exactly from the TARGET FUNCTION source above (no line numbers).
+[ ] file equals "{target.file_path}".
+[ ] start_line and end_line are within {target.start_line}-{target.end_line}.
+[ ] expected_behavior differs from actual_behavior.
+[ ] confidence >= 0.70 with real evidence.
+If ANY item fails, set bug_found=false.
 
 REPLY WITH EXACTLY ONE JSON OBJECT AND NOTHING ELSE (no markdown fences, no code blocks, no text before or after).
 Use exactly these keys:
 {{
-  "reasoning": "2-3 short sentences: what the function should do, what it does for a test input, and your verdict. Write this first.",
+  "reasoning": "2-3 sentences: what the function should do, what it actually does for a concrete test input, and your verdict.",
   "bug_found": true or false,
   "confidence": number from 0.0 to 1.0 (0.0 if no bug, >= 0.70 required for bug_found=true),
   "bug_type": "short category name, or null if no bug",
@@ -1951,6 +2651,7 @@ Use exactly these keys:
   "actual_behavior": "what happens instead, or null if no bug",
   "suggested_fix": "short description of the correction, or null if no bug"
 }}""".strip()
+
 
 
 def build_detection_prompt(

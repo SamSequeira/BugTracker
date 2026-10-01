@@ -11,25 +11,93 @@ const BugTrackerContext = createContext(null);
 // Convert real PostgreSQL CandidateIssue to UI Bug Object
 // =========================================================================
 function mapBackendCandidateIssueToUiBug(issue, index = 0) {
-  const lineNum = issue.line_number || 1;
+  const evidence = (issue.evidence && typeof issue.evidence === "object") ? issue.evidence : {};
+
+  // Exact buggy line & range
+  const startLine =
+    evidence.buggy_line ||
+    evidence.start_line ||
+    issue.line_number ||
+    1;
+  const endLine = evidence.end_line || startLine;
+  const lineRange = startLine === endLine ? `${startLine}` : `${startLine}-${endLine}`;
+  const exactLine = evidence.buggy_line || startLine;
+
   const rawSev = (issue.verified_severity || issue.severity || "medium").toLowerCase();
   const normalizedSev = rawSev === "low" ? "Low" : rawSev === "high" || rawSev === "critical" ? "High" : "Medium";
+
+  // Bug type / Category
+  const bugType =
+    evidence.category ||
+    evidence.bug_type ||
+    (issue.issue_type && issue.issue_type !== "semantic_bug" ? issue.issue_type : null) ||
+    issue.rule_id ||
+    "Semantic Bug";
+
+  // Reasoning & Description
+  const reasoning = evidence.reasoning || issue.reasoning || "";
+  const description = issue.description || issue.message || reasoning || "Defect detected during semantic analysis.";
+
+  // Evidence / Relevant code
+  const relevantCode = evidence.relevant_code || evidence.evidence || "";
+  const evidenceCode = evidence.evidence || relevantCode || "";
+
+  // Expected & Actual behavior
+  const expectedBehavior = evidence.expected_behavior || "";
+  const actualBehavior = evidence.actual_behavior || "";
+
+  // Confidence
+  const rawConfidence =
+    issue.confidence !== undefined && issue.confidence !== null && issue.confidence !== "medium"
+      ? issue.confidence
+      : evidence.confidence !== undefined && evidence.confidence !== null
+      ? evidence.confidence
+      : issue.confidence || "medium";
+
+  // Suggested Fix (normalize to { remove, add, note } object or string)
+  let suggestedFix = null;
+  const rawFix = issue.suggested_fix || evidence.suggested_fix;
+  if (rawFix) {
+    if (typeof rawFix === "object" && (rawFix.remove || rawFix.add || rawFix.note)) {
+      suggestedFix = rawFix;
+    } else if (typeof rawFix === "string" && rawFix.trim()) {
+      suggestedFix = {
+        remove: relevantCode || evidenceCode || "",
+        add: rawFix.trim(),
+        note: rawFix.trim(),
+      };
+    }
+  }
 
   // Parse code snippet
   const rawSnippet = issue.code_snippet || issue.codeSnippet || "";
   let codeSnippet = [];
   if (rawSnippet && typeof rawSnippet === "string" && rawSnippet.trim()) {
     const rawLines = rawSnippet.split("\n");
-    codeSnippet = rawLines.map((text, offset) => ({
-      num: lineNum + offset,
-      text: text,
-      isErr: offset === 0,
-    }));
+    // Determine the base line number for the function/code snippet
+    const funcStart =
+      evidence.function_start_line ||
+      (issue.line_number && startLine >= issue.line_number ? issue.line_number : startLine);
+    const targetStart = startLine;
+    const targetEnd = endLine;
+    const targetCodeTrim = (relevantCode || evidenceCode).trim();
+
+    codeSnippet = rawLines.map((text, offset) => {
+      const curLine = funcStart + offset;
+      const isErr =
+        (curLine >= targetStart && curLine <= targetEnd) ||
+        (targetCodeTrim && text.trim() === targetCodeTrim);
+      return {
+        num: curLine,
+        text: text,
+        isErr: Boolean(isErr),
+      };
+    });
   } else if (Array.isArray(issue.codeSnippet) && issue.codeSnippet.length > 0) {
     codeSnippet = issue.codeSnippet;
-  } else if (issue.message || issue.title) {
+  } else if (relevantCode || evidenceCode || issue.message || issue.title) {
     codeSnippet = [
-      { num: lineNum, text: issue.message || issue.title, isErr: true },
+      { num: exactLine, text: relevantCode || evidenceCode || issue.message || issue.title, isErr: true },
     ];
   }
 
@@ -50,19 +118,31 @@ function mapBackendCandidateIssueToUiBug(issue, index = 0) {
   return {
     id: issue.id || `BUG-${index + 1}`,
     file: issue.file_path || issue.file || "unknown",
-    line: lineNum,
+    line: exactLine,
+    lineRange: lineRange,
+    startLine: startLine,
+    endLine: endLine,
     title: issue.title || issue.message || "Detected Issue",
+    bugType: bugType,
+    category: bugType,
     severity: normalizedSev,
     priority: priorityLabel,
     status: normalizedStatus,
+    confidence: rawConfidence,
+    reasoning: reasoning,
+    description: description,
+    wrong: description,
+    matter: issue.security_impact || "Could lead to runtime failure or security compromise.",
+    evidence: evidenceCode,
+    relevantCode: relevantCode,
+    expectedBehavior: expectedBehavior,
+    actualBehavior: actualBehavior,
+    suggestedFix: suggestedFix,
+    codeSnippet: codeSnippet,
     engineer: issue.engineer || engineers[index % engineers.length],
     createdAt: issue.created_at ? new Date(issue.created_at).toLocaleDateString() : "Recently",
     similarCount: issue.similar_count || null,
     engineerNotes: issue.engineer_notes || issue.verification_notes || issue.remarks || "",
-    wrong: issue.description || issue.message || "Vulnerability or defect detected during static analysis.",
-    matter: issue.security_impact || "Could lead to runtime failure or security compromise.",
-    codeSnippet: codeSnippet,
-    suggestedFix: issue.suggested_fix || null,
     ruleId: issue.rule_id || issue.ruleId || "",
     language: issue.language || "Unknown",
     rawIssue: issue,
@@ -293,7 +373,13 @@ export function BugTrackerProvider({ children }) {
     if (aiRes.live && aiRes.data) setAiSummary(aiRes.data);
 
     if (bugsRes.live && bugsRes.data && Array.isArray(bugsRes.data)) {
-      setBugs(bugsRes.data.map((b, idx) => mapBackendCandidateIssueToUiBug(b, idx)));
+      const mapped = bugsRes.data.map((b, idx) => mapBackendCandidateIssueToUiBug(b, idx));
+      setBugs(mapped);
+      setStats((prev) => ({
+        ...prev,
+        totalBugs: mapped.length,
+        openHigh: mapped.filter((b) => b.severity === "High" && b.status !== "Resolved").length,
+      }));
     }
   }, []);
 
@@ -333,6 +419,11 @@ export function BugTrackerProvider({ children }) {
         if (bugsRes.live && Array.isArray(bugsRes.data) && bugsRes.data.length > 0) {
           const mapped = bugsRes.data.map((b, idx) => mapBackendCandidateIssueToUiBug(b, idx));
           setBugs(mapped);
+          setStats((prev) => ({
+            ...prev,
+            totalBugs: mapped.length,
+            openHigh: mapped.filter((b) => b.severity === "High" && b.status !== "Resolved").length,
+          }));
         }
       }
 

@@ -30,6 +30,7 @@ export default function TabRepositoryScanner() {
     loadRecentScan,
     stats,
     repoMeta,
+    totalBugsCount,
     highUnresolvedCount,
     resolvedCount,
     resolutionPercentage,
@@ -469,26 +470,26 @@ export default function TabRepositoryScanner() {
             <span>Total Vulnerabilities</span>
             <span className="p-1.5 bg-blue-500/10 text-blue-400 rounded-lg">🐞</span>
           </div>
-          <div className="text-2xl font-bold text-white font-mono">{stats.totalBugs ?? 0}</div>
+          <div className="text-2xl font-bold text-white font-mono">{totalBugsCount || stats.totalBugs || 0}</div>
           <div className="text-[11px] text-slate-400">
             Across <strong className="text-slate-200">{stats.totalFiles ?? 0}</strong> scanned source files
           </div>
         </div>
 
-<div className="bg-[#131B2E] border border-red-500/20 rounded-xl p-5 space-y-1 shadow-md"> 
-  <div className="flex items-center justify-between text-xs text-slate-400"> 
-    <span>Open High Issues</span> 
-    <span className="p-1.5 bg-red-500/10 text-red-400 rounded-lg">⚠️</span> 
-  </div> 
+        <div className="bg-[#131B2E] border border-red-500/20 rounded-xl p-5 space-y-1 shadow-md"> 
+          <div className="flex items-center justify-between text-xs text-slate-400"> 
+            <span>Open High Issues</span> 
+            <span className="p-1.5 bg-red-500/10 text-red-400 rounded-lg">⚠️</span> 
+          </div> 
 
-  <div className="text-2xl font-bold text-red-400 font-mono">
-    {stats.openHigh ?? highUnresolvedCount ?? 0}
-  </div> 
+          <div className="text-2xl font-bold text-red-400 font-mono">
+            {highUnresolvedCount || stats.openHigh || 0}
+          </div> 
 
-  <div className="text-[11px] text-red-300">
-    Requires high-priority remediation
-  </div> 
-</div>
+          <div className="text-[11px] text-red-300">
+            Requires high-priority remediation
+          </div> 
+        </div>
 
         <div className="bg-[#131B2E] border border-emerald-500/20 rounded-xl p-5 space-y-1 shadow-md">
           <div className="flex items-center justify-between text-xs text-slate-400">
