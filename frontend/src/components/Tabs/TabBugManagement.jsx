@@ -152,6 +152,11 @@ export default function TabBugManagement() {
                     <span className="font-mono text-xs text-cyan-400 font-bold bg-cyan-500/10 px-2.5 py-0.5 rounded border border-cyan-500/20">
                       {bug.id}
                     </span>
+                    {bug.bugType && (
+                      <span className="text-[10px] font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 px-2 py-0.5 rounded">
+                        {bug.bugType}
+                      </span>
+                    )}
                     <span
                       className={`text-[10px] font-bold px-2 py-0.5 rounded ${
                         bug.severity === "High"
@@ -163,6 +168,11 @@ export default function TabBugManagement() {
                     >
                       {bug.severity}
                     </span>
+                    {bug.confidence != null && (
+                      <span className="text-[10px] font-mono font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded">
+                        {typeof bug.confidence === "number" ? `${Math.round(bug.confidence <= 1 ? bug.confidence * 100 : bug.confidence)}%` : bug.confidence}
+                      </span>
+                    )}
                     <span className="text-[10px] font-medium bg-[#0B0F17] text-slate-300 px-2 py-0.5 rounded border border-slate-800">
                       {bug.priority}
                     </span>
@@ -216,7 +226,9 @@ export default function TabBugManagement() {
                   <div className="flex items-center space-x-3 text-xs text-slate-400 font-mono">
                     <span className="text-slate-300">{bug.file}</span>
                     <span>:</span>
-                    <span className="text-red-400">Line {bug.line}</span>
+                    <span className="text-red-400">
+                      {bug.lineRange ? `Line ${bug.lineRange}` : `Line ${bug.line}`}
+                    </span>
                     <span className="text-slate-600">•</span>
                     <span className="text-slate-500 font-sans">Assigned: {bug.engineer}</span>
                   </div>

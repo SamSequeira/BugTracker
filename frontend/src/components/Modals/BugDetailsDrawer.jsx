@@ -17,6 +17,7 @@ export default function BugDetailsDrawer() {
   const [saveStatus, setSaveStatus] = useState("Synced");
   const [sourceContext, setSourceContext] = useState(null);
   const [isLoadingContext, setIsLoadingContext] = useState(false);
+  const [sourceContextError, setSourceContextError] = useState("");
 
   // Keep local remarks in sync with activeDrawerBug or shared bugs array
   useEffect(() => {
@@ -31,20 +32,30 @@ export default function BugDetailsDrawer() {
   useEffect(() => {
     if (!activeDrawerBug?.id) {
       setSourceContext(null);
+      setSourceContextError("");
       return;
     }
 
     let isCancelled = false;
     setIsLoadingContext(true);
+    setSourceContextError("");
+
+    if (typeof apiService.getSourceContext !== "function") {
+      setSourceContext(null);
+      setSourceContextError("Source context is unavailable.");
+      setIsLoadingContext(false);
+      return;
+    }
 
     apiService
       .getSourceContext(activeDrawerBug.id, 8)
       .then((res) => {
         if (!isCancelled) {
-          if (res && res.found && Array.isArray(res.lines) && res.lines.length > 0) {
-            setSourceContext(res);
+          if (res.live && res.data?.found && Array.isArray(res.data.lines) && res.data.lines.length > 0) {
+            setSourceContext(res.data);
           } else {
             setSourceContext(null);
+            setSourceContextError(res.error || res.data?.message || "Source context is unavailable.");
           }
           setIsLoadingContext(false);
         }
@@ -52,6 +63,7 @@ export default function BugDetailsDrawer() {
       .catch(() => {
         if (!isCancelled) {
           setSourceContext(null);
+          setSourceContextError("Source context is unavailable.");
           setIsLoadingContext(false);
         }
       });
@@ -126,6 +138,11 @@ export default function BugDetailsDrawer() {
               <span className="font-mono text-xs text-cyan-400 font-bold bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
                 {currentBug.id}
               </span>
+              {currentBug.bugType && (
+                <span className="text-[10px] font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 px-2 py-0.5 rounded">
+                  {currentBug.bugType}
+                </span>
+              )}
               <select
                 value={currentBug.severity}
                 onChange={handleSeverityChange}
@@ -142,6 +159,11 @@ export default function BugDetailsDrawer() {
                 <option value="Medium" className="bg-[#131B2E] text-amber-400">Medium</option>
                 <option value="Low" className="bg-[#131B2E] text-blue-400">Low</option>
               </select>
+              {currentBug.confidence != null && (
+                <span className="text-[10px] font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded">
+                  Confidence: {typeof currentBug.confidence === "number" ? `${Math.round(currentBug.confidence <= 1 ? currentBug.confidence * 100 : currentBug.confidence)}%` : currentBug.confidence}
+                </span>
+              )}
               <span className="text-[10px] font-medium bg-slate-800 text-slate-300 px-2 py-0.5 rounded">
                 {currentBug.priority}
               </span>
@@ -159,7 +181,7 @@ export default function BugDetailsDrawer() {
               {currentBug.title}
             </h3>
             <p className="text-xs text-slate-400 font-mono">
-              {currentBug.file}:{currentBug.line}
+              {currentBug.file}:{currentBug.lineRange || currentBug.line}
               {currentBug.column != null ? `:${currentBug.column}` : ""}
             </p>
           </div>
@@ -205,25 +227,76 @@ export default function BugDetailsDrawer() {
           </button>
         </div>
 
-        {/* Problem Explanations */}
+        {/* Problem Explanations & LLM Findings */}
         <div className="space-y-3">
           <div className="bg-[#0B0F17]/80 border border-slate-800/80 rounded-xl p-3.5 space-y-1">
             <span className="text-[10px] font-bold text-red-400 uppercase tracking-wider block">
-              What is wrong
+              What is wrong / Description
             </span>
             <p className="text-xs text-slate-300 leading-relaxed">
-              {currentBug.wrong || "Vulnerability detected in source line."}
+              {currentBug.wrong || currentBug.description || "Defect detected in source line."}
             </p>
           </div>
 
-          <div className="bg-[#0B0F17]/80 border border-slate-800/80 rounded-xl p-3.5 space-y-1">
-            <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">
-              Why it matters (Security Impact)
-            </span>
-            <p className="text-xs text-slate-300 leading-relaxed">
-              {currentBug.matter || "Could lead to exploitation or data integrity failure."}
-            </p>
-          </div>
+          {currentBug.reasoning && currentBug.reasoning !== currentBug.wrong && currentBug.reasoning !== currentBug.description && (
+            <div className="bg-[#0B0F17]/80 border border-indigo-500/30 rounded-xl p-3.5 space-y-1">
+              <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider block">
+                LLM Reasoning & Root Cause
+              </span>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                {currentBug.reasoning}
+              </p>
+            </div>
+          )}
+
+          {/* Expected vs Actual Behavior */}
+          {(currentBug.expectedBehavior || currentBug.actualBehavior) && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {currentBug.expectedBehavior && (
+                <div className="bg-[#0B0F17]/80 border border-emerald-500/30 rounded-xl p-3 space-y-1">
+                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">
+                    ✓ Expected Behavior
+                  </span>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    {currentBug.expectedBehavior}
+                  </p>
+                </div>
+              )}
+              {currentBug.actualBehavior && (
+                <div className="bg-[#0B0F17]/80 border border-red-500/30 rounded-xl p-3 space-y-1">
+                  <span className="text-[10px] font-bold text-red-400 uppercase tracking-wider block">
+                    ✗ Actual Behavior
+                  </span>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    {currentBug.actualBehavior}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Flagged Evidence / Relevant Code */}
+          {(currentBug.relevantCode || currentBug.evidence) && (
+            <div className="bg-[#0B0F17]/80 border border-slate-800/80 rounded-xl p-3 space-y-1 font-mono text-xs">
+              <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider block font-sans">
+                Flagged Evidence / Relevant Code
+              </span>
+              <div className="bg-[#080C14] text-red-300 p-2.5 rounded-lg border border-red-500/20 overflow-x-auto whitespace-pre">
+                {currentBug.relevantCode || currentBug.evidence}
+              </div>
+            </div>
+          )}
+
+          {currentBug.matter && (
+            <div className="bg-[#0B0F17]/80 border border-slate-800/80 rounded-xl p-3.5 space-y-1">
+              <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">
+                Why it matters (Security Impact)
+              </span>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                {currentBug.matter}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Code Snippet with Line Highlight & Real Context */}
@@ -233,14 +306,22 @@ export default function BugDetailsDrawer() {
               Vulnerable Code Snippet
             </span>
             <span className="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
-              {hasContextLines ? "Source File Context" : "Database Analysis Snippet"}
+              {isLoadingContext
+                ? "Loading Source Context..."
+                : hasContextLines
+                ? "Source File Context"
+                : sourceContextError
+                ? "Source Context Unavailable"
+                : "Database Analysis Snippet"}
             </span>
           </div>
 
           <div className="bg-[#0B0F17] border border-slate-800 rounded-xl overflow-hidden font-mono text-xs">
             <div className="bg-[#0F1623] px-3.5 py-1.5 border-b border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
               <span className="truncate max-w-[70%]">{currentBug.file}</span>
-              <span className="text-red-400 shrink-0">Line {currentBug.line}</span>
+              <span className="text-red-400 shrink-0">
+                {currentBug.lineRange ? `Lines ${currentBug.lineRange}` : `Line ${currentBug.line}`}
+              </span>
             </div>
             <div className="p-3 overflow-x-auto max-h-64 space-y-0.5">
               {displaySnippet.map((line, idx) => (
@@ -266,15 +347,19 @@ export default function BugDetailsDrawer() {
         {currentBug.suggestedFix && (
           <div className="space-y-1.5">
             <span className="text-xs font-semibold text-emerald-400 block">
-              AI Suggested Code Patch
+              AI Suggested Code Patch / Fix
             </span>
             <div className="bg-[#0B0F17] border border-emerald-500/30 rounded-xl p-3 font-mono text-xs space-y-1 overflow-x-auto">
-              <div className="text-red-400 whitespace-pre bg-red-500/10 p-1 rounded">
-                {currentBug.suggestedFix.remove}
-              </div>
-              <div className="text-emerald-400 whitespace-pre bg-emerald-500/10 p-1 rounded">
-                {currentBug.suggestedFix.add}
-              </div>
+              {currentBug.suggestedFix.remove && (
+                <div className="text-red-400 whitespace-pre bg-red-500/10 p-1 rounded">
+                  - {currentBug.suggestedFix.remove}
+                </div>
+              )}
+              {currentBug.suggestedFix.add && (
+                <div className="text-emerald-400 whitespace-pre bg-emerald-500/10 p-1 rounded">
+                  + {currentBug.suggestedFix.add}
+                </div>
+              )}
               {currentBug.suggestedFix.note && (
                 <div className="text-[11px] text-slate-400 pt-1 font-sans">
                   💡 {currentBug.suggestedFix.note}

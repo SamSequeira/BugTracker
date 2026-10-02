@@ -1,0 +1,17 @@
+{
+  "experiment": "qwen_single_file_test",
+  "started_at": "2026-09-25T18:06:36.220453+00:00",
+  "file": "C:\\Users\\mayur\\OneDrive\\Desktop\\BugTracker\\backend\\path\\to\\file2.py",
+  "file_size_bytes": null,
+  "line_count": 0,
+  "character_count": 0,
+  "model": "qwen2.5-coder:3b-instruct-q4_K_M",
+  "ollama_host": "http://localhost:11434",
+  "raw_model_response": null,
+  "parsed_response": null,
+  "parse_error": null,
+  "request_error": "FileNotFoundError: [Errno 2] No such file or directory: 'path\\\\to\\\\file2.py'",
+  "ollama_usage": {},
+  "completed_at": "2026-09-25T18:06:36.220453+00:00",
+  "analysis_time_seconds": 0.0
+}

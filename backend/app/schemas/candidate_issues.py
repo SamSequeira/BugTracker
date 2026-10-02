@@ -106,8 +106,9 @@ class CandidateIssueResponse(BaseModel):
     message: Optional[str] = None
     code_snippet: Optional[str] = None
     evidence: Optional[Dict[str, Any]] = None
-    confidence: Optional[str] = "medium"
+    confidence: Optional[Any] = "medium"
     language: Optional[str] = None
+    suggested_fix: Optional[Any] = None
 
     # Static analyzer detector prediction (baseline)
     severity: str
@@ -124,6 +125,15 @@ class CandidateIssueResponse(BaseModel):
     model_config = ConfigDict(
         from_attributes=True
     )
+
+    @model_validator(mode="after")
+    def resolve_evidence_fields(self) -> CandidateIssueResponse:
+        if isinstance(self.evidence, dict):
+            if (self.confidence is None or self.confidence == "medium") and "confidence" in self.evidence:
+                self.confidence = self.evidence.get("confidence")
+            if self.suggested_fix is None and "suggested_fix" in self.evidence:
+                self.suggested_fix = self.evidence.get("suggested_fix")
+        return self
 
 
 

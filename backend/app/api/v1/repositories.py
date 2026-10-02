@@ -108,7 +108,16 @@ async def _run_analysis_for_repository(repository_id: str, repository_name: str)
             )
             return
 
-        # PHASE 3: Persist all architecture entities and mark completed
+        # PHASE 3: Bounded semantic LLM review. It is intentionally isolated:
+        # deterministic analysis and persistence continue if a provider is unavailable.
+        try:
+            from app.services.llm_logic_reviewer.reviewer import run_llm_logic_review
+            semantic_metrics = await run_llm_logic_review(analysis_run_id, str(repository_path))
+            logger.info("semantic_llm: %d files, %d functions, %d calls, %d findings (run %s)", semantic_metrics.get("files_selected", 0), semantic_metrics.get("functions_checked", 0), semantic_metrics.get("llm_calls_made", 0), semantic_metrics.get("accepted_as_unique", 0), analysis_run_id)
+        except Exception as exc:
+            logger.error("semantic_llm: failed for run %s; continuing static pipeline: %s", analysis_run_id, exc)
+
+        # PHASE 4: Persist all architecture entities and mark completed
         try:
             await repository_analysis_service.complete_analysis_run(
                 db, analysis_run_id, analysis_result,
@@ -325,7 +334,16 @@ async def analyze_repository(
             detail=f"Analysis failed: {str(error)}",
         ) from error
 
-    # PHASE 3: PERSIST FINDINGS & COMPLETE ANALYSIS RUN
+    # PHASE 3: BOUNDED SEMANTIC LLM REVIEW
+    try:
+        from app.services.llm_logic_reviewer.reviewer import run_llm_logic_review
+        semantic_metrics = await run_llm_logic_review(analysis_run_id, str(repository_path))
+        analysis_result["semantic_llm"] = semantic_metrics
+    except Exception as error:
+        logger.error("semantic_llm: failed for run %s; continuing static pipeline: %s", analysis_run_id, error)
+        analysis_result["semantic_llm"] = {"error": str(error), "accepted_as_unique": 0}
+
+    # PHASE 4: PERSIST FINDINGS & COMPLETE ANALYSIS RUN
     try:
         updated_analysis_run = await repository_analysis_service.complete_analysis_run(
             db,
@@ -555,7 +573,15 @@ async def get_repository_analysis_status(
         duration = (datetime.now(timezone.utc) - latest_run.started_at).total_seconds()
 
     high_open_issues_count = 0
+    total_candidate_issues_count = 0
     if latest_run.status == "completed":
+        total_stmt = (
+            select(func.count(CandidateIssue.id))
+            .where(CandidateIssue.analysis_run_id == latest_run.id)
+        )
+        total_result = await db.execute(total_stmt)
+        total_candidate_issues_count = total_result.scalar() or 0
+
         high_stmt = (
             select(func.count(CandidateIssue.id))
             .outerjoin(IssueStatus, CandidateIssue.id == IssueStatus.candidate_issue_id)
@@ -577,7 +603,7 @@ async def get_repository_analysis_status(
         status=latest_run.status,
         total_files=latest_run.total_files or 0,
         supported_files=latest_run.supported_files or 0,
-        candidate_issues_count=latest_run.candidate_issues_count or 0,
+        candidate_issues_count=total_candidate_issues_count,
         high_open_issues=high_open_issues_count,
         started_at=latest_run.started_at,
         completed_at=latest_run.completed_at,
@@ -779,6 +805,22 @@ async def list_repository_candidate_issues(
                 "add": rec.diff_add or "",
                 "note": rec.recommendation or "",
             }
+        elif isinstance(issue.evidence, dict) and issue.evidence.get("suggested_fix"):
+            raw_fix = issue.evidence.get("suggested_fix")
+            if isinstance(raw_fix, dict):
+                suggested_fix = raw_fix
+            elif isinstance(raw_fix, str) and raw_fix.strip():
+                suggested_fix = {
+                    "remove": issue.evidence.get("relevant_code") or issue.evidence.get("evidence") or "",
+                    "add": raw_fix.strip(),
+                    "note": raw_fix.strip(),
+                }
+
+        confidence_val = (
+            issue.evidence.get("confidence")
+            if isinstance(issue.evidence, dict) and issue.evidence.get("confidence") is not None
+            else getattr(issue, "confidence", None) or "medium"
+        )
 
         items.append({
             "id": issue.id,
@@ -795,6 +837,8 @@ async def list_repository_candidate_issues(
             "code_snippet": issue.code_snippet or "",
             "severity": issue.severity,
             "urgency": issue.urgency,
+            "confidence": confidence_val,
+            "evidence": issue.evidence or {},
             "status": issue.status.status if issue.status else "open",
             "security_impact": getattr(issue, "security_impact", None) or (issue.evidence.get("security_impact", "") if isinstance(getattr(issue, "evidence", None), dict) else "") or "",
             "engineer_notes": issue.verification_notes or (getattr(issue.status, "remarks", "") if issue.status else "") or "",

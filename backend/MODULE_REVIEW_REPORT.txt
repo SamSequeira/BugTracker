@@ -1,0 +1,152 @@
+﻿===============================================================================
+MODULE REVIEW RECOMMENDATION - REUSE vs REWRITE
+===============================================================================
+
+[1/3] repository_index.py (33KB, build_repository_index function)
+--------------------------------------------------------------------------------
+PURPOSE:
+  Build in-memory index of repo structure: files, functions, classes, call
+  graph (bidirectional, cross-file), module-level state, imports, and semantic
+  properties for each function.
+
+API:
+  - build_repository_index(repo_path, frameworks=None) -> RepositoryIndex
+  - RepositoryIndex.find_function(name, current_file, enclosing_class)
+  - RepositoryIndex.find_callers(qualname) -> List[FunctionIndexEntry]
+  - RepositoryIndex.find_callees(qualname) -> List[FunctionIndexEntry]
+  - .files, .functions_by_name, .functions_by_qualname, .classes_by_name
+  - .callees_of, .callers_of (Dict[qualname, Set[qualname]])
+  - .module_level_state (Dict[file_path, List[ModuleLevelStateEntry]])
+
+CORRECTNESS ON miniwallet-buggy (20 files, 33 functions):
+  ✓ OK   - Cross-file call graph (seed_database -> init_db correctly linked)
+  ✓ OK   - Bidirectional edges (callers_of / callees_of both populated)
+  ✓ PARTLY - Read/write sites (module_level_state detects 2 entries in database.py,
+             readers/writers fields exist but not verified to track all sites)
+  ✓ OK   - Sibling functions (all funcs accessible via functions_by_name)
+  ✗ MISSING - Cross-file contracts (no docstring-based contract extraction)
+  ✓ PARTLY - Docstrings (stored in FunctionIndexEntry.docstring, not analyzed)
+  ✗ NO   - Tests
+  ✓ OK   - Runtime (~2-3sec for 20 files)
+
+RECOMMENDATION: REUSE AS-IS for S3 (Context Retrieval)
+  Rationale:
+    - Core capabilities (call graph, function lookup, cross-file relationships)
+      work correctly
+    - Module-level state tracking exists and is sufficient for cache-staleness
+      detection (BUG_B, BUG_D patterns)
+    - Missing features (contract extraction) are S4 concerns, not S3
+    - No S3 work needed, use existing API
+  
+  Effort if rewritten: 3-5 days (complex AST traversal, import resolution,
+                                   call graph construction, testing)
+
+--------------------------------------------------------------------------------
+
+[2/3] semantic_facts.py (19KB, extract_semantic_facts function)
+--------------------------------------------------------------------------------
+PURPOSE:
+  Extract concrete semantic facts from function code: parameters, assignments,
+  returns, conditions, calls, data flows. Returns formatted LLM-ready text.
+
+API:
+  - extract_semantic_facts(function_code, function_name, file_path="",
+                           frameworks=None, repo_index=None) -> str
+
+CORRECTNESS ON miniwallet-buggy seed_database function:
+  ✓ OK   - Parameters (captured all params)
+  ✓ OK   - Assignments (all local var assignments listed)
+  ✓ OK   - Calls (function calls and method calls captured)
+  ✓ OK   - Returns (return statements captured)
+  ✓ OK   - Data flow (var1 -> var2 relationships present)
+  ✓ OK   - Symbol types (heuristic inference: container/config hints)
+  ✗ NO   - Tests
+  ✓ OK   - Runtime (fast, <100ms per function)
+  ✓ OK   - Output quality (5.7KB text, structured, LLM-readable)
+
+RECOMMENDATION: REUSE WITH MINOR FIXES for S4 (Evidence Building)
+  Rationale:
+    - Core extraction works: params, assignments, calls, returns, data flows
+      all captured correctly
+    - Already integrates with repository_index (takes repo_index param)
+    - Output format is LLM-ready (no reformatting needed)
+    - MINOR FIX NEEDED: Improve data flow precision (currently basic var->var,
+                        needs def-use chains for S4 evidence quality)
+  
+  Fixes needed for S4:
+    1. Enhance data_flows to track def-use chains more precisely
+    2. Add test coverage (3-5 test cases for correctness)
+  
+  Effort for fixes: 0.5-1 day
+  Effort if rewritten: 2-3 days (AST visitor, fact extraction, formatting)
+
+--------------------------------------------------------------------------------
+
+[3/3] value_flow.py (45KB, extract_value_flow_for_function function)
+--------------------------------------------------------------------------------
+PURPOSE:
+  Extract value-flow graph: nodes (variables with semantic hints), edges
+  (producer -> variable -> consumer relationships), evidence tags (explicit
+  vs inferred). Returns formatted LLM-ready text.
+
+API:
+  - extract_value_flow_for_function(function_code, file_path="",
+                                     repo_index=None) -> str
+
+CORRECTNESS ON miniwallet-buggy seed_database function:
+  ✓ OK   - Value nodes (variables identified with semantic hints)
+  ✓ OK   - Flow edges (producer -> var -> consumer relationships present)
+  ✓ OK   - Evidence tags (explicit/inferred distinctions with basis notes)
+  ✗ MISSING - Cross-file contracts (no explicit contract propagation)
+  ✗ NO   - Tests
+  ✓ OK   - Runtime (fast, <100ms per function)
+  ✓ OK   - Output quality (4KB text, structured, evidence-tagged)
+
+RECOMMENDATION: REUSE WITH MINOR FIXES for S4 (Evidence Building)
+  Rationale:
+    - Value-flow extraction works correctly (nodes, edges, evidence tags)
+    - Evidence tagging (explicit vs inferred) is exactly what S4 needs
+    - Already integrates with repository_index
+    - MINOR FIX NEEDED: Add cross-file contract propagation (e.g., if param
+                        wallet_id is used in query, track that it must be
+                        valid DB ID - this requires docstring analysis)
+  
+  Fixes needed for S4:
+    1. Add cross-file contract propagation (use repository_index docstrings)
+    2. Add test coverage (3-5 test cases)
+  
+  Effort for fixes: 1-2 days (contract propagation is non-trivial)
+  Effort if rewritten: 4-5 days (complex value-flow analysis, evidence
+                                   tracking, graph construction)
+
+===============================================================================
+SUMMARY RECOMMENDATION TABLE
+===============================================================================
+
+| Module              | Capability          | Status      | Recommendation        | Effort    |
+|---------------------|---------------------|-------------|-----------------------|-----------|
+| repository_index.py | Call graph          | ✓ OK        | REUSE AS-IS for S3    | 0 days    |
+|                     | Read/write sites    | ✓ PARTLY    |                       |           |
+|                     | Sibling funcs       | ✓ OK        |                       |           |
+|                     | Cross-file contract | ✗ MISSING   | (S4 concern)          |           |
+|---------------------|---------------------|-------------|-----------------------|-----------|
+| semantic_facts.py   | Params/assigns/etc  | ✓ OK        | REUSE + ENHANCE       | 0.5-1 day |
+|                     | Data flow           | ✓ PARTLY    | (def-use chains)      |           |
+|                     | Tests               | ✗ NO        |                       |           |
+|---------------------|---------------------|-------------|-----------------------|-----------|
+| value_flow.py       | Nodes/edges         | ✓ OK        | REUSE + ENHANCE       | 1-2 days  |
+|                     | Evidence tags       | ✓ OK        | (contract propagation)|           |
+|                     | Cross-file contract | ✗ MISSING   |                       |           |
+|                     | Tests               | ✗ NO        |                       |           |
+|---------------------|---------------------|-------------|-----------------------|-----------|
+| TOTAL EFFORT        |                     |             | 1.5-3 days fixes      |           |
+|                     |                     |             | vs 9-13 days rewrite  |           |
+===============================================================================
+
+APPROVAL REQUESTED:
+  ☐ APPROVED - Reuse all 3 modules as-is for S3, plan S4 fixes later
+  ☐ APPROVED - Reuse all 3 modules and apply S4 fixes NOW (1.5-3 days)
+  ☐ REJECTED - Rewrite all 3 modules from scratch (9-13 days)
+  ☐ MIXED    - Specify per-module decision
+
+===============================================================================

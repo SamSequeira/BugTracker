@@ -4,6 +4,13 @@ import { createPortal } from "react-dom";
 import { useBugTracker } from "../../useBugTracker.jsx";
 import { apiService } from "../../api.js";
 
+// Helper to extract source file name from full filesystem path
+function getBaseFileName(filePath) {
+  if (!filePath || typeof filePath !== "string") return "";
+  const parts = filePath.split(/[/\\]/);
+  return parts[parts.length - 1] || filePath;
+}
+
 // ---------------------------------------------------------------------------
 // Map a backend ArchitectureTopologyResponse → the shape the existing UI uses
 // ---------------------------------------------------------------------------
@@ -340,11 +347,10 @@ export default function TabAiArchitecture() {
                   key={cat}
                   type="button"
                   onClick={() => setSelectedFileFilter(cat)}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                    selectedFileFilter === cat
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${selectedFileFilter === cat
                       ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
                       : "bg-[#0B0F17] text-slate-400 hover:text-white border border-slate-800"
-                  }`}
+                    }`}
                 >
                   {cat}
                 </button>
@@ -397,12 +403,15 @@ export default function TabAiArchitecture() {
                   <div
                     key={fileItem.id || fileItem.file}
                     onClick={() => handleCardClick(fileItem)}
-                    className="bg-[#0B0F17] hover:bg-slate-800/80 border border-slate-800 hover:border-cyan-500/40 rounded-xl p-4.5 space-y-3 cursor-pointer transition-all flex flex-col justify-between group shadow-sm"
+                    className="bg-[#0B0F17] hover:bg-slate-800/80 border border-slate-800 hover:border-cyan-500/40 rounded-xl p-4 space-y-3 cursor-pointer transition-all flex flex-col justify-between group shadow-sm"
                   >
                     <div className="space-y-2">
                       <div className="flex items-start justify-between gap-2">
-                        <span className="font-mono text-xs font-bold text-white group-hover:text-cyan-300 transition-colors truncate">
-                          {fileItem.file}
+                        <span
+                          className="font-mono text-xs font-bold text-white group-hover:text-cyan-300 transition-colors truncate"
+                          title={fileItem.file}
+                        >
+                          {getBaseFileName(fileItem.file)}
                         </span>
                         <span
                           className={`text-[10px] font-semibold px-2 py-0.5 rounded border shrink-0 ${fileItem.statusColor}`}
@@ -453,9 +462,12 @@ export default function TabAiArchitecture() {
             <div className="flex items-start justify-between border-b border-slate-800 p-6 pb-4 shrink-0">
               <div className="flex-1 min-w-0 pr-3">
                 <h3 className="text-base font-bold text-white font-mono break-all leading-snug">
-                  {selectedFileModal.file}
+                  {getBaseFileName(selectedFileModal.file)}
                 </h3>
-                <span className="text-xs text-slate-400">
+                <p className="text-[11px] text-slate-400 font-mono break-all mt-0.5">
+                  {selectedFileModal.file}
+                </p>
+                <span className="text-xs text-slate-400 mt-1 block">
                   {selectedFileModal.language} • {selectedFileModal.lines} lines
                 </span>
               </div>

@@ -1,0 +1,288 @@
+﻿Component 2 (Function Extraction) Implementation Report
+========================================================
+
+IMPLEMENTATION STATUS: ✅ ALREADY COMPLETE - VERIFIED AND TESTED
+
+FILES MODIFIED:
+===============
+1. backend/tests/test_bounded_semantic_pipeline.py
+   - Added 10 new test functions for Component 2
+
+NO CHANGES TO SEMANTIC_PIPELINE.PY REQUIRED
+Component 2 was already correctly implemented and fully functional.
+
+EXISTING COMPONENT 2 BEHAVIOR:
+==============================
+
+Location: backend/app/services/llm_logic_reviewer/semantic_pipeline.py
+Function: extract_functions(selected_file: SelectedFile) -> list[ExtractedFunction]
+Lines: ~670-865
+
+The implementation uses Python AST (Abstract Syntax Tree) for robust extraction.
+
+EXTRACTS:
+- Module-level functions (def func(): ...)
+- Async functions (async def func(): ...)
+- Class methods (class X: def method(): ...)
+- Nested functions (def outer(): def inner(): ...)
+- Functions nested in control flow (if/for/while/try/with blocks)
+
+PRESERVES:
+- Function name
+- Class name (if method)
+- Qualified name (ClassName.method_name or func_name)
+- Start line and end line (from AST lineno/end_lineno)
+- Complete source code (via _node_source helper)
+- Parameters (including *args, **kwargs)
+- is_async flag
+- Decorators (e.g., @router.post("/path"))
+- Called function names (via _calls helper)
+- Module imports
+- Class source (for methods)
+- Module-level definitions referenced by the function
+
+DOES NOT EXTRACT:
+- Module-level constants (API_TIMEOUT = 30)
+- Module-level assignments (DATABASE_URL = "...")
+- Imports
+- Comments
+- Configuration
+
+DATA STRUCTURE:
+===============
+
+@dataclass(frozen=True)
+class ExtractedFunction:
+    file_path: str                                      # Relative path to source file
+    language: str                                       # "python"
+    name: str                                          # Function name
+    class_name: str | None                             # Class name if method, else None
+    qualified_name: str                                # "ClassName.method" or "func"
+    start_line: int                                    # AST lineno
+    end_line: int                                      # AST end_lineno
+    source: str                                        # Complete function source
+    parameters: tuple[str, ...]                        # ("self", "amount", "*args", "**kwargs")
+    is_async: bool                                     # True if async def
+    decorators: tuple[str, ...]                        # ("@router.post('/path')",)
+    called_names: tuple[str, ...]                      # Names of functions called
+    imports: tuple[str, ...]                           # Module imports
+    class_source: str | None                           # Full class source if method
+    module_definitions: tuple[tuple[str, str, str], ...] # Module-level vars/classes
+
+This structure is consumed by:
+- Component 3 (build_context) - uses all fields for context construction
+- Component 4-9 - use metadata for prompts, validation, deduplication
+- reviewer.py - uses for pipeline orchestration
+- Tests - use for verification
+
+HELPER FUNCTIONS:
+=================
+
+1. _node_source(lines, node) -> str
+   Extracts exact source code for an AST node using lineno/end_lineno
+
+2. _calls(node) -> tuple[str, ...]
+   Extracts syntactic function/method call names from AST
+
+3. _target_names(target) -> list[str]
+   Extracts variable names from assignment targets (handles tuple unpacking)
+
+4. _module_level_definitions(tree, lines) -> list[tuple[str, str, str]]
+   Extracts module-level variables and classes (not functions)
+
+5. _referenced_module_names(node) -> set[str]
+   Identifies names a function reads from module scope
+
+6. _iter_nested_bodies(node) -> Iterable[list[ast.stmt]]
+   Yields nested statement bodies for finding functions in control flow
+
+ALGORITHM:
+==========
+
+1. Parse source file into AST (ast.parse)
+2. Extract all imports from tree.body
+3. Extract module-level definitions (vars, classes)
+4. Recursively visit tree.body:
+   a. If ClassDef: recurse into class body with class_name
+   b. If FunctionDef/AsyncFunctionDef:
+      - Extract all metadata
+      - Create ExtractedFunction
+      - Recurse into function body (for nested functions)
+   c. If control flow (If/For/While/Try/With):
+      - Recurse into all nested bodies
+5. Sort results by (file_path, start_line, qualified_name)
+6. Return list[ExtractedFunction]
+
+ERROR HANDLING:
+===============
+
+Component 1 already validates syntax via ast.parse
+Component 2 assumes valid Python from selected_file.path
+If extraction fails, reviewer.py catches exceptions:
+
+try:
+    functions = extract_functions(selected_file)
+except Exception as exc:
+    logger.warning("Function extraction failed for %s: %s", ...)
+    continue
+
+Individual file failures do not crash the entire pipeline.
+
+TESTS ADDED:
+============
+
+10 new tests added to backend/tests/test_bounded_semantic_pipeline.py:
+
+1. test_extract_top_level_function - Extracts simple function
+2. test_extract_async_function - Detects async flag correctly
+3. test_extract_class_methods - Extracts all methods with class context
+4. test_extract_decorated_function - Preserves decorator metadata
+5. test_extract_multiple_functions - Extracts all functions from file
+6. test_module_level_code_not_extracted - Verifies constants ignored
+7. test_line_numbers_are_valid - Validates start_line <= end_line
+8. test_no_duplicate_functions - Ensures uniqueness
+9. test_nested_functions_extracted - Handles nested functions
+10. test_extract_functions_error_handling - Defensive error handling
+
+TESTS EXECUTED:
+===============
+
+Run 1: Component 2 specific tests
+Command: pytest tests/test_bounded_semantic_pipeline.py -k "extract" -v
+Result: 9/9 PASSED
+
+Run 2: All semantic pipeline tests
+Command: pytest tests/test_bounded_semantic_pipeline.py -v
+Result: 23/23 PASSED (Component 1 + Component 2 + validation tests)
+
+MANUAL TEST RESULTS:
+====================
+
+Repository: C:\Users\mayur\OneDrive\Desktop\mini-expense-tracker
+
+Files discovered (Component 1): 12
+Functions extracted (Component 2): 24
+
+Breakdown:
+- backend/app/api/expenses.py: 4 functions
+- backend/app/api/reports.py: 3 functions  
+- backend/app/services/expense_service.py: 9 functions
+- backend/app/services/report_service.py: 4 functions
+- backend/app/main.py: 2 functions
+- backend/app/database.py: 1 function
+- backend/app/models.py: 1 function
+- __init__.py files: 0 functions (correctly ignored)
+- schemas.py: 0 functions (only Pydantic models)
+
+Verification Results:
+✓ Functions with decorators: 9 (FastAPI route decorators)
+✓ Async functions: 0 (this repo uses sync functions)
+✓ Class methods: 0 (this repo uses plain functions)
+✓ Top-level functions: 24
+✓ All line numbers valid (start_line <= end_line, start_line > 0)
+✓ No duplicate functions (24 extracted, 24 unique signatures)
+✓ Same function names in different files: OK (API layer vs service layer)
+
+Sample extracted functions:
+- create_expense (api/expenses.py:12-16) - API endpoint
+- create_expense (services/expense_service.py:14-30) - Service logic
+- calculate_tax_adjustment (services/expense_service.py:9-11)
+- get_monthly_expense_stats (services/expense_service.py:102-125)
+- generate_monthly_report (services/report_service.py:62-120)
+
+CHANGES MADE TO EXISTING CODE:
+===============================
+
+NONE - Component 2 was already correctly implemented.
+
+The existing implementation:
+✓ Uses AST-based extraction (not regex)
+✓ Handles all required function types
+✓ Preserves all necessary metadata
+✓ Maintains correct source locations
+✓ Correctly ignores module-level code
+✓ Handles decorators properly
+✓ Extracts nested functions
+✓ Fails safely on errors
+✓ Is already consumed by Component 3+
+✓ Has correct return type and contract
+
+DATA STRUCTURE PRESERVED:
+==========================
+
+The ExtractedFunction dataclass already contains all required fields:
+- file_path, language, name (basic identification)
+- class_name, qualified_name (context)
+- start_line, end_line (location)
+- source (complete code)
+- parameters, is_async (signature)
+- decorators (metadata)
+- called_names (for dependency analysis)
+- imports, class_source, module_definitions (for context building)
+
+No changes to data structure were necessary.
+
+DOWNSTREAM COMPATIBILITY:
+=========================
+
+Verified Component 2 consumers:
+✓ reviewer.py - Calls extract_functions correctly
+✓ build_context (Component 3) - Uses ExtractedFunction fields
+✓ Tests - Use ExtractedFunction structure
+✓ No serialization issues found
+
+SCOPE COMPLIANCE:
+=================
+
+✅ ONLY verified/tested Component 2
+✅ NO changes to Component 1
+✅ NO changes to discover_source_files
+✅ NO changes to rule-based analyzer (backend/app/services/static_analyzer/)
+✅ NO changes to ast_generator.py
+✅ NO modifications to data structures
+✅ NO modifications to Components 3-9
+✅ NO LLM invocation
+✅ NO prompt changes
+✅ NO API/database/frontend changes
+
+FILES NOT MODIFIED:
+===================
+
+- backend/app/services/llm_logic_reviewer/semantic_pipeline.py (already correct)
+- backend/app/services/static_analyzer/* (untouched as required)
+- backend/app/services/ast_generator.py (untouched as required)
+- backend/app/services/llm_logic_reviewer/reviewer.py (no changes needed)
+- backend/app/models/* (no changes needed)
+- backend/app/api/* (no changes needed)
+
+MANUAL TEST COMMAND FOR MINI-EXPENSE-TRACKER:
+==============================================
+
+Command to extract and display all functions WITHOUT invoking LLM:
+
+python -c "
+import sys
+sys.path.insert(0, 'backend')
+from pathlib import Path
+from app.services.llm_logic_reviewer.semantic_pipeline import discover_source_files, extract_functions, SemanticReviewConfig
+
+config = SemanticReviewConfig()
+selected = discover_source_files(Path(r'C:\Users\mayur\OneDrive\Desktop\mini-expense-tracker'), config)
+all_funcs = []
+for f in selected:
+    all_funcs.extend(extract_functions(f))
+
+print(f'FILE | FUNCTION | CLASS | ASYNC | START_LINE | END_LINE')
+for func in all_funcs:
+    print(f'{func.file_path} | {func.name} | {func.class_name or \"-\"} | {func.is_async} | {func.start_line} | {func.end_line}')
+"
+
+IMPLEMENTATION STATUS: ✅ COMPLETE
+===================================
+
+Component 2 was already fully implemented and working correctly.
+No code changes were required.
+Added comprehensive test coverage (10 new tests).
+All tests pass (23/23).
+Manual testing on real repository successful.
+Ready for Component 3.
