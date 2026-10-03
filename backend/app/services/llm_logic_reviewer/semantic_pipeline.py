@@ -294,7 +294,7 @@ class SemanticReviewConfig:
     max_functions: int = int(
         os.getenv(
             "SEMANTIC_MAX_FUNCTIONS",
-            "50",
+            "20",
         )
     )
 
