@@ -171,7 +171,7 @@ export function BugTrackerProvider({ children }) {
 
   // 5. Shared Data Objects
   const [stats, setStats] = useState(DEFAULT_STATS);
-  const [bugs, setBugs] = useState(DEFAULT_BUGS);
+  const [bugs, setBugs] = useState([]);
   const [aiSummary, setAiSummary] = useState(DEFAULT_AI_SUMMARY);
   const [recentScans, setRecentScans] = useState(RECENT_SCANS);
   const [repoMeta, setRepoMeta] = useState(null);
@@ -198,11 +198,14 @@ export function BugTrackerProvider({ children }) {
 
   const notesTimerRef = useRef({});
   const pollingRef = useRef(null);
+  const scanActiveRef = useRef(false);
 
   // Listen to API Live/Demo status changes
   useEffect(() => {
     const unsub = apiService.onStatusChange((live) => {
-      setIsLive(live);
+      if (!scanActiveRef.current) {
+        setIsLive(live);
+      }
       // Clear backend unavailable error when backend becomes available
       if (live) {
         setScanError((currentError) =>
@@ -366,6 +369,9 @@ export function BugTrackerProvider({ children }) {
       apiService.getBugs(),
       apiService.getAiSummary(),
     ]);
+    if (scanActiveRef.current) {
+      return;
+    }
 
     setIsLive(statsRes.live || bugsRes.live || aiRes.live);
 
@@ -500,6 +506,7 @@ export function BugTrackerProvider({ children }) {
   };
 
   const runScan = async (targetInput, isFile = false) => {
+    scanActiveRef.current = true;
     setScanError(null);
     setIsScanning(true);
     setScanProgress(5);
@@ -508,12 +515,17 @@ export function BugTrackerProvider({ children }) {
     stopPolling();
     setCurrentRepositoryId(null);
     setStats({
-      ...DEFAULT_STATS,
+      totalBugs: 0,
+      totalFiles: 0,
       openHigh: 0,
       critical: 0,
+      astTime: 0,
+      totalLines: 0,
+      scanTime: "—",
+      linesOfCode: 0,
     });
     setBugs([]);
-    setBugs([]);
+    // setBugs([]);
 
     const targetUrl = typeof targetInput === "string" ? targetInput.trim() : repoUrl;
     if (!isFile && typeof targetInput === "string") {
