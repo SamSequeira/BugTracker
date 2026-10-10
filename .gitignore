@@ -90,3 +90,7 @@ backend/repositories/
 
 # ML model weights
 *.safetensors
+
+# BugTracker generated artifacts
+backend/run_logs/
+backend/test_temp/
