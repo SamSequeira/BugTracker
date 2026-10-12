@@ -1,222 +1,359 @@
-# BugTracker: AI-Assisted Static Analysis & Bug Triage System
+# BugTracker AI — Code Analysis & Bug Tracking System
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688.svg)](https://fastapi.tiangolo.com/)
-[![Tests](https://img.shields.io/badge/tests-223%20passed-brightgreen.svg)]()
-[![Production Status](https://img.shields.io/badge/status-PRODUCTION__CERTIFIED-success.svg)]()
+BugTracker AI is a full-stack platform that analyses software repositories, identifies potential coding and logic issues, and helps developers review and prioritise findings. It combines a deterministic AST-based static analysis engine with an optional LLM-based semantic reviewer, alongside repository architecture analysis, issue management, and report generation.
 
-BugTracker is an enterprise-grade, AI-assisted static analysis and automated bug triage platform for multi-language software repositories (Python, JavaScript, and Java). It combines deterministic AST-based pattern matching, intelligent suppression rules, calibrated machine-learning classification, out-of-distribution drift safeguards, and automated bug enrichment.
+The project supports repository scanning through a GitHub URL or an uploaded ZIP archive. It is designed to make analysis results easier to inspect, understand, and act on.
 
 ---
 
-## 1. End-to-End System Flow
+## Key Features
 
-The platform executes a deterministic 8-stage processing pipeline:
+### Repository Scanning
+- Clone a GitHub repository or upload a ZIP archive for analysis.
+- Detect and analyse supported source files in Python, JavaScript, and Java.
+- Store repository and analysis information for use across the application.
+- Upload repository archives to AWS S3 when S3 storage is configured and enabled.
 
-```
-[Repository Upload / Git Clone]
-              ↓
-    [Repository Ingestion]
-              ↓
-  [AST Parsing (Python / JS / Java)]
-              ↓
-  [Static Analysis Rule Engine]
-              ↓
- [Candidate Issue Generation & Deduplication]
-              ↓
-[Stage 1: Validity Classification & Drift Detection]
-  ├── Primary: Linear SVM (TF-IDF, τ = 0.40)
-  ├── Secondary: DistilBERT Fallback (Ambiguous Margin)
-  └── Safety: Multi-Signal Drift Detector (OOD Reject / Human Review)
-              ↓
-[Stage 2: Decoupled Severity & Priority Assignment]
-  ├── Canonical Rule Taxonomy
-  └── AST Contextual Modifiers (Security / Critical blocks)
-              ↓
-[Stage 3: Automated Bug Enrichment & Remediation]
-  ├── Location & Syntactic Evidence Mapping
-  ├── Structured Explanations (What / Where / Why)
-  └── Synthesised Fix & Unified Diff Generation
-              ↓
-[Multi-Format Reporting & API Output]
-  └── JSON, Markdown, HTML, CSV, PDF
-```
+### AST-Based Static Analysis
+- Parse source code using language-specific syntax-tree tooling.
+- Apply deterministic rules to identify supported coding issues, such as division-by-zero risks, mutable default arguments, unsafe exception handling, and other recognised patterns.
+- Keep rule-based findings separate from LLM-based semantic findings.
 
----
+### LLM-Based Semantic Review
+- Uses a local Ollama model by default: `qwen2.5-coder:3b-instruct-q4_K_M`.
+- Examines extracted Python functions and relevant code context for potential logical and business-logic bugs.
+- Validates findings against source-code evidence before they are accepted into the results.
+- The LLM review is an additional analysis path; it does not replace the deterministic rule-based engine. Model output may be incomplete or incorrect and should be reviewed by a developer.
 
-## 2. Key Capabilities
+### Codebase Architecture Analysis
+- Summarises the detected technology stack and repository structure.
+- Groups source files into architectural components.
+- Presents potential risk areas and repository-level analysis information.
 
-### A. Static Analysis & AST Parsing
-- **Multi-Language AST Support:** Parses Python (`ast`), JavaScript (`esprima` / tree structures), and Java (`javalang`).
-- **Deterministic Rule Taxonomy:** Flags division by zero, unclosed resources, bare exceptions, dangerous production assertions, mutable default arguments, non-strict equality, await-in-loops, empty catches, and infinite loops.
-- **Intelligent Suppressions:** AST-aware suppressions recognize class literals, enum comparisons, managed context blocks, guarded divisors (`max()`, `Math.max`), defensive `None` defaults, and intentional test structures.
+### Bug Tracking & Inspection
+- Search and filter findings.
+- Review issue descriptions, severity, priority, file locations, line references, and code snippets where available.
+- Inspect issue details and suggested remediation information.
+- Track issue status, including resolution workflows supported by the application.
 
-### B. Certified ML Architecture: `LINEAR_SVM_PRIMARY_WITH_DISTILBERT_OPTIONAL`
-- **Primary Stage 1 Model:** High-throughput Linear SVM (`SGDClassifier` with log-loss, balanced class weights, sublinear TF-IDF, $p_{50}$ latency $< 0.50\text{ ms}$).
-- **Secondary Model:** Fine-tuned DistilBERT transformer for cross-verifying ambiguous margin samples ($0.35 \le p < 0.90$).
-- **Multi-Signal Drift Detector:** Monitors token OOV rates, prediction entropy, unparseable syntax, and unregistered rule/language penalties ($D(x) \ge 0.30 \to \text{OOD\_REJECT}$).
-- **5-Way Risk-Controlled Router:**
-  - `AUTO_ACCEPT`: High certainty ($p \ge 0.90$ or $p \le 0.05$ with low drift).
-  - `SECONDARY_MODEL`: Moderate margin dispatched for cascade cross-verification.
-  - `HUMAN_REVIEW`: Model disagreement, high entropy, or uncataloged rules.
-  - `OOD_REJECT`: Out-of-distribution or foreign languages.
-  - `SYSTEM_ERROR`: Payload limit violations ($> 500\text{ KB}$) or structural corruption.
+### Ground-Truth Review
+- Includes a dedicated review interface for manually labelling candidate issues.
+- Supports recording review decisions and rationale for dataset evaluation.
+- This review interface is intended for validation work and is separate from ordinary issue triage.
 
-### C. Decoupled Severity & Priority Engine
-- **Decoupled from Repository Confounders:** Severity is governed solely by `RULE_TAXONOMY + AST_CONTEXT_MODIFIERS`, preventing domain spurious bias.
-- **Safety Invariant:** Guaranteed **0% Critical/High $\to$ Low severity inversions** across all historical and production benchmarks.
+### Bug Report Export
+Export supported reports in the following formats:
+- PDF
+- CSV
+- JSON
+- Markdown (`.md`)
+- HTML
 
-### D. Automated Bug Enrichment
-- **Detailed Explanations:** Automatically articulates *What* the defect is, *Where* it occurs (function/class scope), and *Why* it poses a runtime or security hazard.
-- **Remediation Diffs:** Generates executable Unified Diff code fixes tailored to the rule and snippet.
+### Authentication & Data Storage
+- User registration and login using JWT-based authentication.
+- PostgreSQL persistence through SQLAlchemy's asynchronous database layer.
+- Alembic database migrations.
+- Optional AWS S3 storage for repository archives.
 
 ---
 
-## 3. Directory Layout
+## Tech Stack
 
+| Area | Technologies |
+|---|---|
+| Frontend | React 18, Vite, Tailwind CSS, Lucide React |
+| Backend | Python, FastAPI, REST APIs |
+| Static Analysis | AST parsing, Tree-sitter, language-specific rules |
+| Semantic Review | Ollama, Qwen2.5-Coder 3B (quantised) |
+| Other LLM Providers | Ollama, Gemini, Groq, OpenAI (provider-dependent configuration) |
+| Database | PostgreSQL, SQLAlchemy, asyncpg |
+| Migrations | Alembic |
+| Authentication | JWT, PyJWT, password hashing with pwdlib/Argon2 |
+| Repository Storage | Local repository workspace, optional AWS S3 via boto3 |
+| Testing | pytest |
+
+> The default semantic-review provider is configured through environment variables. Optional cloud providers require their own API credentials and may incur usage costs.
+
+---
+
+## Architecture Overview
+
+```text
+GitHub URL / ZIP Upload
+          |
+          v
+Repository Ingestion & Storage
+          |
+          v
+Source File Discovery
+          |
+          v
+AST / Tree-sitter Parsing
+          |
+          v
+Deterministic Static Analysis -----------+
+          |                                |
+          v                                v
+Candidate Issues                 LLM Semantic Review
+          |                       (Python functions)
+          +---------------+----------------+
+                          |
+                          v
+               Findings & Analysis Data
+                          |
+          +---------------+----------------+
+          |               |                |
+          v               v                v
+    Bug Tracking    Architecture       Report Export
+    & Inspection      Analysis       PDF / CSV / JSON /
+                                      Markdown / HTML
 ```
-BugTracker/
+
+The LLM review is intended to complement the rule engine by looking for potential logic issues that may not match a predefined rule. It is not a guarantee that every bug will be found, and findings should be validated before making code changes.
+
+---
+
+## Repository Structure
+
+```text
+BugTracker-main/
 ├── backend/
 │   ├── app/
-│   │   ├── api/v1/                  # FastAPI REST endpoints
-│   │   ├── models/                  # SQLAlchemy ORM models
-│   │   ├── repositories/            # Data access layer (DAL)
-│   │   ├── schemas/                 # Pydantic validation schemas
+│   │   ├── api/v1/                 # Authentication, repository, and issue APIs
+│   │   ├── core/                   # Configuration and security utilities
+│   │   ├── models/                 # SQLAlchemy database models
+│   │   ├── repositories/           # Database access layer
+│   │   ├── schemas/                # Pydantic request/response schemas
 │   │   └── services/
-│   │       ├── ast/                 # AST generator & tree parser
-│   │       ├── bug_enrichment_service.py # Bug explanation & diff generator
-│   │       ├── bug_report_service.py     # Repository report aggregator
-│   │       ├── bug_similarity_service.py # Vector/text similarity deduplicator
-│   │       ├── candidate_issue_service.py# Candidate issue factory
-│   │       ├── ml/                  # Certified production ML pipeline
-│   │       │   ├── config.py        # Calibrated thresholds & paths
-│   │       │   ├── data_loader.py   # Ground-truth loader
-│   │       │   ├── drift_detector.py# Multi-signal drift engine
-│   │       │   ├── inference.py     # Safe predict wrapper
-│   │       │   ├── routing.py       # 5-Way risk-controlled router
-│   │       │   ├── safety.py        # Historical safety gates & fixtures
-│   │       │   ├── severity.py      # Decoupled severity engine
-│   │       │   └── split_validator.py # Zero group leakage validator
-│   │       ├── report_exporter.py   # Multi-format report exporter
-│   │       ├── repository_analysis_service.py # Pipeline coordinator
-│   │       └── static_analyzer/     # Static rule implementations
-│   ├── data/
-│   │   ├── prepared/                # Supervised datasets & ground truth
-│   │   └── training/                # Retraining records & splits
-│   ├── models/
-│   │   ├── validity/                # DistilBERT weights & tokenizers
-│   │   └── severity/                # Severity artifacts
-│   ├── tests/                       # Complete consolidated test suite
-│   │   ├── test_safety_gates.py     # Historical 27/27 TP & 42/42 FP gates
-│   │   ├── test_drift_detection.py  # Multi-signal drift & OOD tests
-│   │   ├── test_inference_safety.py # Edge cases, malformed corpus, latency
-│   │   ├── test_severity_priority.py# Decoupled severity & context modifiers
-│   │   ├── test_production_pipeline.py # Rollback, determinism, 5-way routing
-│   │   ├── test_classification.py   # TF-IDF, SVM, split validator
-│   │   ├── test_static_analyzer.py  # AST rule engine assertions
-│   │   ├── test_refined_static_rules.py # Suppression rule checks
-│   │   └── verify_end_to_end_production.py # Full pipeline integration
-│   ├── main.py                      # FastAPI application entrypoint
-│   └── requirements.txt             # Backend dependencies
-├── frontend/                        # Frontend UI application
-├── docs/                            # Production documentation & reports
-└── README.md                        # Project documentation
+│   │       ├── llm_logic_reviewer/ # LLM-based semantic review pipeline
+│   │       ├── ast_generator.py    # Source parsing / AST generation
+│   │       ├── architecture_detector.py
+│   │       ├── repository_analysis_service.py
+│   │       ├── report_exporter.py
+│   │       └── ...                 # Analysis, storage, and enrichment services
+│   ├── alembic/                    # Database migrations
+│   ├── tests/                      # Backend tests
+│   ├── repositories/               # Local cloned/extracted repositories at runtime
+│   ├── .env.example                # Environment variable template
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── components/             # Authentication, layout, tabs, and modals
+│   │   ├── pages/                  # Ground-truth review page
+│   │   └── ...
+│   ├── package.json
+│   └── vite.config.js
+└── README.md
 ```
 
 ---
 
-## 4. Getting Started
+## Getting Started
 
 ### Prerequisites
-- Python 3.10+
-- PostgreSQL 14+ (or SQLite for local lightweight testing)
-- Node.js 18+ (for frontend)
 
-### Backend Setup
+Install the following before running the application:
 
-1. **Clone repository and navigate to backend:**
-   ```bash
-   cd backend
-   ```
+- Python 3.12 recommended for the supplied backend environment
+- Node.js and npm
+- PostgreSQL
+- Git
+- Ollama, if using the default local LLM reviewer
+- An AWS account and an existing S3 bucket only if S3 storage is enabled
 
-2. **Create and activate virtual environment:**
-   ```bash
-   python -m venv venv
-   # On Windows:
-   .\venv\Scripts\activate
-   # On Linux/macOS:
-   source venv/bin/activate
-   ```
+### 1. Clone the Repository
 
-3. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
+```bash
+git clone <YOUR_GITHUB_REPOSITORY_URL>
+cd BugTracker-main
+```
 
-4. **Configure Environment Variables:**
-   Copy `.env.example` to `.env` and set database credentials:
-   ```bash
-   cp .env.example .env
-   ```
+Replace `<YOUR_GITHUB_REPOSITORY_URL>` with the repository URL. If you already downloaded the project ZIP, extract it and open a terminal in the extracted `BugTracker-main` directory.
 
-5. **Start Backend Server:**
-   ```bash
-   uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-   ```
-   API interactive documentation will be available at: `http://localhost:8000/docs`.
-
-### Frontend Setup
-
-1. **Navigate to frontend directory:**
-   ```bash
-   cd ../frontend
-   ```
-
-2. **Install packages and run:**
-   ```bash
-   npm install
-   npm run dev
-   ```
-
----
-
-## 5. Running the Test Suite
-
-Run the full consolidated test suite with `pytest`:
+### 2. Configure the Backend Environment
 
 ```bash
 cd backend
-py -m pytest -v
+python -m venv .venv
 ```
 
-To run specific test categories:
-- **Safety Gates & Historical Invariants:** `py -m pytest tests/test_safety_gates.py -v`
-- **Drift & OOD Detection:** `py -m pytest tests/test_drift_detection.py -v`
-- **Inference Fault Tolerance & Malformed Inputs:** `py -m pytest tests/test_inference_safety.py -v`
-- **Severity Decoupling & Priority:** `py -m pytest tests/test_severity_priority.py -v`
-- **Production Pipeline & 5-Way Routing:** `py -m pytest tests/test_production_pipeline.py -v`
-- **Static Analysis Rules:** `py -m pytest tests/test_static_analyzer.py tests/test_refined_static_rules.py -v`
-- **End-to-End Verification:** `py tests/verify_end_to_end_production.py`
+Activate the environment on Windows:
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+On macOS/Linux:
+
+```bash
+source .venv/bin/activate
+```
+
+Install backend dependencies:
+
+```bash
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+Create `backend/.env` using `backend/.env.example` as a reference. **Do not copy or commit real credentials.** At minimum, configure a database URL and a strong JWT secret.
+
+Example local configuration:
+
+```env
+DATABASE_URL=postgresql+asyncpg://YOUR_DB_USER:YOUR_DB_PASSWORD@localhost:5432/bugtracker
+JWT_SECRET_KEY=replace-with-a-long-random-secret
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=60
+
+CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+
+# Optional S3 configuration. Keep disabled for local-only storage.
+S3_ENABLED=false
+AWS_REGION=ap-south-1
+S3_BUCKET_NAME=
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+S3_PREFIX=repositories
+S3_PRESIGNED_EXPIRY=3600
+
+# Default local semantic-review provider
+LLM_PROVIDER=ollama
+OLLAMA_HOST=http://localhost:11434
+OLLAMA_MODEL=qwen2.5-coder:3b-instruct-q4_K_M
+OLLAMA_TIMEOUT_SECONDS=120
+```
+
+Create the PostgreSQL database before starting the backend. For example, in `psql`:
+
+```sql
+CREATE DATABASE bugtracker;
+```
+
+If you enable S3, create or select an S3 bucket and configure credentials securely through environment variables or your AWS credential profile. The bucket must exist and the configured AWS identity must have the permissions required by the application.
+
+### 3. Prepare the Local LLM (Ollama)
+
+Install Ollama from the official website, then pull the configured model:
+
+```bash
+ollama pull qwen2.5-coder:3b-instruct-q4_K_M
+```
+
+Make sure the Ollama service is running and the model is available:
+
+```bash
+ollama list
+```
+
+The backend's default provider is Ollama. If you select Gemini, Groq, or OpenAI instead, configure the corresponding API key and model settings in `backend/.env`. LLM-based review may be unavailable if the selected provider cannot be reached; the deterministic static-analysis workflow is designed to continue independently of semantic-review failures.
+
+### 4. Apply Database Migrations
+
+From the `backend` directory, with the virtual environment active and `.env` configured:
+
+```bash
+alembic upgrade head
+```
+
+### 5. Start the Backend
+
+From the `backend` directory:
+
+```bash
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+Backend root:
+
+```text
+http://localhost:8000
+```
+
+Interactive API documentation:
+
+```text
+http://localhost:8000/docs
+```
+
+### 6. Start the Frontend
+
+Open a second terminal from the project root:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Vite normally serves the frontend at:
+
+```text
+http://localhost:5173
+```
+
+If you change the backend address or frontend origin, update the relevant frontend API configuration and `CORS_ORIGINS` in `backend/.env` to match your local setup.
 
 ---
 
-## 6. Certified Production Validation Metrics
+## Running Tests
 
-BugTracker underwent rigorous empirical validation:
+From the `backend` directory, activate the virtual environment and run:
 
-| Production Dimension | Specification / Metric | Certified Result | Status |
-| :--- | :--- | :--- | :--- |
-| **Historical TP Recall** | `100.0%` (27 / 27 confirmed bugs) | **27 / 27 (100.0%)** | **PASS (HARD GATE)** |
-| **Historical FP Rejection** | $\ge 90.0\%$ (42 historical false alarms) | **42 / 42 (100.0%)** | **PASS (HARD GATE)** |
-| **Frozen Benchmark** | 37 / 37 records preserved | **37 / 37 intact** | **PASS** |
-| **Dataset Leakage** | 0 cross-split group leakage | **0 overlaps** | **PASS** |
-| **Severity Inversion Safety** | 0.0% Critical/High inverted to Low | **0 / 115 (0.00%)** | **PASS (HARD GATE)** |
-| **Adversarial Invariance** | $\ge 99.0\%$ under 8 semantic attacks | **99.84% consistency** | **PASS** |
-| **Drift False Alarm Rate** | $\le 5.0\%$ on in-distribution validation | **2.0% (3 / 153)** | **PASS** |
-| **OOD Drift Detection** | $\ge 90.0\%$ detection rate | **92.3% (12 / 13)** | **PASS** |
-| **Malformed Input Resilience** | 0 unhandled crashes on 20 edge cases | **20 / 20 safe (100%)** | **PASS** |
-| **Payload Resource Limit** | Safe reject on $> 500\text{ KB}$ payloads | **SYSTEM_ERROR in < 0.01ms** | **PASS** |
-| **Inference Latency ($p_{50}$)** | Sub-millisecond end-to-end safe predict | **0.490 ms (0.110 ms core)** | **PASS** |
-| **Model Rollback** | 100% cryptographic hash parity | **100% identical SHA256** | **PASS** |
-| **Multi-Run Determinism** | 5 independent inference executions | **100% bit-for-bit match** | **PASS** |
-| **Full Regression Suite** | 100% tests passing | **223 / 223 passed (100%)** | **PASS** |
+```bash
+python -m pytest -v
+```
+
+To run a specific test file:
+
+```bash
+python -m pytest tests/test_report_exporter.py -v
+```
+
+The test suite and available test files may change as the project evolves. Run the tests in your current checkout before publishing a test count or benchmark claim.
+
+---
+
+## Application Screenshots
+### 1. Home Page & Codebase Scanner
+<img width="100%" alt="Home" src="https://github.com/user-attachments/assets/24bff2ad-9745-4779-abd4-1e064ce37ea3" />
+<img width="100%" alt="Tab1afterscan" src="https://github.com/user-attachments/assets/b57c23eb-7a16-4734-bc24-4c1782f7f9ae" />
+<img width="100%" alt="Tab2" src="https://github.com/user-attachments/assets/d3566ca9-1547-4da3-a6e5-29f4f44e8c96" />
+<img width="100%" alt="Tab3long" src="https://github.com/user-attachments/assets/1b940dbf-9e0b-4f68-91d1-6dd23bf3bcf3" />
+<img width="100%" alt="Tab4" src="https://github.com/user-attachments/assets/0ca1f74a-48b8-457d-9821-80866f42ceae" />
+<img width="100%" alt="bug report" src="https://github.com/user-attachments/assets/23124da7-8d85-43e7-b3e1-a2d7a1b33446" />
+<img width="100%" alt="tab5" src="https://github.com/user-attachments/assets/3129288e-d507-4bf4-8174-44b8a22e6549" />
+<img width="100%" alt="settings" src="https://github.com/user-attachments/assets/53203c61-471f-4e35-bb96-3d55d4be7e6e" />
+
+
+
+
+
+---
+
+## Security Notes
+
+- Never commit `.env` files, passwords, JWT secrets, API keys, or AWS credentials.
+- Keep `backend/.env.example` limited to placeholders and safe defaults.
+- If a credential has been committed, removing it from the latest file is not enough: revoke or rotate it and review the Git history.
+- Use a strong, unique `JWT_SECRET_KEY` outside local development.
+- Only scan repositories you are authorised to access.
+- Review AI-generated findings and suggested fixes before applying them.
+
+---
+
+## Known Considerations
+
+- LLM-based semantic review is probabilistic and may miss issues or produce incorrect findings.
+- The current semantic reviewer focuses on Python functions; AST-based rules also support Python, JavaScript, and Java.
+- LLM review speed depends on the selected model and available hardware. A local model may run more slowly on CPU or when GPU memory is limited.
+- Repository scanning time depends on repository size, file count, and configured scan limits.
+- S3 storage is optional and requires valid AWS configuration.
+
+---
+
+## Acknowledgements
+
+Built as an internship project at Persistent Systems, with contributions from the project team and guidance from our mentors.
+
+---
