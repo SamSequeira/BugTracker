@@ -317,16 +317,22 @@ The test suite and available test files may change as the project evolves. Run t
 ## Application Screenshots
 ### 1. Home Page & Codebase Scanner
 <img width="100%" alt="Home" src="https://github.com/user-attachments/assets/24bff2ad-9745-4779-abd4-1e064ce37ea3" />
+
 ### 2. Codebase Scanner Results
 <img width="100%" alt="Tab1afterscan" src="https://github.com/user-attachments/assets/b57c23eb-7a16-4734-bc24-4c1782f7f9ae" />
+
 ### 3. AI Codebase Architecture & Topology
 <img width="100%" alt="Tab2" src="https://github.com/user-attachments/assets/d3566ca9-1547-4da3-a6e5-29f4f44e8c96" />
+
 ### 4. Bug Management & Issue Triage
 <img width="100%" alt="Tab3long" src="https://github.com/user-attachments/assets/1b940dbf-9e0b-4f68-91d1-6dd23bf3bcf3" />
+
 ### 5. Bug Reports & Audit
 <img width="100%" alt="Tab4" src="https://github.com/user-attachments/assets/0ca1f74a-48b8-457d-9821-80866f42ceae" />
+
 ### 6. Ground-Truth Review
 <img width="100%" alt="tab5" src="https://github.com/user-attachments/assets/3129288e-d507-4bf4-8174-44b8a22e6549" />
+
 ### 7. Application Settings
 <img width="100%" alt="settings" src="https://github.com/user-attachments/assets/53203c61-471f-4e35-bb96-3d55d4be7e6e" />
 
