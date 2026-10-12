@@ -315,7 +315,7 @@ The test suite and available test files may change as the project evolves. Run t
 ---
 
 ## Application Screenshots
-### 1. Home Page & Codebase Scanner
+### 1. Login Page
 <img width="100%" alt="Home" src="https://github.com/user-attachments/assets/24bff2ad-9745-4779-abd4-1e064ce37ea3" />
 
 ### 2. Codebase Scanner Results
